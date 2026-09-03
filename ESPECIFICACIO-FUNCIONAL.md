@@ -748,7 +748,14 @@ Aquesta secció registra l’estat real del desenvolupament i les properes fases
 - És diferent de `LinksEditor` (Fase 2): aquell és un modal d’edició que s’obre activitat per activitat des del botó “CA (n)”; el que falta és una vista de consulta, sense necessitat d’obrir cada activitat una a una, útil per revisar la coherència del repartiment abans d’una avaluació.
 - Ha de mostrar, per activitat: RA i CA relacionats (agrupats per RA), el percentatge assignat a cada CA i, idealment, el pes final resultant sobre la nota (percentatge × pes de l’activitat dins el seu tipus), per detectar fàcilment activitats amb repartiments incoherents o CA sense cap activitat associada.
 
-### Fase 6 — Ampliacions previstes (secció 25) · **Pendent**
+### Fase 6 — Graelles globals a l’estil dels fulls INSTRUMENTOS i APRENDIZAJE · **Pendent**
+
+- Dues pantalles de només lectura inspirades en l’estructura dels fulls `INSTRUMENTOS` i `APRENDIZAJE` de `imports/2-SMX-Generic-Avaluacio per RA.xlsx`, per tenir una visió de conjunt que ara no existeix (la pantalla “Notes” només mostra una activitat alhora).
+- **Graella d’activitats** (estil `INSTRUMENTOS`): una taula amb tots els alumnes actius del grup en files i totes les activitats actives en columnes, mostrant la nota total (`totalGrade`) de cada alumne a cada activitat d’un sol cop d’ull. Només lectura; per editar una nota es continua fent des de la pantalla “Notes”.
+- **Graella de RA** (estil `APRENDIZAJE`): una taula amb tots els alumnes en files i tots els RA actius en columnes, mostrant la nota projectada de cada RA per alumne (`calculateStudent(...).learningResults`) més una columna final amb la nota global/projectada del mòdul, equivalent a la columna “PROGRES DE CADA ALUMNO” de l’Excel.
+- Ambdues pantalles s’han de poder consultar per grup (A/B) igual que la resta de l’aplicació, i poden reaprofitar directament `calculateStudent()` del motor de càlcul sense lògica nova.
+
+### Fase 7 — Ampliacions previstes (secció 25) · **Pendent**
 
 - Un cop les fases anteriors estiguin sòlides: regles obligatòries de RA (el model ja té el camp `requiredRule` preparat), exportació a PDF, accions massives de qualificació i altres millores de la secció 25, per ordre de prioritat a decidir.
 
