@@ -742,7 +742,13 @@ Aquesta secció registra l’estat real del desenvolupament i les properes fases
 - Com a efecte derivat necessari, s’ha afegit el commutador d’arxivar/restaurar per a CA individuals a la pantalla “RA, CA i pesos” (abans no existia cap manera d’arxivar un CA sol).
 - **Verificat amb Playwright** contra el fitxer Excel real: creació i clonació de curs, marcatge de prova, arxivar/restaurar/seleccionar/eliminar un curs, arxivar un RA i un CA des de Configuració i veure’ls (amb botó “Restaura”) a Arxivats, donar de baixa un alumne i veure’l (amb “Reactiva”) a Arxivats, i la previsualització d’importació amb les tres caselles, l’impacte per alumne i el bloqueig del botó “Aplica” sense cap casella marcada. Cap error de consola.
 
-### Fase 5 — Ampliacions previstes (secció 25) · **Pendent**
+### Fase 5 — Pantalla de consulta de relacions activitat–RA–CA · **Pendent**
+
+- Falta una pantalla de només lectura on, per a cada activitat (projecte, examen, etc.), es puguin veure d’un cop d’ull els RA i CA associats i el percentatge que hi aporta cadascun.
+- És diferent de `LinksEditor` (Fase 2): aquell és un modal d’edició que s’obre activitat per activitat des del botó “CA (n)”; el que falta és una vista de consulta, sense necessitat d’obrir cada activitat una a una, útil per revisar la coherència del repartiment abans d’una avaluació.
+- Ha de mostrar, per activitat: RA i CA relacionats (agrupats per RA), el percentatge assignat a cada CA i, idealment, el pes final resultant sobre la nota (percentatge × pes de l’activitat dins el seu tipus), per detectar fàcilment activitats amb repartiments incoherents o CA sense cap activitat associada.
+
+### Fase 6 — Ampliacions previstes (secció 25) · **Pendent**
 
 - Un cop les fases anteriors estiguin sòlides: regles obligatòries de RA (el model ja té el camp `requiredRule` preparat), exportació a PDF, accions massives de qualificació i altres millores de la secció 25, per ordre de prioritat a decidir.
 
