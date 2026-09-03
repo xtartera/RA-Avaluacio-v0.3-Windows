@@ -761,6 +761,16 @@ Aquesta secció registra l’estat real del desenvolupament i les properes fases
 
 - Un cop les fases anteriors estiguin sòlides: regles obligatòries de RA (el model ja té el camp `requiredRule` preparat), exportació a PDF, accions massives de qualificació i altres millores de la secció 25, per ordre de prioritat a decidir.
 
+**Unitats de treball (UT) amb RA obligatori — captat el 2026-09-04, a concretar en una propera conversa.**
+
+Amplia la idea de la secció “Regles obligatòries per assolir RA” (línia 629): en comptes d’una sola activitat obligatòria per RA, es defineixen **4 UT** (unitats de treball), cadascuna agrupant els seus projectes, exàmens i speedruns, i cada UT vinculada a un RA general. Si l’alumne suspèn qualsevol dels exàmens de la UT, el RA vinculat queda com a suspès amb independència de la nota calculada (encara que surti superior a 5). Pendent de decidir si la nota calculada del RA es mostra igualment o queda oculta rere un clic quan el RA està suspès per aquesta via.
+
+Preguntes obertes per a la propera conversa:
+- Si la UT és una entitat nova (amb nom i llista d’activitats pròpia) o una agrupació/etiqueta sobre les activitats ja existents.
+- Si el suspens es dispara en suspendre **qualsevol** examen de la UT o **tots**, i què compta exactament com “examen” dins la UT (només activitats de tipus examen, o qualsevol activitat de la UT).
+- Si una UT es vincula a un únic RA o en pot tocar més d’un, com ja passa amb les activitats normals.
+- Si la nota numèrica del RA es mostra sempre o s’oculta rere un botó “Mostra nota” quan el RA està suspès per aquesta via (la secció 21/629 ja preveu ocultar-la per defecte).
+
 ### Millora visual del Resum del grup (fora de fase) · **Feta**
 
 - Corregits dos bugs visuals preexistents a `globals.css`: la insígnia del codi de RA (`.ra>b`, `.configRow>b`, `.reportRa b`) i la barra de cobertura de cada RA (`.ra u`) no tenien cap color de fons definit i eren invisibles.
