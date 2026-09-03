@@ -134,6 +134,7 @@ export interface AcademicCourse {
   academicYear: string;
   active: boolean;
   archived: boolean;
+  isTest: boolean;
   configuration: ModuleConfiguration;
   groups: Group[];
   imports: ImportBatch[];
@@ -164,10 +165,10 @@ export function emptyConfiguration(): ModuleConfiguration {
   };
 }
 
-export function createCourse(academicYear: string, configuration = emptyConfiguration()): AcademicCourse {
+export function createCourse(academicYear: string, configuration = emptyConfiguration(), isTest = false): AcademicCourse {
   const timestamp = nowIso();
   return {
-    id: newId("course"), academicYear, active: true, archived: false,
+    id: newId("course"), academicYear, active: true, archived: false, isTest,
     configuration: structuredClone(configuration), groups: [emptyGroup("A"), emptyGroup("B")],
     imports: [], createdAt: timestamp, updatedAt: timestamp,
   };

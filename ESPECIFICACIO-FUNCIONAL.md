@@ -729,14 +729,18 @@ Aquesta secció registra l’estat real del desenvolupament i les properes fases
 - **Verificat manualment amb Playwright** contra el fitxer Excel real importat (28 activitats, 48 CA, 22 alumnes): l’editor de relacions calcula bé el 100 % i el bloqueig en desactivar-lo; la previsualització amb pesos sense canviar mostra diferència 0,00 per als 22 alumnes (validant que `WeightImpactPreview` reprodueix exactament `calculateStudent`); amb un canvi real de pesos (Speedrun 20 %→50 %) mostra l’avís de suma incorrecta, el botó “Aplica” bloquejat i diferències coherents (positives o negatives segons el rendiment de cada alumne en Speedrun). Cap error de consola.
 - CSS: nova classe `.linkRow` a `globals.css` (variant de `.caRow` amb una tercera columna per al percentatge), sense tocar les regles existents.
 
-### Fase 3 — Previsualització d’importació sobre un curs existent · **Pendent**
+### Fase 3 — Previsualització d’importació sobre un curs existent · **Feta**
 
-- Substituir els `confirm()` encadenats del component `Data` per una pantalla de previsualització amb diferències (configuració / alumnes / notes) seleccionables independentment, seguint el procés detallat a la secció 9 i l’apartat “Importació sobre un curs existent”.
+- Substituïts els `confirm()` encadenats del component `Data` per `ImportPreviewModal`: en seleccionar un Excel, s’obre una previsualització amb tres caselles independents (“Configuració comuna”, “Alumnes del grup A”, “Notes del grup A”), el resum de xifres detectades i els advertiments de l’importador.
+- La modal calcula i mostra, en viu segons les caselles marcades, una taula d’“Impacte” per als grups A i B amb la nota projectada de cada alumne actiu abans i després d’aplicar la importació (aparellant alumnes pel nom normalitzat, perquè funcioni tant si es reemplaça la llista d’alumnes com si no). El botó “Aplica la importació” queda bloquejat si no hi ha cap casella marcada.
+- L’Excel no toca mai el grup B directament: el grup B només apareix a la previsualització quan canvia la configuració comuna (les seves notes es recalculen amb els pesos nous), tal com exigeix la secció 9.
 
-### Fase 4 — Pantalles que falten · **Pendent**
+### Fase 4 — Pantalles que falten · **Feta**
 
-- Gestió de cursos: clonar configuració comuna, marcar un curs com “de prova”, arxivar i restaurar cursos des d’una pantalla dedicada (ara és un `prompt()` mínim).
-- Consulta d’elements arxivats: pantalla per veure RA, CA, activitats i alumnes arxivats que ara desapareixen de les llistes actives.
+- **Gestió de cursos**: nova pestanya “Cursos” (`Courses`) amb un formulari per crear un curs nou clonant la configuració comuna de qualsevol curs existent (no només l’actiu) i marcar-lo com “de prova” (nou camp `isTest` a `AcademicCourse`), i una taula amb tots els cursos i accions Selecciona / Marca-Treu de prova / Arxiva-Restaura / Elimina. En arxivar el curs actiu s’activa automàticament un altre curs no arxivat si n’hi ha.
+- **Consulta d’elements arxivats**: nova pestanya “Arxivats” (`Archived`) amb quatre panells de només lectura + acció de restauració: RA arxivats, CA arxivats (agrupats amb el seu RA), activitats arxivades i alumnes de baixa dels dos grups.
+- Com a efecte derivat necessari, s’ha afegit el commutador d’arxivar/restaurar per a CA individuals a la pantalla “RA, CA i pesos” (abans no existia cap manera d’arxivar un CA sol).
+- **Verificat amb Playwright** contra el fitxer Excel real: creació i clonació de curs, marcatge de prova, arxivar/restaurar/seleccionar/eliminar un curs, arxivar un RA i un CA des de Configuració i veure’ls (amb botó “Restaura”) a Arxivats, donar de baixa un alumne i veure’l (amb “Reactiva”) a Arxivats, i la previsualització d’importació amb les tres caselles, l’impacte per alumne i el bloqueig del botó “Aplica” sense cap casella marcada. Cap error de consola.
 
 ### Fase 5 — Ampliacions previstes (secció 25) · **Pendent**
 
