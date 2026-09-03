@@ -748,6 +748,7 @@ Aquesta secció registra l’estat real del desenvolupament i les properes fases
 - Cada xip de CA mostra en el `title` (tooltip) el pes final sobre el mòdul (percentatge × pes de l’activitat dins el seu tipus, és a dir `pesBrut(CA, activitat)`), calculat reaprofitant `activityWeights()` del motor de càlcul.
 - Detecta i avisa (banner vermell a dalt de la taula) dels CA actius que no tenen cap activitat associada.
 - **Verificat amb Playwright** contra el fitxer Excel real: 28 files (una per activitat), 530 xips de relació renderitzats, cap CA orfe detectat (com correspon a un curs ja configurat correctament), el commutador Targetes/Relacions funciona en ambdós sentits. Cap error de consola.
+- **Ampliació posterior**: la vista “Targetes” de la mateixa pantalla també mostra ara, a cada targeta d’activitat, un xip per RA amb el percentatge sumat dels CA d’aquell RA amb valor a l’activitat (funció `raShares`), perquè no calgui canviar a la vista “Relacions” per veure de seguida quins RA toca una activitat i amb quin pes. Verificat que els percentatges de cada targeta sumen 100 %.
 
 ### Fase 6 — Graelles globals a l’estil dels fulls INSTRUMENTOS i APRENDIZAJE · **Pendent**
 
