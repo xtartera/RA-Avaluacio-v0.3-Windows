@@ -698,3 +698,42 @@ Abans de cada fase:
 ## 27. Prompt reutilitzable
 
 > Desenvolupa l’aplicació local RA · Avaluació seguint íntegrament `ESPECIFICACIO-FUNCIONAL.md`. Mantén una separació estricta entre model, controladors/casos d’ús, vista i adaptadors de persistència. Utilitza un model intern independent de l’Excel, IndexedDB darrere de repositoris i un motor de càlcul provat que reprodueixi les regles confirmades. Conserva l’estètica actual d’escriptori, treballa en català i no modifiquis cap decisió funcional sense assenyalar explícitament el conflicte i demanar validació. Implementa els canvis per fases petites, verificables i amb proves proporcionals al risc.
+
+## 28. Full de ruta d’implementació
+
+Aquesta secció registra l’estat real del desenvolupament i les properes fases previstes, per poder continuar el treball en sessions diferents sense perdre el fil. Cada fase s’ha de completar íntegrament (implementació + verificació) abans de passar a la següent, seguint el criteri general de la secció 26.
+
+### Fase 0 — Neteja del prototip anterior · **Feta**
+
+- Eliminats `src/model/course.ts` i `src/controllers/evaluation.ts`: un prototip amb dades fictícies (`Math.sin` per generar notes) que no estava connectat a l’aplicació real.
+- Verificat que `tsc --noEmit`, `npm test` i `npm run build` seguien passant després de l’eliminació.
+- Commit: `e935f2a`.
+
+### Fase 1 — Validar l’importador amb el fitxer Excel real · **Pendent**
+
+- Escriure tests que carreguin `imports/2-SMX-Generic-Avaluacio per RA.xlsx` amb `importEvaluationWorkbook`.
+- Comprovar les xifres confirmades a la secció 7.2: 6 RA actius, 48 CA reals, 22 alumnes al grup A, 17 activitats `Speedrun`, 3 `PR-Obert`, 4 exàmens teòrics, 4 exàmens pràctics.
+- Quan sigui possible, comparar els resultats de `calculateStudent()` amb els valors ja calculats i guardats a les fulles `CRITERIOS` i `APRENDIZAJE` (secció 9.13), com a prova de regressió contra l’Excel original.
+- Objectiu: tenir una xarxa de seguretat abans de tocar l’importador o el motor de càlcul en fases posteriors.
+
+### Fase 2 — Editor de relacions activitat–CA i ponderacions amb previsualització real · **Pendent**
+
+- Pantalla per crear, editar i eliminar `ActivityCriterionLink`, validant que el repartiment d’una activitat entre CA sumi el 100 % (secció 24).
+- En comptes del `confirm()` actual a `Config`, mostrar una taula real d’impacte (notes abans/després) quan es canvien ponderacions, tal com exigeix la secció 17.
+
+### Fase 3 — Previsualització d’importació sobre un curs existent · **Pendent**
+
+- Substituir els `confirm()` encadenats del component `Data` per una pantalla de previsualització amb diferències (configuració / alumnes / notes) seleccionables independentment, seguint el procés detallat a la secció 9 i l’apartat “Importació sobre un curs existent”.
+
+### Fase 4 — Pantalles que falten · **Pendent**
+
+- Gestió de cursos: clonar configuració comuna, marcar un curs com “de prova”, arxivar i restaurar cursos des d’una pantalla dedicada (ara és un `prompt()` mínim).
+- Consulta d’elements arxivats: pantalla per veure RA, CA, activitats i alumnes arxivats que ara desapareixen de les llistes actives.
+
+### Fase 5 — Ampliacions previstes (secció 25) · **Pendent**
+
+- Un cop les fases anteriors estiguin sòlides: regles obligatòries de RA (el model ja té el camp `requiredRule` preparat), exportació a PDF, accions massives de qualificació i altres millores de la secció 25, per ordre de prioritat a decidir.
+
+### Registre de decisions durant la implementació
+
+Si durant una fase cal desviar-se d’una decisió d’aquest document, cal anotar-ho aquí amb la data i el motiu abans de continuar, en lloc de modificar silenciosament les seccions anteriors.
