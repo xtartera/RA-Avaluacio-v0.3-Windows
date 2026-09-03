@@ -770,6 +770,12 @@ Aquesta secció registra l’estat real del desenvolupament i les properes fases
 - Colors reaprofitats dels ja existents a l’aplicació (`.ok`/`.risk`: verd `#15825f`, vermell `#c54c5c`) i validats amb l’script `validate_palette.js` de l’skill de visualització de dades: separació CVD 6,3 (banda mínima legal), per això totes les barres porten sempre etiqueta numèrica directa i llegenda, mai només color.
 - **Verificat amb Playwright** contra el fitxer Excel real: els dos bugs de color es veuen corregits, els gràfics nous renderitzen amb els comptatges correctes (9+3+5+3+2=22 alumnes actius) i cap error de consola.
 
+### Informe per activitat (fora de fase) · **Feta**
+
+- Cada targeta de la pantalla Activitats té ara un quart botó “Informe” que obre `ActivityReport`, un modal amb tota la informació rellevant d’aquella activitat un cop avaluada: tipus, trimestre, data i estat; mitjana, aprovats/suspesos (amb la mateixa barra de proporció del Resum), bonificacions aplicades i pes de l’activitat sobre la nota del mòdul; l’histograma “Distribució de notes” (les mateixes 5 franges del Resum, però calculades només amb les notes d’aquesta activitat); i el detall de RA i CA treballats amb el percentatge de cadascun (reaprofitant `raShares` de la Fase 5).
+- Refactor de suport: `computeBands`, `Histogram` i `PassBar` s’han extret com a funcions reutilitzables perquè el Resum del grup i aquest informe comparteixin exactament la mateixa lògica de franges i el mateix component visual, sense duplicar-los.
+- **Verificat amb Playwright** contra el fitxer Excel real: els 28 botons “Informe” obren el modal correcte, i les dades del modal (p. ex. RA1 70% · RA5 30% a “Projecte 1”) coincideixen amb els xips ja mostrats a la targeta. Cap error de consola.
+
 ### Registre de decisions durant la implementació
 
 Si durant una fase cal desviar-se d’una decisió d’aquest document, cal anotar-ho aquí amb la data i el motiu abans de continuar, en lloc de modificar silenciosament les seccions anteriors.
