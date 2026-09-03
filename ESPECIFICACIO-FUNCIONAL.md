@@ -776,6 +776,13 @@ Aquesta secció registra l’estat real del desenvolupament i les properes fases
 - Refactor de suport: `computeBands`, `Histogram` i `PassBar` s’han extret com a funcions reutilitzables perquè el Resum del grup i aquest informe comparteixin exactament la mateixa lògica de franges i el mateix component visual, sense duplicar-los.
 - **Verificat amb Playwright** contra el fitxer Excel real: els 28 botons “Informe” obren el modal correcte, i les dades del modal (p. ex. RA1 70% · RA5 30% a “Projecte 1”) coincideixen amb els xips ja mostrats a la targeta. Cap error de consola.
 
+### Accés directe a qualificar des de la targeta d’activitat (fora de fase) · **Feta**
+
+- Cada targeta d’activitat té ara un botó destacat “Qualifica” (el primer del peu, amb estil fosc) que porta directament a la pantalla Notes amb aquella activitat ja preseleccionada al desplegable, sense haver de buscar-la manualment entre totes les activitats del curs.
+- Implementat amb un estat `focusActivity` a `Home`, passat a `Grades`, que sincronitza el desplegable d’activitat amb un `useEffect` i després es neteja perquè no torni a forçar la selecció si l’usuari canvia d’activitat manualment.
+- Efecte derivat necessari: `.activities footer .dark` s’ha afegit a `globals.css` perquè un botó amb `className="dark"` dins del peu d’una targeta d’activitat es pinti fosc (el reset de botons de `.activities footer button` tenia més especificitat que `.dark` sol i l’anul·lava).
+- **Verificat amb Playwright** contra el fitxer Excel real: clicar “Qualifica” a la targeta de “Projecte 3” (la tercera, no la primera) porta a Notes amb “Projecte 3” exactament seleccionat. Cap error de consola.
+
 ### Registre de decisions durant la implementació
 
 Si durant una fase cal desviar-se d’una decisió d’aquest document, cal anotar-ho aquí amb la data i el motiu abans de continuar, en lloc de modificar silenciosament les seccions anteriors.
