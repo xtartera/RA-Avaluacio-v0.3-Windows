@@ -742,11 +742,12 @@ Aquesta secció registra l’estat real del desenvolupament i les properes fases
 - Com a efecte derivat necessari, s’ha afegit el commutador d’arxivar/restaurar per a CA individuals a la pantalla “RA, CA i pesos” (abans no existia cap manera d’arxivar un CA sol).
 - **Verificat amb Playwright** contra el fitxer Excel real: creació i clonació de curs, marcatge de prova, arxivar/restaurar/seleccionar/eliminar un curs, arxivar un RA i un CA des de Configuració i veure’ls (amb botó “Restaura”) a Arxivats, donar de baixa un alumne i veure’l (amb “Reactiva”) a Arxivats, i la previsualització d’importació amb les tres caselles, l’impacte per alumne i el bloqueig del botó “Aplica” sense cap casella marcada. Cap error de consola.
 
-### Fase 5 — Pantalla de consulta de relacions activitat–RA–CA · **Pendent**
+### Fase 5 — Pantalla de consulta de relacions activitat–RA–CA · **Feta**
 
-- Falta una pantalla de només lectura on, per a cada activitat (projecte, examen, etc.), es puguin veure d’un cop d’ull els RA i CA associats i el percentatge que hi aporta cadascun.
-- És diferent de `LinksEditor` (Fase 2): aquell és un modal d’edició que s’obre activitat per activitat des del botó “CA (n)”; el que falta és una vista de consulta, sense necessitat d’obrir cada activitat una a una, útil per revisar la coherència del repartiment abans d’una avaluació.
-- Ha de mostrar, per activitat: RA i CA relacionats (agrupats per RA), el percentatge assignat a cada CA i, idealment, el pes final resultant sobre la nota (percentatge × pes de l’activitat dins el seu tipus), per detectar fàcilment activitats amb repartiments incoherents o CA sense cap activitat associada.
+- Afegit `RelationsOverview`, accessible amb un commutador “Targetes / Relacions RA · CA” a la pantalla Activitats (al costat del botó “Nova activitat”), que substitueix la graella de targetes per una taula de només lectura: una fila per activitat amb els seus RA i CA agrupats per RA i el percentatge assignat a cada CA, sense haver d’obrir cap modal.
+- Cada xip de CA mostra en el `title` (tooltip) el pes final sobre el mòdul (percentatge × pes de l’activitat dins el seu tipus, és a dir `pesBrut(CA, activitat)`), calculat reaprofitant `activityWeights()` del motor de càlcul.
+- Detecta i avisa (banner vermell a dalt de la taula) dels CA actius que no tenen cap activitat associada.
+- **Verificat amb Playwright** contra el fitxer Excel real: 28 files (una per activitat), 530 xips de relació renderitzats, cap CA orfe detectat (com correspon a un curs ja configurat correctament), el commutador Targetes/Relacions funciona en ambdós sentits. Cap error de consola.
 
 ### Fase 6 — Graelles globals a l’estil dels fulls INSTRUMENTOS i APRENDIZAJE · **Pendent**
 
