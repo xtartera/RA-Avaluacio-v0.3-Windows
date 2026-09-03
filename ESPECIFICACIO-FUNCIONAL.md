@@ -761,6 +761,15 @@ Aquesta secció registra l’estat real del desenvolupament i les properes fases
 
 - Un cop les fases anteriors estiguin sòlides: regles obligatòries de RA (el model ja té el camp `requiredRule` preparat), exportació a PDF, accions massives de qualificació i altres millores de la secció 25, per ordre de prioritat a decidir.
 
+### Millora visual del Resum del grup (fora de fase) · **Feta**
+
+- Corregits dos bugs visuals preexistents a `globals.css`: la insígnia del codi de RA (`.ra>b`, `.configRow>b`, `.reportRa b`) i la barra de cobertura de cada RA (`.ra u`) no tenien cap color de fons definit i eren invisibles.
+- Ampliada la targeta “Alumnes aprovats” amb una barra de proporció aprovats/suspesos.
+- Nou gràfic “Distribució de notes”: histograma amb 5 franges (Insuficient/Suficient/Bé/Notable/Excel·lent), Insuficient en vermell (color d’estat) i la resta en una rampa seqüencial d’un sol to verd de clar a fosc segons el nivell.
+- Nou panell “Aprovats per RA”: una barra de proporció aprovats/suspesos per a cada RA, per detectar de seguida quin RA arrossega més suspesos.
+- Colors reaprofitats dels ja existents a l’aplicació (`.ok`/`.risk`: verd `#15825f`, vermell `#c54c5c`) i validats amb l’script `validate_palette.js` de l’skill de visualització de dades: separació CVD 6,3 (banda mínima legal), per això totes les barres porten sempre etiqueta numèrica directa i llegenda, mai només color.
+- **Verificat amb Playwright** contra el fitxer Excel real: els dos bugs de color es veuen corregits, els gràfics nous renderitzen amb els comptatges correctes (9+3+5+3+2=22 alumnes actius) i cap error de consola.
+
 ### Registre de decisions durant la implementació
 
 Si durant una fase cal desviar-se d’una decisió d’aquest document, cal anotar-ho aquí amb la data i el motiu abans de continuar, en lloc de modificar silenciosament les seccions anteriors.
