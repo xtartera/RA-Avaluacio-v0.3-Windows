@@ -1,0 +1,11 @@
+{
+  "folders": [{ "name": "RA · Avaluació", "path": "." }],
+  "settings": {
+    "files.exclude": { "node_modules": true, "dist": true, ".sites-runtime": true },
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "editor.formatOnSave": true
+  },
+  "extensions": {
+    "recommendations": ["dbaeumer.vscode-eslint", "bradlc.vscode-tailwindcss"]
+  }
+}
