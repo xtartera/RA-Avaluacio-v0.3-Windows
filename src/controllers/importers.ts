@@ -3,7 +3,7 @@ import {
   createCourse, newId, nowIso,
   type AcademicCourse, type Activity, type ActivityCriterionLink, type ActivityType,
   type AssessmentCriterion, type Grade, type GradeBonus, type LearningResult,
-} from "../model/domain";
+} from "../model/domain.ts";
 
 export interface ImportPreview {
   course: AcademicCourse;

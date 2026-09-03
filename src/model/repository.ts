@@ -1,4 +1,4 @@
-import type {AppDatabase} from "./domain";
+import type {AppDatabase} from "./domain.ts";
 
 export interface AppRepository {
   load(): Promise<AppDatabase>;

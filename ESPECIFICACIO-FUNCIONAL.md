@@ -709,12 +709,18 @@ Aquesta secció registra l’estat real del desenvolupament i les properes fases
 - Verificat que `tsc --noEmit`, `npm test` i `npm run build` seguien passant després de l’eliminació.
 - Commit: `e935f2a`.
 
-### Fase 1 — Validar l’importador amb el fitxer Excel real · **Pendent**
+### Fase 1 — Validar l’importador amb el fitxer Excel real · **Feta**
 
-- Escriure tests que carreguin `imports/2-SMX-Generic-Avaluacio per RA.xlsx` amb `importEvaluationWorkbook`.
-- Comprovar les xifres confirmades a la secció 7.2: 6 RA actius, 48 CA reals, 22 alumnes al grup A, 17 activitats `Speedrun`, 3 `PR-Obert`, 4 exàmens teòrics, 4 exàmens pràctics.
-- Quan sigui possible, comparar els resultats de `calculateStudent()` amb els valors ja calculats i guardats a les fulles `CRITERIOS` i `APRENDIZAJE` (secció 9.13), com a prova de regressió contra l’Excel original.
-- Objectiu: tenir una xarxa de seguretat abans de tocar l’importador o el motor de càlcul en fases posteriors.
+- Afegit `tests/importer.test.ts`, que carrega `imports/2-SMX-Generic-Avaluacio per RA.xlsx` real amb `importEvaluationWorkbook` i verifica:
+  - les xifres confirmades a la secció 7.2 (6 RA, 48 CA, 28 activitats, 22 alumnes, 407 notes, cap advertiment);
+  - els pesos globals de cada RA contra els valors guardats a la fulla `APRENDIZAJE` (tolerància 1e-4);
+  - les notes projectades d’alumnes completament avaluats contra la columna de nota global de `APRENDIZAJE` (tolerància 0,005) per a alumnes sense notes brutes superiors a 10;
+  - el truncament a 10 d’una nota directa superior a 10 sense fórmula (secció 15), amb el cas real de `BENET BACH, ERIC` a `Projecte 2` (valor brut 11,36 → nota base 10);
+  - la separació de fórmules `=base+bonificació` de l’Excel en nota base i bonificacions;
+  - el rebuig de fitxers amb extensió no admesa;
+  - la validació del CSV d’alumnes (duplicats, límit de 25, files buides, ordenació en català).
+- **Descoberta durant la verificació**: alguns alumnes (p. ex. `BENET BACH, ERIC`, `CORTES ROVIRA, EDURNE`, `CSONKA, GIULIA ANDREEA`, `PUIGVÍ SANGLAS, GIL`) tenen notes projectades que divergeixen de l’Excel original fins a ~0,04 punts sobre 10. S’ha confirmat que la causa és sempre una nota bruta superior a 10 sense fórmula de bonificació a l’Excel (p. ex. l’11,36 de `BENET BACH` a `Projecte 2`): el motor intern l’importa correctament truncada a 10 (secció 15), mentre que l’Excel original la fa servir sense truncar en els seus propis càlculs guardats. La divergència és, doncs, intencionada i correcta, no un error de l’importador ni del motor de càlcul. Els pesos (`pesGlobalCA`, `pesRA`) i les notes de tots els alumnes sense aquest cas coincideixen exactament amb l’Excel.
+- Fitxers afectats per la neteja associada: `src/controllers/database.ts`, `src/controllers/importers.ts` i `src/model/repository.ts` ara importen `../model/domain.ts` amb l’extensió explícita (com ja feia `calculation.ts`), necessari perquè `node --experimental-strip-types --test` pugui resoldre els mòduls sense passar per Vite.
 
 ### Fase 2 — Editor de relacions activitat–CA i ponderacions amb previsualització real · **Pendent**
 

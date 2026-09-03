@@ -1,4 +1,4 @@
-import {newId, nowIso, type AppDatabase, type Grade, type GradeHistoryEntry} from "../model/domain";
+import {newId, nowIso, type AppDatabase, type Grade, type GradeHistoryEntry} from "../model/domain.ts";
 
 export function recordGradeChange(database: AppDatabase, previous: Grade | null, next: Grade | null, action: string): GradeHistoryEntry {
   const entry = {id:newId("history"), gradeId:(next ?? previous)!.id, at:nowIso(), action, previous:previous ? structuredClone(previous) : null, next:next ? structuredClone(next) : null};
