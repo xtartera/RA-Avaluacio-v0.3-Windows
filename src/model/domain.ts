@@ -9,7 +9,6 @@ export interface LearningResult {
   description: string;
   order: number;
   status: EntityStatus;
-  requiredRule?: { activityId: Id; minimum: number };
 }
 
 export interface AssessmentCriterion {
@@ -45,6 +44,18 @@ export interface ActivityCriterionLink {
   allocation: number;
 }
 
+export interface WorkUnit {
+  id: Id;
+  name: string;
+  activityIds: Id[];
+  requiredActivityIds: Id[];
+  learningResultIds: Id[];
+  order: number;
+  status: EntityStatus;
+}
+
+export type RaAveraging = "simple" | "weighted";
+
 export interface ModuleConfiguration {
   moduleName: string;
   abbreviation: string;
@@ -54,6 +65,9 @@ export interface ModuleConfiguration {
   activityTypes: ActivityType[];
   activities: Activity[];
   links: ActivityCriterionLink[];
+  workUnits: WorkUnit[];
+  raAveraging: RaAveraging;
+  roundingThreshold: number;
 }
 
 export interface Student {
@@ -161,8 +175,17 @@ export function emptyGroup(code: GroupCode): Group {
 export function emptyConfiguration(): ModuleConfiguration {
   return {
     moduleName: "Sistemes Operatius en Xarxa", abbreviation: "SOX", level: "2n SMX",
-    learningResults: [], criteria: [], activityTypes: [], activities: [], links: [],
+    learningResults: [], criteria: [], activityTypes: [], activities: [], links: [], workUnits: [], raAveraging: "simple", roundingThreshold: .75,
   };
+}
+
+export function migrateDatabase(data: AppDatabase): AppDatabase {
+  for (const course of data.courses) {
+    if (!course.configuration.workUnits) course.configuration.workUnits = [];
+    if (!course.configuration.raAveraging) course.configuration.raAveraging = "simple";
+    if (course.configuration.roundingThreshold === undefined) course.configuration.roundingThreshold = .75;
+  }
+  return data;
 }
 
 export function createCourse(academicYear: string, configuration = emptyConfiguration(), isTest = false): AcademicCourse {

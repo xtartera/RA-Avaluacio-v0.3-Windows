@@ -1,4 +1,4 @@
-import type {AcademicCourse, Activity, AssessmentCriterion, Grade, Group, LearningResult} from "./domain.ts";
+import type {AcademicCourse, Activity, AssessmentCriterion, Grade, Group, LearningResult, RaAveraging} from "./domain.ts";
 
 export const totalGrade = (grade: Grade | undefined): number | null => {
   if (!grade || grade.status === "pending") return null;
@@ -29,9 +29,50 @@ function activeCriteria(course: AcademicCourse, ra?: LearningResult): Assessment
   return course.configuration.criteria.filter(c => c.status === "active" && (!ra || c.learningResultId === ra.id));
 }
 
+function criterionWeights(course: AcademicCourse, weights: Map<string, number>): Map<string, number> {
+  const result = new Map<string, number>();
+  for (const criterion of activeCriteria(course)) {
+    const links = course.configuration.links.filter(link => link.criterionId === criterion.id);
+    let total = 0;
+    for (const link of links) total += link.allocation * (weights.get(link.activityId) ?? 0);
+    result.set(criterion.id, total);
+  }
+  return result;
+}
+
+export function raWeights(course: AcademicCourse): Map<string, number> {
+  const criterionGlobalWeights = criterionWeights(course, activityWeights(course));
+  const result = new Map<string, number>();
+  for (const ra of course.configuration.learningResults.filter(item => item.status === "active")) {
+    const criteria = activeCriteria(course, ra);
+    result.set(ra.id, criteria.reduce((sum, c) => sum + (criterionGlobalWeights.get(c.id) ?? 0), 0));
+  }
+  return result;
+}
+
+function raScore(policy: RaAveraging, assessedCriteria: AssessmentCriterion[], criterionScores: Map<string, number>, criterionGlobalWeights: Map<string, number>): number {
+  if (!assessedCriteria.length) return 0;
+  if (policy === "weighted") {
+    const totalWeight = assessedCriteria.reduce((sum, c) => sum + (criterionGlobalWeights.get(c.id) ?? 0), 0);
+    return totalWeight ? assessedCriteria.reduce((sum, c) => sum + (criterionScores.get(c.id) ?? 0) * (criterionGlobalWeights.get(c.id) ?? 0), 0) / totalWeight : 0;
+  }
+  return assessedCriteria.reduce((sum, c) => sum + (criterionScores.get(c.id) ?? 0), 0) / assessedCriteria.length;
+}
+
+export function failingRequiredActivities(course: AcademicCourse, group: Group, enrollmentId: string, learningResultId: string): number {
+  const units = course.configuration.workUnits.filter(u => u.status === "active" && u.learningResultIds.includes(learningResultId));
+  const failing = new Set<string>();
+  for (const unit of units) for (const activityId of unit.requiredActivityIds) {
+    const grade = group.grades.find(g => g.enrollmentId === enrollmentId && g.activityId === activityId);
+    const total = totalGrade(grade);
+    if (total !== null && total < 5) failing.add(activityId);
+  }
+  return failing.size;
+}
+
 export interface StudentCalculation {
   criteria: Map<string, number>;
-  learningResults: Map<string, {score: number; coverage: number}>;
+  learningResults: Map<string, {score: number; coverage: number; failingActivities: number}>;
   globalScore: number;
   globalCoverage: number;
 }
@@ -40,20 +81,13 @@ export function calculateStudent(course: AcademicCourse, group: Group, enrollmen
   const weights = activityWeights(course);
   const evaluated = new Set(course.configuration.activities.filter(a => activityIsEvaluated(group, a.id)).map(a => a.id));
   const criterionScores = new Map<string, number>();
-  const criterionGlobalWeights = new Map<string, number>();
+  const criterionGlobalWeights = criterionWeights(course, weights);
   const criterionEvaluatedWeights = new Map<string, number>();
-  const contribution = new Map<string, Map<string, number>>();
 
   for (const criterion of activeCriteria(course)) {
     const links = course.configuration.links.filter(link => link.criterionId === criterion.id);
     const raw = new Map<string, number>();
-    let total = 0;
-    for (const link of links) {
-      const value = link.allocation * (weights.get(link.activityId) ?? 0);
-      raw.set(link.activityId, value); total += value;
-    }
-    criterionGlobalWeights.set(criterion.id, total);
-    contribution.set(criterion.id, raw);
+    for (const link of links) raw.set(link.activityId, link.allocation * (weights.get(link.activityId) ?? 0));
     const evaluatedTotal = [...raw].filter(([activityId]) => evaluated.has(activityId)).reduce((sum, [, value]) => sum + value, 0);
     criterionEvaluatedWeights.set(criterion.id, evaluatedTotal);
     let score = 0;
@@ -65,18 +99,18 @@ export function calculateStudent(course: AcademicCourse, group: Group, enrollmen
     criterionScores.set(criterion.id, score);
   }
 
-  const raResults = new Map<string, {score: number; coverage: number}>();
+  const raResults = new Map<string, {score: number; coverage: number; failingActivities: number}>();
   let globalScore = 0; let globalCoverage = 0; let totalRaWeight = 0;
   for (const ra of course.configuration.learningResults.filter(item => item.status === "active")) {
     const criteria = activeCriteria(course, ra);
     const raWeight = criteria.reduce((sum, c) => sum + (criterionGlobalWeights.get(c.id) ?? 0), 0);
     const assessedCriteria = criteria.filter(c => (criterionEvaluatedWeights.get(c.id) ?? 0) > 0);
-    const score = assessedCriteria.length ? assessedCriteria.reduce((sum, c) => sum + (criterionScores.get(c.id) ?? 0), 0) / assessedCriteria.length : 0;
+    const score = raScore(course.configuration.raAveraging, assessedCriteria, criterionScores, criterionGlobalWeights);
     const relatedActivityIds = new Set(course.configuration.links.filter(l => criteria.some(c => c.id === l.criterionId)).map(l => l.activityId));
     const possible = [...relatedActivityIds].reduce((sum, id) => sum + (weights.get(id) ?? 0), 0);
     const done = [...relatedActivityIds].filter(id => evaluated.has(id)).reduce((sum, id) => sum + (weights.get(id) ?? 0), 0);
     const coverage = possible ? Math.min(100, done / possible * 100) : 0;
-    raResults.set(ra.id, {score, coverage});
+    raResults.set(ra.id, {score, coverage, failingActivities: failingRequiredActivities(course, group, enrollmentId, ra.id)});
     const effectiveWeight = raWeight * coverage / 100;
     globalScore += score * effectiveWeight; totalRaWeight += effectiveWeight;
   }
@@ -86,7 +120,7 @@ export function calculateStudent(course: AcademicCourse, group: Group, enrollmen
   return {criteria: criterionScores, learningResults: raResults, globalScore: totalRaWeight ? globalScore / totalRaWeight : 0, globalCoverage};
 }
 
-export const finalInteger = (value: number) => Math.floor(value) + (value - Math.floor(value) >= .75 ? 1 : 0);
+export const finalInteger = (value: number, threshold = .75) => Math.floor(value) + (value - Math.floor(value) >= threshold ? 1 : 0);
 
 export function groupAverage(course: AcademicCourse, group: Group): number {
   const active = group.enrollments.filter(e => e.status === "active");

@@ -1,4 +1,4 @@
-import type {AppDatabase} from "./domain.ts";
+import {migrateDatabase, type AppDatabase} from "./domain.ts";
 
 export interface AppRepository {
   load(): Promise<AppDatabase>;
@@ -23,7 +23,7 @@ export class IndexedDbRepository implements AppRepository {
     const db = await this.open();
     return new Promise((resolve, reject) => {
       const request = db.transaction(this.storeName, "readonly").objectStore(this.storeName).get("database");
-      request.onsuccess = () => resolve(request.result ?? structuredClone(EMPTY));
+      request.onsuccess = () => resolve(migrateDatabase(request.result ?? structuredClone(EMPTY)));
       request.onerror = () => reject(request.error);
     });
   }
