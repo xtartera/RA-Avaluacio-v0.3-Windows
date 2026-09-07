@@ -3,7 +3,8 @@ import {readFileSync} from "node:fs";
 import test from "node:test";
 import {activityWeights, calculateStudent} from "../src/model/calculation.ts";
 import type {AcademicCourse, Group} from "../src/model/domain.ts";
-import {importEvaluationWorkbook, parseStudentCsv} from "../src/controllers/importers.ts";
+import {applyModuleRaCaCsv, importEvaluationWorkbook, parseModuleRaCaCsv, parseStudentCsv} from "../src/controllers/importers.ts";
+import {emptyConfiguration} from "../src/model/domain.ts";
 
 const SAMPLE_PATH = "imports/2-SMX-Generic-Avaluacio per RA.xlsx";
 
@@ -110,4 +111,42 @@ test("el CSV d'alumnes rebutja duplicats i llistes de més de 25 noms", () => {
 test("el CSV d'alumnes ignora files buides i ordena alfabèticament en català", () => {
   const {names} = parseStudentCsv("nom\nÓscar\n\nÀlex\nBernat");
   assert.deepEqual(names, ["Àlex", "Bernat", "Óscar"]);
+});
+
+test("el CSV de RA i CA del mòdul llegeix les quatre columnes, ometent la capçalera opcional", () => {
+  const {rows, warnings} = parseModuleRaCaCsv("ra,descripció ra,ca,descripció ca\nRA1,Instal·la sistemes,CA1.1,Instal·la el sistema\nRA1,Instal·la sistemes,CA1.2,Configura la xarxa");
+  assert.deepEqual(rows, [
+    {raCode: "RA1", raDescription: "Instal·la sistemes", caCode: "CA1.1", caDescription: "Instal·la el sistema"},
+    {raCode: "RA1", raDescription: "Instal·la sistemes", caCode: "CA1.2", caDescription: "Configura la xarxa"},
+  ]);
+  assert.deepEqual(warnings, []);
+});
+
+test("el CSV de RA i CA accepta descripcions amb comes entre cometes, i avisa (sense rebutjar el fitxer) de files incompletes o CA repetits dins el mateix RA", () => {
+  const {rows, warnings} = parseModuleRaCaCsv('RA2,"Redacta, revisa i lliura documents",CA2.1,"Redacta la memòria"\nRA2,Redacta,CA2.1,Duplicat\nRA2,Redacta,CA2.2,\n');
+  assert.deepEqual(rows, [{raCode: "RA2", raDescription: "Redacta, revisa i lliura documents", caCode: "CA2.1", caDescription: "Redacta la memòria"}]);
+  assert.equal(warnings.length, 2);
+});
+
+test("el CSV de RA i CA rebutja un fitxer sense cap fila vàlida", () => {
+  assert.throws(() => parseModuleRaCaCsv("ra,descripció ra,ca,descripció ca\nRA1,Descripció,CA1.1,"), /cap fila vàlida/);
+});
+
+test("applyModuleRaCaCsv crea els RA que no existeixen i ignora els CA amb un codi ja existent en el seu RA", () => {
+  const config = emptyConfiguration();
+  const first = applyModuleRaCaCsv(config, [
+    {raCode: "RA1", raDescription: "Instal·la sistemes", caCode: "CA1.1", caDescription: "Instal·la el sistema"},
+    {raCode: "RA1", raDescription: "Instal·la sistemes", caCode: "CA1.2", caDescription: "Configura la xarxa"},
+    {raCode: "RA2", raDescription: "Administra usuaris", caCode: "CA2.1", caDescription: "Crea comptes d’usuari"},
+  ]);
+  assert.deepEqual(first, {raCreated: 2, caCreated: 3, caSkipped: 0});
+  assert.equal(config.learningResults.length, 2);
+  assert.equal(config.criteria.length, 3);
+  const second = applyModuleRaCaCsv(config, [
+    {raCode: "RA1", raDescription: "Instal·la sistemes", caCode: "CA1.1", caDescription: "Repetit, s’ha d’ometre"},
+    {raCode: "RA1", raDescription: "Instal·la sistemes", caCode: "CA1.3", caDescription: "Nou CA del RA1 existent"},
+  ]);
+  assert.deepEqual(second, {raCreated: 0, caCreated: 1, caSkipped: 1});
+  assert.equal(config.learningResults.length, 2, "no s’ha de duplicar el RA1 ja existent");
+  assert.equal(config.criteria.length, 4);
 });

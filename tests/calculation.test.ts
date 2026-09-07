@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {activityIsEvaluated,calculateStudent,finalInteger,totalGrade} from "../src/model/calculation.ts";
+import {activityIsEvaluated,calculateStudent,finalInteger,groupAsOfTerm,totalGrade} from "../src/model/calculation.ts";
 import {createCourse,newId,nowIso,type Grade} from "../src/model/domain.ts";
 
 function fixture(){
@@ -38,6 +38,8 @@ test("una UT bloqueja el RA vinculat encara que la nota calculada surti aprovada
  const result=calculateStudent(course,group,group.enrollments[0].id).learningResults.get(ra.id)!;
  assert.equal(result.failingActivities,1);
  assert.equal(result.score>=5,true);
+ config.requiredActivityMinGrade=2;
+ assert.equal(calculateStudent(course,group,group.enrollments[0].id).learningResults.get(ra.id)!.failingActivities,0);
 });
 test("una UT arxivada, o un examen encara no qualificat, no bloqueja el RA",()=>{
  const {course,group,activities}=fixture(),ra=course.configuration.learningResults[0];
@@ -48,6 +50,55 @@ test("una UT arxivada, o un examen encara no qualificat, no bloqueja el RA",()=>
  const failing=group.enrollments[0].id;
  group.grades.find(g=>g.enrollmentId===failing&&g.activityId===activities[0].id)!.baseValue=2;
  assert.equal(calculateStudent(course,group,failing).learningResults.get(ra.id)!.failingActivities,0);
+});
+test("groupAsOfTerm només considera les activitats fetes fins a un trimestre, per projectar l'evolució",()=>{
+ const course=createCourse("2026–2027"),group=course.groups[0],config=course.configuration;
+ const type={id:newId("type"),name:"Projecte",weight:1,status:"active" as const};
+ const ra={id:newId("ra"),code:"RA1",description:"RA de prova",order:1,status:"active" as const};
+ const ca={id:newId("ca"),learningResultId:ra.id,code:"1.A",description:"CA de prova",order:1,status:"active" as const};
+ const act1={id:newId("activity"),name:"T1",activityTypeId:type.id,term:1 as const,date:null,order:1,status:"active" as const};
+ const act2={id:newId("activity"),name:"T2",activityTypeId:type.id,term:2 as const,date:null,order:2,status:"active" as const};
+ config.activityTypes=[type];config.learningResults=[ra];config.criteria=[ca];config.activities=[act1,act2];
+ config.links=[{id:newId("link"),activityId:act1.id,criterionId:ca.id,allocation:1},{id:newId("link"),activityId:act2.id,criterionId:ca.id,allocation:1}];
+ for(let i=0;i<5;i++){
+  const student={id:newId("student"),name:`Alumne ${i+1}`},enrollment={id:newId("enrollment"),studentId:student.id,groupId:group.id,status:"active" as const,createdAt:nowIso()};
+  group.students.push(student);group.enrollments.push(enrollment);
+  group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:act1.id,status:"graded",baseValue:8,bonuses:[],updatedAt:nowIso()});
+  group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:act2.id,status:"graded",baseValue:2,bonuses:[],updatedAt:nowIso()});
+ }
+ const enrollmentId=group.enrollments[0].id;
+ const full=calculateStudent(course,group,enrollmentId);
+ assert.equal(full.globalScore,5);
+ assert.equal(full.globalCoverage,100);
+ const t1Group=groupAsOfTerm(course,group,1);
+ const asOfT1=calculateStudent(course,t1Group,enrollmentId);
+ assert.equal(asOfT1.globalScore,8);
+ assert.equal(asOfT1.globalCoverage,50);
+});
+test("groupAsOfTerm admet més de dos trimestres (p. ex. per a un curs de tres)",()=>{
+ const course=createCourse("2026–2027"),group=course.groups[0],config=course.configuration;
+ const type={id:newId("type"),name:"Projecte",weight:1,status:"active" as const};
+ const ra={id:newId("ra"),code:"RA1",description:"RA de prova",order:1,status:"active" as const};
+ const ca={id:newId("ca"),learningResultId:ra.id,code:"1.A",description:"CA de prova",order:1,status:"active" as const};
+ const act1={id:newId("activity"),name:"T1",activityTypeId:type.id,term:1,date:null,order:1,status:"active" as const};
+ const act2={id:newId("activity"),name:"T2",activityTypeId:type.id,term:2,date:null,order:2,status:"active" as const};
+ const act3={id:newId("activity"),name:"T3",activityTypeId:type.id,term:3,date:null,order:3,status:"active" as const};
+ config.activityTypes=[type];config.learningResults=[ra];config.criteria=[ca];config.activities=[act1,act2,act3];
+ config.links=[act1,act2,act3].map(a=>({id:newId("link"),activityId:a.id,criterionId:ca.id,allocation:1}));
+ const student={id:newId("student"),name:"Alumne 1"},enrollment={id:newId("enrollment"),studentId:student.id,groupId:group.id,status:"active" as const,createdAt:nowIso()};
+ group.students.push(student);group.enrollments.push(enrollment);
+ group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:act1.id,status:"graded",baseValue:4,bonuses:[],updatedAt:nowIso()});
+ group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:act2.id,status:"graded",baseValue:6,bonuses:[],updatedAt:nowIso()});
+ group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:act3.id,status:"graded",baseValue:10,bonuses:[],updatedAt:nowIso()});
+ group.activityStates.push(
+  {activityId:act1.id,automaticEvaluatedAt:nowIso(),manualOverride:null},
+  {activityId:act2.id,automaticEvaluatedAt:nowIso(),manualOverride:null},
+  {activityId:act3.id,automaticEvaluatedAt:nowIso(),manualOverride:null},
+ );
+ const asOfT2=calculateStudent(course,groupAsOfTerm(course,group,2),enrollment.id);
+ assert.equal(asOfT2.globalCoverage,2/3*100);
+ const asOfT3=calculateStudent(course,groupAsOfTerm(course,group,3),enrollment.id);
+ assert.equal(asOfT3.globalCoverage,100);
 });
 test("la mitjana ponderada dels CA d'un RA pondera pel pes global de cada CA, a diferència de la simple",()=>{
  const course=createCourse("2026–2027"),group=course.groups[0],config=course.configuration;

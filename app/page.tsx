@@ -1,8 +1,8 @@
-import {useEffect, useState, type ReactNode} from "react";
-import {BookOpen,ClipboardCheck,FolderClock,GraduationCap,HelpCircle,Layers,LayoutDashboard,Plus,Printer,Save,Settings2,Table2,Users,X} from "lucide-react";
-import {createCourse, type AppDatabase} from "../src/model/domain";
-import {IndexedDbRepository} from "../src/model/repository";
-import {activePeople, nextYear, type Mutate, type Tab} from "./lib/helpers";
+import {useEffect, useRef, useState, type ReactNode} from "react";
+import {AlertTriangle,BookOpen,ChevronDown,ClipboardCheck,FileSpreadsheet,FolderClock,GraduationCap,HelpCircle,Layers,LayoutDashboard,Plus,Presentation,Printer,Save,Settings2,Table2,TrendingUp,UserRoundSearch,Users,X} from "lucide-react";
+import {groupCoursesByCicle, type AppDatabase} from "../src/model/domain";
+import {FileBackedRepository, type FileConnection} from "../src/model/repository";
+import {activePeople, type Mutate, type Tab} from "./lib/helpers";
 import {Welcome} from "./screens/Welcome";
 import {Dashboard} from "./screens/Dashboard";
 import {Courses} from "./screens/Courses";
@@ -10,30 +10,56 @@ import {Students} from "./screens/Students";
 import {Grades} from "./screens/Grades";
 import {Activities} from "./screens/Activities";
 import {Grids} from "./screens/Grids";
+import {GroupAnalysis} from "./screens/GroupAnalysis";
+import {StudentAnalysis} from "./screens/StudentAnalysis";
+import {Reports} from "./screens/Reports";
 import {Config} from "./screens/Config";
 import {Data} from "./screens/Data";
 import {Archived} from "./screens/Archived";
 import {Help} from "./screens/Help";
+import {Presentacio} from "./screens/Presentacio";
 import {StudentReport} from "./screens/StudentReport";
 
-const repo=new IndexedDbRepository(),EMPTY:AppDatabase={schemaVersion:1,courses:[],gradeHistory:[]};
+const repo=new FileBackedRepository(),EMPTY:AppDatabase={schemaVersion:1,courses:[],gradeHistory:[]};
+interface NavItem{tab:Tab;icon:ReactNode;label:string}
+interface NavGroup{id:string;label:string;icon:ReactNode;items:NavItem[]}
+const NAV_GROUPS:NavGroup[]=[
+ {id:"gestio",label:"Gestió del curs",icon:<Layers/>,items:[{tab:"cursos",icon:<Layers/>,label:"Cursos"},{tab:"alumnes",icon:<Users/>,label:"Alumnes"}]},
+ {id:"avaluacio",label:"Avaluació",icon:<ClipboardCheck/>,items:[{tab:"notes",icon:<ClipboardCheck/>,label:"Notes"},{tab:"activitats",icon:<BookOpen/>,label:"Activitats"},{tab:"graelles",icon:<Table2/>,label:"Graelles"}]},
+ {id:"analisi",label:"Anàlisi",icon:<TrendingUp/>,items:[{tab:"analisigrup",icon:<TrendingUp/>,label:"Anàlisi del grup"},{tab:"analisialumne",icon:<UserRoundSearch/>,label:"Anàlisi de l’alumne"},{tab:"informes",icon:<FileSpreadsheet/>,label:"Informes"}]},
+ {id:"configuracio",label:"Configuració",icon:<Settings2/>,items:[{tab:"configuracio",icon:<Settings2/>,label:"RA, CA i pesos"},{tab:"dades",icon:<Save/>,label:"Dades i còpies"},{tab:"arxivats",icon:<FolderClock/>,label:"Arxivats"}]},
+ {id:"ajuda",label:"Ajuda",icon:<HelpCircle/>,items:[{tab:"ajuda",icon:<HelpCircle/>,label:"Com es calcula"},{tab:"presentacio",icon:<Presentation/>,label:"Presentació mòdul"}]},
+];
+const GROUP_SCOPED_TABS=new Set<Tab>(["resum","alumnes","notes","activitats","graelles","analisigrup","analisialumne"]);
 export default function Home(){
- const[db,setDb]=useState<AppDatabase>(EMPTY),[loaded,setLoaded]=useState(false),[tab,setTab]=useState<Tab>("resum"),[groupCode,setGroupCode]=useState<"A"|"B">("A"),[report,setReport]=useState<string|null>(null),[message,setMessage]=useState(""),[focusActivity,setFocusActivity]=useState<string|null>(null);
- useEffect(()=>{repo.load().then(setDb).catch(e=>setMessage(String(e))).finally(()=>setLoaded(true))},[]);
- useEffect(()=>{if(loaded)repo.save(db).catch(e=>setMessage(`Error de desament: ${e}`))},[db,loaded]);
+ const[db,setDb]=useState<AppDatabase>(EMPTY),[loaded,setLoaded]=useState(false),[tab,setTab]=useState<Tab>("resum"),[groupCode,setGroupCode]=useState<string>("A"),[report,setReport]=useState<string|null>(null),[message,setMessage]=useState(""),[focusActivity,setFocusActivity]=useState<string|null>(null),[focusStudent,setFocusStudent]=useState<string|null>(null);
+ const [chooseReport,setChooseReport]=useState(false);
+ const [saveStatus,setSaveStatus]=useState("Desat"),saveQueue=useRef(Promise.resolve());
+ const [openGroup,setOpenGroup]=useState<string|null>(null);
+ const [fileConn,setFileConn]=useState<FileConnection>({status:"disconnected"});
+ useEffect(()=>{const g=NAV_GROUPS.find(group=>group.items.some(item=>item.tab===tab));if(g)setOpenGroup(g.id)},[tab]);
+ useEffect(()=>{repo.init().then(setFileConn);repo.load().then(setDb).catch(e=>setMessage(String(e))).finally(()=>setLoaded(true))},[]);
+ useEffect(()=>{if(!loaded)return;let current=true;setSaveStatus("Desant…");saveQueue.current=saveQueue.current.catch(()=>{}).then(()=>repo.save(db));saveQueue.current.then(()=>{if(current)setSaveStatus("Desat")}).catch(e=>{if(current){setSaveStatus("Error de desament");setMessage(`Error de desament: ${e}`)}});return()=>{current=false}},[db,loaded]);
  const course=db.courses.find(c=>c.active)??db.courses.find(c=>!c.archived)??null;
- const group=course?.groups.find(g=>g.code===groupCode)??null;
+ const group=(course?.groups.find(g=>g.code===groupCode)??course?.groups[0])??null;
  const mutate:Mutate=fn=>setDb(old=>{const next=structuredClone(old);fn(next);return next});
  const selectCourse=(id:string)=>mutate(d=>d.courses.forEach(c=>c.active=c.id===id));
- const addCourse=()=>{const year=prompt("Curs acadèmic",nextYear(course?.academicYear));if(!year)return;const clone=!!course&&confirm("Vols copiar la configuració comuna del curs actual?");mutate(d=>{d.courses.forEach(c=>c.active=false);d.courses.push(createCourse(year,clone?course!.configuration:undefined))})};
+ const courseGroups=groupCoursesByCicle(db.courses);
  if(!loaded)return <div className="loading">Carregant les dades locals…</div>;
- return <div className="app"><aside><div className="brand"><b><GraduationCap/></b><div><strong>RA · Avaluació</strong><span>SOX · 2n SMX</span></div></div><nav>
-  <Nav on={tab==="resum"} icon={<LayoutDashboard/>} click={()=>setTab("resum")}>Resum</Nav><Nav on={tab==="cursos"} icon={<Layers/>} click={()=>setTab("cursos")}>Cursos</Nav><Nav on={tab==="alumnes"} icon={<Users/>} click={()=>setTab("alumnes")}>Alumnes</Nav><Nav on={tab==="notes"} icon={<ClipboardCheck/>} click={()=>setTab("notes")}>Notes</Nav><Nav on={tab==="activitats"} icon={<BookOpen/>} click={()=>setTab("activitats")}>Activitats</Nav><Nav on={tab==="graelles"} icon={<Table2/>} click={()=>setTab("graelles")}>Graelles</Nav><p>Configuració</p><Nav on={tab==="configuracio"} icon={<Settings2/>} click={()=>setTab("configuracio")}>RA, CA i pesos</Nav><Nav on={tab==="dades"} icon={<Save/>} click={()=>setTab("dades")}>Dades i còpies</Nav><Nav on={tab==="arxivats"} icon={<FolderClock/>} click={()=>setTab("arxivats")}>Arxivats</Nav><p>Ajuda</p><Nav on={tab==="ajuda"} icon={<HelpCircle/>} click={()=>setTab("ajuda")}>Com es calcula</Nav>
- </nav><div className="healthy"><Save/><div><strong>Desament local</strong><span>IndexedDB · fora de línia</span></div></div></aside><main><header><div className="course"><BookOpen/><div><span>Curs acadèmic</span><select value={course?.id??""} onChange={e=>selectCourse(e.target.value)}><option value="">Cap curs</option>{db.courses.map(c=><option key={c.id} value={c.id}>{c.academicYear}{c.archived?" · arxivat":""}</option>)}</select></div></div><div className="actionRow"><button onClick={addCourse}><Plus/>Nou curs</button>{course&&group&&<button className="dark" onClick={()=>setReport(activePeople(group)[0]?.enrollment.id??null)}><Printer/>Informe</button>}</div></header>
+ return <div className="app"><aside><div className="brand"><b><GraduationCap/></b><div><strong>RA · Avaluació</strong><span>{course?`${course.configuration.abbreviation} · ${course.configuration.level}`:"Cap curs actiu"}</span></div></div><nav>
+  <Nav on={tab==="resum"} icon={<LayoutDashboard/>} click={()=>setTab("resum")}>Resum</Nav>
+ {NAV_GROUPS.map(group=>{const open=openGroup===group.id;return <div className={"navGroup"+(open?" open":"")} key={group.id}>
+  <button className={"navGroupHeader"+(open?" open":"")} onClick={()=>setOpenGroup(o=>o===group.id?null:group.id)}>{group.icon}<span>{group.label}</span><ChevronDown/></button>
+  {open&&<div className="navSub">{group.items.map(item=><Nav key={item.tab} on={tab===item.tab} icon={item.icon} click={()=>setTab(item.tab)}>{item.label}</Nav>)}</div>}
+ </div>})}
+ </nav><button className="healthy" onClick={()=>setTab("dades")} title="Gestiona la connexió del fitxer de dades">{fileIcon(fileConn)}<div><strong>{fileTitle(fileConn)}</strong><span>{fileSubtitle(fileConn)}</span></div></button></aside><main><header><div className="course"><BookOpen/><div><span>Curs acadèmic</span><select value={course?.id??""} onChange={e=>selectCourse(e.target.value)}><option value="">Cap curs</option>{courseGroups.map(([label,courses])=><optgroup key={label} label={label}>{courses.map(c=><option key={c.id} value={c.id}>{c.configuration.abbreviation} · {c.academicYear}{c.archived?" · arxivat":""}</option>)}</optgroup>)}</select></div></div>{course&&<div className="headerModule"><strong>{course.configuration.moduleName}</strong><span>{course.configuration.cicle} · {course.configuration.cicleNivell} · {course.configuration.curs}</span></div>}<div className="actionRow"><span className="saveStatus" role="status"><Save/>{saveStatus}</span><button onClick={()=>setTab("cursos")}><Plus/>Nou curs</button>{course&&group&&<button className="dark" onClick={()=>setChooseReport(true)}><Printer/>Informe</button>}</div></header>
  {message&&<div className="toast" onClick={()=>setMessage("")}>{message}<X/></div>}
- {!course?<Welcome add={c=>mutate(d=>{d.courses.forEach(x=>x.active=false);d.courses.push(c)})} msg={setMessage}/>:<section className="content"><div className={tab==="activitats"||tab==="notes"||tab==="alumnes"?"head headSticky":"head"}><div><small>{course.configuration.abbreviation} · {course.configuration.level}</small><h1>{titles[tab]}</h1><p>Gestió local de l’avaluació contínua per RA i CA.</p></div><div className="switch"><button className={groupCode==="A"?"active":""} onClick={()=>setGroupCode("A")}>Grup A</button><button className={groupCode==="B"?"active":""} onClick={()=>setGroupCode("B")}>Grup B</button></div></div>
- {tab==="resum"&&group&&<Dashboard course={course} group={group}/>} {tab==="cursos"&&<Courses db={db} course={course} mutate={mutate} msg={setMessage}/>} {tab==="alumnes"&&group&&<Students course={course} group={group} mutate={mutate} report={setReport} msg={setMessage}/>} {tab==="notes"&&group&&<Grades course={course} group={group} db={db} mutate={mutate} msg={setMessage} focusActivity={focusActivity} clearFocus={()=>setFocusActivity(null)}/>} {tab==="activitats"&&group&&<Activities course={course} group={group} mutate={mutate} goToGrades={id=>{setFocusActivity(id);setTab("notes")}}/>} {tab==="graelles"&&group&&<Grids course={course} group={group} report={setReport}/>} {tab==="configuracio"&&<Config course={course} mutate={mutate}/>} {tab==="dades"&&<Data course={course} db={db} mutate={mutate} replace={setDb} msg={setMessage}/>} {tab==="arxivats"&&<Archived course={course} mutate={mutate}/>} {tab==="ajuda"&&<Help/>}</section>}
- </main>{course&&group&&report&&<StudentReport course={course} group={group} enrollmentId={report} close={()=>setReport(null)} mutate={mutate}/>}</div>
+ {!course?<Welcome add={c=>mutate(d=>{d.courses.forEach(x=>x.active=false);d.courses.push(c)})} msg={setMessage}/>:<section className="content"><div className={tab==="activitats"||tab==="notes"||tab==="alumnes"?"head headSticky":"head"}><div><small>{course.configuration.abbreviation} · {course.configuration.level}</small><h1>{titles[tab]}</h1><p>Gestió local de l’avaluació contínua per RA i CA.</p></div>{GROUP_SCOPED_TABS.has(tab)&&<div className="switch">{course.groups.map(g=><button key={g.id} className={group?.id===g.id?"active":""} onClick={()=>setGroupCode(g.code)}>{g.name}</button>)}</div>}</div>
+ {tab==="resum"&&group&&<Dashboard course={course} group={group}/>} {tab==="cursos"&&<Courses db={db} course={course} mutate={mutate} msg={setMessage}/>} {tab==="alumnes"&&group&&<Students key={`${course.id}:${group.id}`} course={course} group={group} mutate={mutate} report={setReport} analysis={id=>{setFocusStudent(id);setTab("analisialumne")}} msg={setMessage}/>} {tab==="notes"&&group&&<Grades key={`${course.id}:${group.id}`} course={course} group={group} db={db} mutate={mutate} msg={setMessage} focusActivity={focusActivity} clearFocus={()=>setFocusActivity(null)}/>} {tab==="activitats"&&group&&<Activities course={course} group={group} mutate={mutate} goToGrades={id=>{setFocusActivity(id);setTab("notes")}}/>} {tab==="graelles"&&group&&<Grids course={course} group={group} report={setReport}/>} {tab==="analisigrup"&&group&&<GroupAnalysis course={course} group={group}/>} {tab==="analisialumne"&&group&&<StudentAnalysis course={course} group={group} focusEnrollmentId={focusStudent} report={setReport}/>} {tab==="informes"&&<Reports course={course}/>} {tab==="configuracio"&&<Config course={course} mutate={mutate} msg={setMessage}/>} {tab==="dades"&&<Data course={course} db={db} mutate={mutate} replace={setDb} msg={setMessage} repo={repo} fileConn={fileConn} setFileConn={setFileConn}/>} {tab==="arxivats"&&<Archived course={course} mutate={mutate}/>} {tab==="ajuda"&&<Help/>} {tab==="presentacio"&&<Presentacio/>}</section>}
+ </main>{course&&group&&chooseReport&&<div className="modal"><div className="dialog" role="dialog" aria-modal="true" aria-labelledby="report-picker-title"><div className="panelHeader"><h2 id="report-picker-title">Tria l’alumne de l’informe</h2><button aria-label="Tancar" onClick={()=>setChooseReport(false)}><X/></button></div><p className="muted">Grup {group.code} · Inclou alumnes actius, arxivats i de baixa.</p>{group.enrollments.map(enrollment=>{const student=group.students.find(s=>s.id===enrollment.studentId);return student?<div className="statusRow" key={enrollment.id}><span>{student.name} · {enrollment.status==="active"?"Actiu":enrollment.status==="archived"?"Arxivat":"Baixa"}</span><div className="actionRow"><button onClick={()=>{setReport(enrollment.id);setChooseReport(false);}}>Obrir informe</button></div></div>:null;})}{!group.enrollments.length&&<p>El grup no té alumnes.</p>}</div></div>}{course&&group&&report&&<StudentReport key={course.id+group.id+report} course={course} group={group} enrollmentId={report} close={()=>setReport(null)} mutate={mutate}/>}</div>
 }
-const titles={resum:"Com va el grup?",cursos:"Gestió de cursos",alumnes:"Alumnes i matrícules",notes:"Qualificacions",activitats:"Activitats",graelles:"Graelles globals",configuracio:"Configuració comuna",dades:"Dades locals",arxivats:"Elements arxivats",ajuda:"Com es calculen les notes"};
+const titles={resum:"Com va el grup?",cursos:"Gestió de cursos",alumnes:"Alumnes i matrícules",notes:"Qualificacions",activitats:"Activitats",graelles:"Graelles globals",analisigrup:"Anàlisi del grup",analisialumne:"Anàlisi de l’alumne",informes:"Informes i extraccions",configuracio:"Configuració comuna",dades:"Dades locals",arxivats:"Elements arxivats",ajuda:"Com es calculen les notes",presentacio:"Presentació del mòdul"};
 function Nav({on,icon,click,children}:{on:boolean;icon:ReactNode;click:()=>void;children:ReactNode}){return <button className={on?"active":""} onClick={click}>{icon}{children}</button>}
+function fileTitle(c:FileConnection){return c.status==="connected"?"Fitxer connectat":c.status==="needs-permission"?"Cal reconnectar":"Desament local"}
+function fileSubtitle(c:FileConnection){switch(c.status){case"connected":return c.fileName;case"needs-permission":return `${c.fileName} · toca per reconnectar`;case"unsupported":return"IndexedDB · fora de línia";default:return"IndexedDB · connecta un fitxer a Dades"}}
+function fileIcon(c:FileConnection){return c.status==="needs-permission"?<AlertTriangle/>:<Save/>}

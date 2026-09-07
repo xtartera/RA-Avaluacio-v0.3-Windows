@@ -139,6 +139,60 @@ export async function importEvaluationWorkbook(file: File, academicYear = "2026�
   return {course, warnings, summary:{learningResults:learningResults.length, criteria:criteria.length, activities:config.activities.length, students:group.students.length, grades:group.grades.length}};
 }
 
+function splitCsvRow(row: string): string[] {
+  const cells: string[] = [];
+  let current = "", inQuotes = false;
+  for (let i = 0; i < row.length; i++) {
+    const ch = row[i];
+    if (inQuotes) {
+      if (ch === '"' && row[i + 1] === '"') { current += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else current += ch;
+    } else if (ch === '"' && !current) inQuotes = true;
+    else if (ch === ",") { cells.push(current.trim()); current = ""; }
+    else current += ch;
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+export interface RaCaCsvRow { raCode: string; raDescription: string; caCode: string; caDescription: string }
+
+export function parseModuleRaCaCsv(content: string): {rows: RaCaCsvRow[]; warnings: string[]} {
+  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/).map(row => row.trim()).filter(Boolean);
+  if (lines[0] && splitCsvRow(lines[0])[0]?.toLocaleLowerCase("ca") === "ra") lines.shift();
+  const warnings: string[] = [];
+  const seen = new Set<string>();
+  const rows: RaCaCsvRow[] = [];
+  for (const line of lines) {
+    const [raCode = "", raDescription = "", caCode = "", caDescription = ""] = splitCsvRow(line);
+    if (!raCode || !caCode || !caDescription) { warnings.push(`Fila ignorada (falten dades obligatòries: RA, CA i descripció del CA): "${line}".`); continue; }
+    const key = `${raCode.toLocaleLowerCase("ca")} ${caCode.toLocaleLowerCase("ca")}`;
+    if (seen.has(key)) { warnings.push(`CA duplicat al fitxer dins el mateix RA, s’ignora la repetició: ${raCode}/${caCode}.`); continue; }
+    seen.add(key);
+    rows.push({raCode, raDescription, caCode, caDescription});
+  }
+  if (!rows.length) throw new Error("El CSV no conté cap fila vàlida (calen columnes RA, Descripció RA, CA, Descripció CA).");
+  return {rows, warnings};
+}
+
+export function applyModuleRaCaCsv(config: {learningResults: LearningResult[]; criteria: AssessmentCriterion[]}, rows: RaCaCsvRow[]): {raCreated: number; caCreated: number; caSkipped: number} {
+  let raCreated = 0, caCreated = 0, caSkipped = 0;
+  for (const row of rows) {
+    let ra = config.learningResults.find(r => r.code.toLocaleLowerCase("ca") === row.raCode.toLocaleLowerCase("ca"));
+    if (!ra) {
+      ra = {id: newId("ra"), code: row.raCode, description: row.raDescription || row.raCode, order: config.learningResults.length + 1, status: "active"};
+      config.learningResults.push(ra);
+      raCreated++;
+    }
+    const existingCa = config.criteria.find(x => x.learningResultId === ra!.id && x.code.toLocaleLowerCase("ca") === row.caCode.toLocaleLowerCase("ca"));
+    if (existingCa) { caSkipped++; continue; }
+    config.criteria.push({id: newId("ca"), learningResultId: ra.id, code: row.caCode, description: row.caDescription, order: config.criteria.filter(x => x.learningResultId === ra!.id).length + 1, status: "active"});
+    caCreated++;
+  }
+  return {raCreated, caCreated, caSkipped};
+}
+
 export function parseStudentCsv(content: string): {names: string[]; warnings: string[]} {
   const rows = content.replace(/^\uFEFF/, "").split(/\r?\n/).map(row => {
     const value = row.trim();

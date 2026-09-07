@@ -1,0 +1,103 @@
+import {useState} from "react";
+import {AlertCircle, AlertTriangle, Construction, Gauge, PieChart as PieChartIcon, Printer, Sparkles, ThumbsUp, TrendingDown, TrendingUp, UserMinus, X} from "lucide-react";
+import type {AcademicCourse, Group} from "../../src/model/domain";
+import {analyzeGroup} from "../lib/groupAnalytics";
+import {PassBar} from "../components/shared";
+import {ActivitySubPanel, DiagList, Donut, DONUT_COLORS, EvoBar, KpiCard, TrendLine} from "../components/analysis";
+import {GroupReport} from "./GroupReport";
+
+type SubTab = "resum" | "evolucio" | "raca" | "activitats" | "comparacio";
+
+export function GroupAnalysis({course, group}: {course: AcademicCourse; group: Group}) {
+ const [tab, setTab] = useState<SubTab>("resum");
+ const [nameModal, setNameModal] = useState<{title: string; names: string[]} | null>(null);
+ const [showReport, setShowReport] = useState(false);
+ const [compareId, setCompareId] = useState<string | null>(null);
+ const otherCandidates = course.groups.filter(x => x.id !== group.id);
+ const effectiveCompareId = otherCandidates.some(o => o.id === compareId) ? compareId! : undefined;
+ const g = analyzeGroup(course, group, effectiveCompareId);
+ const {own, other, otherGroup, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, bySuccess, byDifficulty, byMissing, diagnosis, actions, coverageGapWarning} = g;
+
+ return <>
+  <div className="panelHeader" style={{marginBottom: 16}}>
+   <div className="subTabs" style={{marginBottom: 0}}>
+    <button className={tab === "resum" ? "active" : ""} onClick={() => setTab("resum")}>Resum</button>
+    <button className={tab === "evolucio" ? "active" : ""} onClick={() => setTab("evolucio")}>Evolució</button>
+    <button className={tab === "raca" ? "active" : ""} onClick={() => setTab("raca")}>RA / CA</button>
+    <button className={tab === "activitats" ? "active" : ""} onClick={() => setTab("activitats")}>Activitats</button>
+    <button className={tab === "comparacio" ? "active" : ""} onClick={() => setTab("comparacio")}>Comparació de grups</button>
+   </div>
+   <button className="dark" onClick={() => setShowReport(true)}><Printer/>Exportar informe</button>
+  </div>
+
+  {tab !== "resum" && <article className="panel"><div className="placeholderPanel"><Construction/><strong>En construcció</strong><span>Aquesta vista detallada s’anirà afegint properament.</span></div></article>}
+
+  {tab === "resum" && <>
+   <div className="kpiRow kpi7">
+    <KpiCard tone="blue" icon={<Gauge size={14}/>} label="Nota projectada" value={`${own.average.toFixed(2)} / 10`} sub={own.count ? `${own.count} alumnes actius` : "Sense alumnat actiu"} trend={hasEvolution && Math.abs(trendDelta) >= .01 ? {icon: trendDelta > 0 ? TrendingUp : TrendingDown, tone: trendDelta > 0 ? "green" : "red", text: `${trendDelta > 0 ? "+" : ""}${trendDelta.toFixed(2)} respecte al 1r trimestre`} : undefined} hint="Mitjana ponderada de tots els RA. És una projecció global; no implica per si sola l'aprovat del mòdul."/>
+    <KpiCard tone="green" icon={<ThumbsUp size={14}/>} label="Aprovats" value={`${own.passedPct.toFixed(0)}%`} sub={`${own.passed} de ${own.withEvidenceCount} amb RA avaluats`} hint="Alumnes amb tots i cadascun dels RA avaluats assolits (nota ≥5 i cap activitat obligatòria suspesa), segons normativa. No es basa en la mitjana global." onExpand={() => setNameModal({title: "Aprovats (tots els RA assolits)", names: own.passedNames})}/>
+    <KpiCard tone="amber" icon={<AlertCircle size={14}/>} label="Zona límit" value={`${own.borderlinePct.toFixed(0)}%`} sub={`${own.borderline} de ${own.withEvidenceCount} amb RA avaluats`} hint="Alumnes amb exactament 1 RA no assolit (la resta assolits). No mira la mitjana global, sinó el nombre de RA suspesos." onExpand={() => setNameModal({title: "Zona límit (1 RA no assolit)", names: own.borderlineNames})}/>
+    <KpiCard tone="red" icon={<AlertTriangle size={14}/>} label="En risc" value={`${own.riskPct.toFixed(0)}%`} sub={`${own.risk} de ${own.withEvidenceCount} amb RA avaluats`} hint="Alumnes amb 2 o més RA no assolits. No mira la mitjana global, sinó el nombre de RA suspesos." onExpand={() => setNameModal({title: "En risc (2 o més RA no assolits)", names: own.riskNames})}/>
+    <KpiCard tone="violet" icon={<Sparkles size={14}/>} label="Excel·lència" value={`${own.excellencePct.toFixed(0)}%`} sub={`${own.excellence} de ${own.withEvidenceCount} amb RA avaluats`} hint="Alumnes amb tots els RA assolits i, a més, nota global ≥8. Un alumne amb algun RA no assolit mai compta com a excel·lent, tingui la nota que tingui." onExpand={() => setNameModal({title: "Excel·lència (tots els RA assolits i nota ≥8)", names: own.excellenceNames})}/>
+    <KpiCard tone="red" icon={<UserMinus size={14}/>} label="Baixes" value={`${withdrawnPct.toFixed(0)}%`} sub={`${withdrawnEnrollments.length} de ${totalEnrolled} matriculats`} hint="Alumnes matriculats en aquest grup que han causat baixa (estat 'Baixa' a la pantalla Alumnes)." onExpand={() => setNameModal({title: "Alumnes de baixa", names: withdrawnNames})}/>
+    <KpiCard tone="slate" icon={<PieChartIcon size={14}/>} label="Cobertura avaluada" value={`${own.coverage.toFixed(0)}%`} sub="del pes total del mòdul" hint="Percentatge del pes total del mòdul del qual ja hi ha prou evidències qualificades."/>
+   </div>
+   {own.noEvidenceCount > 0 && <p className="muted" style={{margin: "-8px 0 16px", fontSize: 11}}>Aprovats, zona límit, en risc i excel·lència es calculen sobre els {own.withEvidenceCount} alumnes amb algun RA ja avaluat ({own.noEvidenceCount} més encara sense cap RA avaluat).</p>}
+
+   <div className="analysisRow">
+    <article className="panel"><div className="panelHeader"><h2>Evolució de la nota projectada</h2></div>{hasEvolution ? <TrendLine series={[{label: "Grup", color: "var(--blue)", points: trendPoints}]}/> : <p className="muted">Sense alumnat actiu.</p>}</article>
+    <article className="panel"><div className="panelHeader"><h2>Distribució de l’alumnat</h2></div><p className="muted" style={{margin: "0 0 12px"}}>Per nota global ponderada, no per assoliment de RA: un alumne pot sortir en una franja alta i, tot i així, estar en risc o en zona límit (vegeu els indicadors de dalt).</p>{own.count ? <div style={{display: "flex", alignItems: "center", gap: 14}}>
+     <Donut bands={bands} total={own.count}/>
+     <div className="donutLegend" style={{flex: 1}}>{bands.map((b, i) => <div key={b.label}><span><i style={{background: DONUT_COLORS[i]}}/>{b.label} ({b.range})</span><b>{b.count} <em>({own.count ? (b.count / own.count * 100).toFixed(0) : 0}%)</em></b></div>)}</div>
+    </div> : <p className="muted">Sense alumnat actiu.</p>}</article>
+    <article className="panel"><div className="panelHeader"><h2>Evolució individual agregada</h2></div>{hasEvolution ? <>
+     <div className="evoBars">
+      <EvoBar tone="green" label="Milloren" count={improved} total={own.count}/>
+      <EvoBar tone="slate" label="Es mantenen" count={stable} total={own.count}/>
+      <EvoBar tone="red" label="Empitjoren" count={worsened} total={own.count}/>
+     </div>
+     <p className="muted" style={{marginTop: 10, fontSize: 11}}>Respecte a la nota projectada al final del 1r trimestre.</p>
+    </> : <p className="muted">Sense alumnat actiu.</p>}</article>
+   </div>
+
+   <article className="panel" style={{marginBottom: 16}}><div className="panelHeader"><h2>Assoliment per Resultat d’Aprenentatge</h2></div><p className="muted" style={{margin: "0 0 12px"}}>Un alumne "aprova" un RA quan aquest RA arriba a nota ≥5 i no té cap activitat obligatòria suspesa vinculada.</p>{raRows.length ? <table><thead><tr><th>RA</th><th>Mitjana</th><th style={{width: 260}}>Aprovats / suspesos</th></tr></thead><tbody>{raRows.map(r => <tr key={r.ra.id}><td><b>{r.ra.code}</b><br/><span className="muted" style={{fontSize: 11}}>{r.ra.description}</span></td><td>{r.average !== null ? r.average.toFixed(2) : <span className="pending">Pendent</span>}</td><td>{r.achievementPct !== null ? <><div style={{display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 5}}><span>{r.achievementPct.toFixed(0)}% assoliment</span><span className="muted">{r.passed}/{r.total}</span></div><PassBar passed={r.passed} failed={r.failed}/></> : <span className="pending">Evidència insuficient</span>}</td></tr>)}</tbody></table> : <p className="muted">Encara no hi ha cap RA actiu.</p>}</article>
+
+   <article className="panel"><div className="panelHeader"><h2>Activitats destacades</h2></div>
+    <div className="actGrid">
+     <ActivitySubPanel tone="green" title="Major èxit" rows={bySuccess} metric="Mitjana" cell={r => r.average!.toFixed(2)}/>
+     <ActivitySubPanel tone="red" title="Més dificultat" rows={byDifficulty} metric="% suspesos" cell={r => r.failPct !== null ? `${r.failPct.toFixed(0)}%` : "—"}/>
+     <ActivitySubPanel tone="amber" title="Més no lliuraments" rows={byMissing} metric="% no lliurats" cell={r => `${r.notPresentedPct.toFixed(0)}%`}/>
+    </div>
+   </article>
+
+   <div className="analysisRow two">
+    <article className="panel"><div className="panelHeader"><h2>Comparació entre grups</h2>{otherCandidates.length > 1 && <select value={otherGroup?.id ?? ""} onChange={e => setCompareId(e.target.value || null)}>{otherCandidates.map(o => <option key={o.id} value={o.id}>Compara amb {o.name}</option>)}</select>}</div><p className="muted" style={{margin: "0 0 12px"}}>Aprovats, en risc i excel·lència es calculen per assoliment de RA (vegeu els indicadors de dalt), no per la mitjana global.</p>{otherGroup && other ? <>
+     {coverageGapWarning && <div className="warnNote"><AlertTriangle size={15}/><span>La comparació s’ha d’interpretar amb precaució: el Grup {group.code} té un {own.coverage.toFixed(0)}% de cobertura avaluada i el Grup {otherGroup.code} un {other.coverage.toFixed(0)}%.</span></div>}
+     <table><thead><tr><th>Indicador</th><th>Grup {group.code}</th><th>Grup {otherGroup.code}</th></tr></thead><tbody>
+      <tr><td>Nota projectada</td><td>{own.average.toFixed(2)}</td><td>{other.average.toFixed(2)}</td></tr>
+      <tr><td>Aprovats</td><td>{own.passedPct.toFixed(0)}%</td><td>{other.passedPct.toFixed(0)}%</td></tr>
+      <tr><td>En risc</td><td>{own.riskPct.toFixed(0)}%</td><td>{other.riskPct.toFixed(0)}%</td></tr>
+      <tr><td>Excel·lència</td><td>{own.excellencePct.toFixed(0)}%</td><td>{other.excellencePct.toFixed(0)}%</td></tr>
+      <tr><td>Desviació estàndard</td><td>{own.stdDev.toFixed(2)}</td><td>{other.stdDev.toFixed(2)}</td></tr>
+      <tr><td>Taxa de lliurament</td><td>{own.delivery.toFixed(0)}%</td><td>{other.delivery.toFixed(0)}%</td></tr>
+      <tr><td>Cobertura avaluada</td><td>{own.coverage.toFixed(0)}%</td><td>{other.coverage.toFixed(0)}%</td></tr>
+     </tbody></table>
+    </> : <p className="muted">Aquest curs només té un grup actiu.</p>}</article>
+    <div style={{display: "flex", flexDirection: "column", gap: 16}}>
+     <article className="panel diagCard"><div className="panelHeader"><h2>Diagnosi automàtica</h2></div><DiagList items={diagnosis}/></article>
+     <article className="panel actionsCard"><div className="panelHeader"><h2>Conclusions i accions suggerides</h2></div><ol>{actions.map((a, i) => <li key={i}>{a}</li>)}</ol><footer>«Les dades no substitueixen el criteri docent, però ens ajuden a prendre millors decisions.»</footer></article>
+    </div>
+   </div>
+  </>}
+  {nameModal && <NameListModal title={nameModal.title} names={nameModal.names} close={() => setNameModal(null)}/>}
+  {showReport && <GroupReport course={course} group={group} close={() => setShowReport(false)} compareGroupId={effectiveCompareId}/>}
+ </>;
+}
+
+function NameListModal({title, names, close}: {title: string; names: string[]; close: () => void}) {
+ return <div className="modal" onClick={close}><div className="dialog" style={{width: "min(420px,100%)"}} onClick={e => e.stopPropagation()}>
+  <div className="panelHeader"><h2>{title}</h2><button onClick={close}><X/></button></div>
+  {names.length ? <ul style={{margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8, maxHeight: 420, overflowY: "auto"}}>{names.map(n => <li key={n} style={{padding: "9px 12px", borderRadius: 9, background: "#f5f8fd", fontSize: 13}}>{n}</li>)}</ul> : <p className="muted">Cap alumne en aquesta categoria.</p>}
+  <p className="muted" style={{margin: "14px 0 0", fontSize: 11}}>{names.length} alumne{names.length === 1 ? "" : "s"}.</p>
+ </div></div>;
+}
