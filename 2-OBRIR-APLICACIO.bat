@@ -8,5 +8,5 @@ if not exist "node_modules" (
   exit /b 1
 )
 echo Obrint RA Avaluacio en local...
-start "" cmd /c "timeout /t 3 /nobreak >nul & start http://localhost:5173"
+start "" /min powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 3; Start-Process 'http://127.0.0.1:5173'"
 call npm run dev

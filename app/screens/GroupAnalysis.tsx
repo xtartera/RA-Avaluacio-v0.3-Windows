@@ -1,14 +1,15 @@
 import {useState} from "react";
-import {AlertCircle, AlertTriangle, Construction, Gauge, PieChart as PieChartIcon, Printer, Sparkles, ThumbsUp, TrendingDown, TrendingUp, UserMinus, X} from "lucide-react";
+import {AlertCircle, AlertTriangle, BookOpen, Construction, Gauge, PieChart as PieChartIcon, Printer, Settings2, Sparkles, Table2, ThumbsUp, TrendingDown, TrendingUp, UserMinus, X} from "lucide-react";
 import type {AcademicCourse, Group} from "../../src/model/domain";
+import type {Tab} from "../lib/helpers";
 import {analyzeGroup} from "../lib/groupAnalytics";
 import {PassBar} from "../components/shared";
 import {ActivitySubPanel, DiagList, Donut, DONUT_COLORS, EvoBar, KpiCard, TrendLine} from "../components/analysis";
 import {GroupReport} from "./GroupReport";
 
-type SubTab = "resum" | "evolucio" | "raca" | "activitats" | "comparacio";
+type SubTab = "resum" | "evolucio" | "comparacio";
 
-export function GroupAnalysis({course, group}: {course: AcademicCourse; group: Group}) {
+export function GroupAnalysis({course, group, goTo}: {course: AcademicCourse; group: Group; goTo: (tab: Tab) => void}) {
  const [tab, setTab] = useState<SubTab>("resum");
  const [nameModal, setNameModal] = useState<{title: string; names: string[]} | null>(null);
  const [showReport, setShowReport] = useState(false);
@@ -23,14 +24,15 @@ export function GroupAnalysis({course, group}: {course: AcademicCourse; group: G
    <div className="subTabs" style={{marginBottom: 0}}>
     <button className={tab === "resum" ? "active" : ""} onClick={() => setTab("resum")}>Resum</button>
     <button className={tab === "evolucio" ? "active" : ""} onClick={() => setTab("evolucio")}>Evolució</button>
-    <button className={tab === "raca" ? "active" : ""} onClick={() => setTab("raca")}>RA / CA</button>
-    <button className={tab === "activitats" ? "active" : ""} onClick={() => setTab("activitats")}>Activitats</button>
+    <button title="Obre la configuració de RA i CA del mòdul" onClick={() => goTo("configuracio")}><Settings2 size={14}/>RA / CA</button>
+    <button title="Obre la pantalla Activitats" onClick={() => goTo("activitats")}><BookOpen size={14}/>Activitats</button>
+    <button title="Obre les graelles globals de notes del grup" onClick={() => goTo("graelles")}><Table2 size={14}/>Notes de grup</button>
     <button className={tab === "comparacio" ? "active" : ""} onClick={() => setTab("comparacio")}>Comparació de grups</button>
    </div>
    <button className="dark" onClick={() => setShowReport(true)}><Printer/>Exportar informe</button>
   </div>
 
-  {tab !== "resum" && <article className="panel"><div className="placeholderPanel"><Construction/><strong>En construcció</strong><span>Aquesta vista detallada s’anirà afegint properament.</span></div></article>}
+  {(tab === "evolucio" || tab === "comparacio") && <article className="panel"><div className="placeholderPanel"><Construction/><strong>En construcció</strong><span>Aquesta vista detallada s’anirà afegint properament.</span></div></article>}
 
   {tab === "resum" && <>
    <div className="kpiRow kpi7">

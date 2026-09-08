@@ -159,7 +159,7 @@ function splitCsvRow(row: string): string[] {
 export interface RaCaCsvRow { raCode: string; raDescription: string; caCode: string; caDescription: string }
 
 export function parseModuleRaCaCsv(content: string): {rows: RaCaCsvRow[]; warnings: string[]} {
-  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/).map(row => row.trim()).filter(Boolean);
+  const lines = content.replace(/^﻿/, "").split(/\r?\n/).map(row => row.trim()).filter(Boolean);
   if (lines[0] && splitCsvRow(lines[0])[0]?.toLocaleLowerCase("ca") === "ra") lines.shift();
   const warnings: string[] = [];
   const seen = new Set<string>();
@@ -191,6 +191,86 @@ export function applyModuleRaCaCsv(config: {learningResults: LearningResult[]; c
     caCreated++;
   }
   return {raCreated, caCreated, caSkipped};
+}
+
+export interface ActivityCsvLink { caCode: string; allocation: number }
+export interface ActivityCsvRow { name: string; typeName: string; term: number; date: string | null; links: ActivityCsvLink[] }
+
+export function parseActivitiesCsv(content: string): {rows: ActivityCsvRow[]; warnings: string[]} {
+  const lines = content.replace(/^﻿/, "").split(/\r?\n/).map(row => row.trim()).filter(Boolean);
+  if (lines[0] && splitCsvRow(lines[0])[0]?.toLocaleLowerCase("ca") === "nom") lines.shift();
+  const warnings: string[] = [];
+  const rows: ActivityCsvRow[] = [];
+  for (const line of lines) {
+    const [name = "", typeName = "", termRaw = "", dateRaw = "", caCode = "", pctRaw = ""] = splitCsvRow(line);
+    const term = Number(termRaw);
+    if (!name || !typeName || !termRaw || !Number.isInteger(term) || term < 1) { warnings.push(`Fila ignorada (falten dades obligatòries o el trimestre no és vàlid: Nom, Tipus i Trimestre): "${line}".`); continue; }
+    const date = dateRaw && /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : null;
+    if (dateRaw && !date) warnings.push(`Data no vàlida ignorada (format esperat AAAA-MM-DD): "${line}".`);
+    let row = rows[rows.length - 1];
+    if (!row || row.name !== name || row.typeName !== typeName || row.term !== term || row.date !== date) { row = {name, typeName, term, date, links: []}; rows.push(row); }
+    if (caCode) {
+      const allocation = Number(pctRaw.replace(",", "."));
+      if (!pctRaw || !Number.isFinite(allocation) || allocation <= 0) warnings.push(`CA ignorat (percentatge no vàlid): "${line}".`);
+      else row.links.push({caCode, allocation});
+    }
+  }
+  if (!rows.length) throw new Error("El CSV no conté cap fila vàlida (calen columnes Nom, Tipus i Trimestre).");
+  return {rows, warnings};
+}
+
+export function applyActivitiesCsv(course: AcademicCourse, rows: ActivityCsvRow[]): {created: number; typesCreated: number; newTypeNames: string[]; linksCreated: number; warnings: string[]} {
+  const config = course.configuration;
+  const warnings: string[] = [];
+  let created = 0, typesCreated = 0, linksCreated = 0;
+  const newTypeNames: string[] = [];
+  const typeByName = new Map(config.activityTypes.map(t => [t.name.toLocaleLowerCase("ca"), t]));
+  const criterionByCode = new Map(config.criteria.filter(c => c.status === "active").map(c => [c.code.toLocaleLowerCase("ca"), c]));
+  for (const row of rows) {
+    if (row.term > config.termCount) { warnings.push(`Fila ignorada (el trimestre ${row.term} supera els ${config.termCount} trimestres configurats): "${row.name}".`); continue; }
+    let type = typeByName.get(row.typeName.toLocaleLowerCase("ca"));
+    if (!type) {
+      type = {id: newId("type"), name: row.typeName, weight: 0, status: "active"};
+      config.activityTypes.push(type); typeByName.set(type.name.toLocaleLowerCase("ca"), type);
+      typesCreated++;
+      newTypeNames.push(type.name);
+    }
+    const activity: Activity = {id: newId("activity"), name: row.name, activityTypeId: type.id, term: row.term, date: row.date, order: config.activities.length + 1, status: "active"};
+    config.activities.push(activity);
+    for (const group of course.groups) group.activityStates.push({activityId: activity.id, automaticEvaluatedAt: null, manualOverride: null});
+    created++;
+    let allocated = 0;
+    for (const link of row.links) {
+      const criterion = criterionByCode.get(link.caCode.toLocaleLowerCase("ca"));
+      if (!criterion) { warnings.push(`CA desconegut «${link.caCode}» ignorat a l’activitat «${row.name}».`); continue; }
+      config.links.push({id: newId("link"), activityId: activity.id, criterionId: criterion.id, allocation: link.allocation / 100});
+      allocated += link.allocation;
+      linksCreated++;
+    }
+    if (row.links.length && Math.abs(allocated - 100) >= .05) warnings.push(`Els CA de «${row.name}» sumen ${allocated.toFixed(1)}%, haurien de sumar 100%.`);
+  }
+  return {created, typesCreated, newTypeNames, linksCreated, warnings};
+}
+
+function csvCell(value: string): string {
+  return /["\r\n,]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+export function buildActivitiesCsv(course: AcademicCourse): string {
+  const config = course.configuration;
+  const lines = ["nom,tipus,trimestre,data,ca,percentatge"];
+  for (const activity of config.activities.filter(a => a.status === "active")) {
+    const type = config.activityTypes.find(t => t.id === activity.activityTypeId);
+    const prefix = [activity.name, type?.name ?? "", String(activity.term), activity.date ?? ""].map(csvCell).join(",");
+    const links = config.links.filter(l => l.activityId === activity.id);
+    if (!links.length) { lines.push(`${prefix},,`); continue; }
+    for (const link of links) {
+      const criterion = config.criteria.find(c => c.id === link.criterionId);
+      if (!criterion) continue;
+      lines.push(`${prefix},${csvCell(criterion.code)},${+(link.allocation * 100).toFixed(2)}`);
+    }
+  }
+  return lines.join("\r\n");
 }
 
 export function parseStudentCsv(content: string): {names: string[]; warnings: string[]} {

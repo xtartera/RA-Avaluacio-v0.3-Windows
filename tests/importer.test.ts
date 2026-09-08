@@ -3,8 +3,8 @@ import {readFileSync} from "node:fs";
 import test from "node:test";
 import {activityWeights, calculateStudent} from "../src/model/calculation.ts";
 import type {AcademicCourse, Group} from "../src/model/domain.ts";
-import {applyModuleRaCaCsv, importEvaluationWorkbook, parseModuleRaCaCsv, parseStudentCsv} from "../src/controllers/importers.ts";
-import {emptyConfiguration} from "../src/model/domain.ts";
+import {applyActivitiesCsv, applyModuleRaCaCsv, buildActivitiesCsv, importEvaluationWorkbook, parseActivitiesCsv, parseModuleRaCaCsv, parseStudentCsv} from "../src/controllers/importers.ts";
+import {createCourse, emptyConfiguration} from "../src/model/domain.ts";
 
 const SAMPLE_PATH = "imports/2-SMX-Generic-Avaluacio per RA.xlsx";
 
@@ -149,4 +149,150 @@ test("applyModuleRaCaCsv crea els RA que no existeixen i ignora els CA amb un co
   assert.deepEqual(second, {raCreated: 0, caCreated: 1, caSkipped: 1});
   assert.equal(config.learningResults.length, 2, "no s’ha de duplicar el RA1 ja existent");
   assert.equal(config.criteria.length, 4);
+});
+
+test("el CSV d'activitats llegeix nom, tipus, trimestre i data, ometent la capçalera opcional", () => {
+  const {rows, warnings} = parseActivitiesCsv("nom,tipus,trimestre,data\nExamen U1,Examen,1,2026-10-15\nPràctica servidors,Pràctica,1,");
+  assert.deepEqual(rows, [
+    {name: "Examen U1", typeName: "Examen", term: 1, date: "2026-10-15", links: []},
+    {name: "Pràctica servidors", typeName: "Pràctica", term: 1, date: null, links: []},
+  ]);
+  assert.deepEqual(warnings, []);
+});
+
+test("el CSV d'activitats avisa (sense rebutjar el fitxer) de files amb dades obligatòries incompletes, trimestre no vàlid o data no vàlida", () => {
+  const {rows, warnings} = parseActivitiesCsv('Examen vàlid,Examen,1,\n,Examen,1,\nSense tipus,,1,\nTrimestre no numèric,Examen,dos,\nData incorrecta,Examen,1,15-10-2026');
+  assert.deepEqual(rows, [
+    {name: "Examen vàlid", typeName: "Examen", term: 1, date: null, links: []},
+    {name: "Data incorrecta", typeName: "Examen", term: 1, date: null, links: []},
+  ]);
+  assert.equal(warnings.length, 4);
+});
+
+test("el CSV d'activitats rebutja un fitxer sense cap fila vàlida", () => {
+  assert.throws(() => parseActivitiesCsv("nom,tipus,trimestre,data\n,Examen,1,"), /cap fila vàlida/);
+});
+
+test("el CSV d'activitats agrupa files consecutives amb el mateix nom, tipus, trimestre i data com a CA de la mateixa activitat", () => {
+  const {rows, warnings} = parseActivitiesCsv("nom,tipus,trimestre,data,ca,percentatge\nExamen U1,Examen,1,2026-10-15,CA1.1,40\nExamen U1,Examen,1,2026-10-15,CA2.3,60\nPràctica servidors,Pràctica,1,,CA3.1,100");
+  assert.deepEqual(rows, [
+    {name: "Examen U1", typeName: "Examen", term: 1, date: "2026-10-15", links: [{caCode: "CA1.1", allocation: 40}, {caCode: "CA2.3", allocation: 60}]},
+    {name: "Pràctica servidors", typeName: "Pràctica", term: 1, date: null, links: [{caCode: "CA3.1", allocation: 100}]},
+  ]);
+  assert.deepEqual(warnings, []);
+});
+
+test("el CSV d'activitats avisa i ignora el CA d'una fila amb un percentatge no vàlid, sense descartar la resta de l'activitat", () => {
+  const {rows, warnings} = parseActivitiesCsv("Examen U1,Examen,1,,CA1.1,40\nExamen U1,Examen,1,,CA2.3,zero");
+  assert.deepEqual(rows, [{name: "Examen U1", typeName: "Examen", term: 1, date: null, links: [{caCode: "CA1.1", allocation: 40}]}]);
+  assert.equal(warnings.length, 1);
+});
+
+test("applyActivitiesCsv crea les activitats a TOTS els grups del curs i crea els tipus que no existeixen", () => {
+  const course = createCourse("2026–2027");
+  assert.equal(course.groups.length, 2);
+  const result = applyActivitiesCsv(course, [
+    {name: "Examen U1", typeName: "Examen", term: 1, date: "2026-10-15", links: []},
+    {name: "Pràctica servidors", typeName: "Pràctica", term: 1, date: null, links: []},
+  ]);
+  assert.deepEqual(result, {created: 2, typesCreated: 2, newTypeNames: ["Examen", "Pràctica"], linksCreated: 0, warnings: []});
+  assert.equal(course.configuration.activities.length, 2);
+  for (const group of course.groups) {
+    assert.equal(group.activityStates.length, 2);
+    for (const activity of course.configuration.activities) {
+      assert.ok(group.activityStates.some(s => s.activityId === activity.id), `falta l’estat de «${activity.name}» al grup ${group.code}`);
+    }
+  }
+});
+
+test("applyActivitiesCsv reutilitza un tipus d'activitat ja existent (comparació sense distingir majúscules) i ignora files amb un trimestre fora de rang", () => {
+  const course = createCourse("2026–2027");
+  course.configuration.activityTypes.push({id: "type-examen", name: "Examen", weight: .5, status: "active"});
+  const result = applyActivitiesCsv(course, [
+    {name: "Examen U1", typeName: "examen", term: 1, date: null, links: []},
+    {name: "Fora de rang", typeName: "Examen", term: 9, date: null, links: []},
+  ]);
+  assert.equal(result.warnings.length, 1);
+  assert.equal(result.created, 1);
+  assert.equal(result.typesCreated, 0);
+  assert.equal(course.configuration.activityTypes.length, 1);
+  assert.equal(course.configuration.activities[0].activityTypeId, "type-examen");
+});
+
+test("applyActivitiesCsv crea les relacions amb els CA existents (sense distingir majúscules), avisa dels CA desconeguts i de sumes diferents de 100%", () => {
+  const course = createCourse("2026–2027");
+  course.configuration.learningResults.push({id: "ra-1", code: "RA1", description: "RA de prova", order: 1, status: "active"});
+  course.configuration.criteria.push(
+    {id: "ca-1", learningResultId: "ra-1", code: "CA1.1", description: "Primer CA", order: 1, status: "active"},
+    {id: "ca-2", learningResultId: "ra-1", code: "CA1.2", description: "Segon CA", order: 2, status: "active"},
+  );
+  const result = applyActivitiesCsv(course, [
+    {name: "Examen U1", typeName: "Examen", term: 1, date: null, links: [{caCode: "ca1.1", allocation: 40}, {caCode: "CA9.9", allocation: 30}]},
+    {name: "Pràctica servidors", typeName: "Pràctica", term: 1, date: null, links: [{caCode: "CA1.2", allocation: 100}]},
+  ]);
+  assert.equal(result.linksCreated, 2);
+  assert.equal(result.warnings.length, 2);
+  assert.ok(result.warnings.some(w => w.includes("CA9.9")));
+  assert.ok(result.warnings.some(w => w.includes("sumen 40.0%")));
+  assert.equal(course.configuration.links.length, 2);
+  const examUnit1 = course.configuration.activities.find(a => a.name === "Examen U1")!;
+  const link = course.configuration.links.find(l => l.activityId === examUnit1.id)!;
+  assert.equal(link.criterionId, "ca-1");
+  assert.equal(link.allocation, .4);
+});
+
+test("buildActivitiesCsv exporta les activitats actives amb les seves relacions CA, amb capçalera i separador CRLF", () => {
+  const course = createCourse("2026–2027");
+  course.configuration.learningResults.push({id: "ra-1", code: "RA1", description: "RA de prova", order: 1, status: "active"});
+  course.configuration.criteria.push(
+    {id: "ca-1", learningResultId: "ra-1", code: "CA1.1", description: "Primer CA", order: 1, status: "active"},
+    {id: "ca-2", learningResultId: "ra-1", code: "CA1.2", description: "Segon CA", order: 2, status: "active"},
+  );
+  applyActivitiesCsv(course, [
+    {name: "Examen U1", typeName: "Examen", term: 1, date: "2026-10-15", links: [{caCode: "CA1.1", allocation: 40}, {caCode: "CA1.2", allocation: 60}]},
+    {name: "Pràctica servidors", typeName: "Pràctica", term: 1, date: null, links: []},
+  ]);
+  const csv = buildActivitiesCsv(course);
+  assert.deepEqual(csv.split("\r\n"), [
+    "nom,tipus,trimestre,data,ca,percentatge",
+    "Examen U1,Examen,1,2026-10-15,CA1.1,40",
+    "Examen U1,Examen,1,2026-10-15,CA1.2,60",
+    "Pràctica servidors,Pràctica,1,,,",
+  ]);
+});
+
+test("buildActivitiesCsv omet les activitats arxivades i posa entre cometes els valors amb comes", () => {
+  const course = createCourse("2026–2027");
+  course.configuration.activityTypes.push({id: "type-examen", name: "Examen", weight: 1, status: "active"});
+  course.configuration.activities.push(
+    {id: "act-1", name: "Examen, part 1", activityTypeId: "type-examen", term: 1, date: null, order: 1, status: "active"},
+    {id: "act-2", name: "Activitat arxivada", activityTypeId: "type-examen", term: 1, date: null, order: 2, status: "archived"},
+  );
+  const csv = buildActivitiesCsv(course);
+  assert.deepEqual(csv.split("\r\n"), [
+    "nom,tipus,trimestre,data,ca,percentatge",
+    '"Examen, part 1",Examen,1,,,',
+  ]);
+});
+
+test("l'exportació i la reimportació d'un CSV d'activitats reprodueixen les mateixes activitats i relacions CA", () => {
+  const course = createCourse("2026–2027");
+  course.configuration.learningResults.push({id: "ra-1", code: "RA1", description: "RA de prova", order: 1, status: "active"});
+  course.configuration.criteria.push({id: "ca-1", learningResultId: "ra-1", code: "CA1.1", description: "Primer CA", order: 1, status: "active"});
+  applyActivitiesCsv(course, [
+    {name: "Examen U1", typeName: "Examen", term: 1, date: "2026-10-15", links: [{caCode: "CA1.1", allocation: 100}]},
+  ]);
+  const csv = buildActivitiesCsv(course);
+  const reimported = createCourse("2027–2028");
+  reimported.configuration.learningResults.push({id: "ra-1", code: "RA1", description: "RA de prova", order: 1, status: "active"});
+  reimported.configuration.criteria.push({id: "ca-1", learningResultId: "ra-1", code: "CA1.1", description: "Primer CA", order: 1, status: "active"});
+  const {rows} = parseActivitiesCsv(csv);
+  const result = applyActivitiesCsv(reimported, rows);
+  assert.equal(result.created, 1);
+  assert.equal(result.linksCreated, 1);
+  const activity = reimported.configuration.activities[0];
+  assert.equal(activity.name, "Examen U1");
+  assert.equal(activity.term, 1);
+  assert.equal(activity.date, "2026-10-15");
+  assert.equal(reimported.configuration.links[0].allocation, 1);
 });

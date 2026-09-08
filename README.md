@@ -14,7 +14,8 @@ Les dades actuals són una demostració inicial. El model (`src/model`) i els co
 2. Instal·la [Node.js LTS](https://nodejs.org/) si encara no el tens.
 3. Executa `1-INSTAL·LAR.bat` una única vegada.
 4. Executa `2-OBRIR-APLICACIO.bat` cada vegada que vulguis obrir l'aplicació.
-5. Per editar el projecte, obre `RA-Avaluacio.code-workspace` amb Visual Studio Code.
+5. (Opcional) Executa `3-CREA-ACCES-DIRECTE.bat` una única vegada per crear una icona "RA Avaluació" a l'escriptori que obre l'aplicació amb un doble clic.
+6. Per editar el projecte, obre `RA-Avaluacio.code-workspace` amb Visual Studio Code.
 
 També es pot executar des del terminal integrat:
 
