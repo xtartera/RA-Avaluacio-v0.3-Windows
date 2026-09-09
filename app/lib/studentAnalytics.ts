@@ -3,6 +3,7 @@ import {AlertTriangle, Info, ThumbsUp, TrendingDown, TrendingUp} from "lucide-re
 import {calculateStudent, groupAsOfTerm, totalGrade, type StudentCalculation} from "../../src/model/calculation";
 import type {AcademicCourse, ActivityType, Grade, Group, LearningResult} from "../../src/model/domain";
 import type {Tone} from "../components/analysis";
+import {termOrdinal} from "./helpers";
 
 export interface RaAnalysisRow {
  ra: LearningResult;
@@ -27,6 +28,8 @@ export interface StudentAnalytics {
  trendDelta: number;
  groupAverage: number;
  groupT1Average: number;
+ trendPoints: {label: string; value: number}[];
+ groupTrendPoints: {label: string; value: number}[];
  raRows: RaAnalysisRow[];
  withEvidence: RaAnalysisRow[];
  achievedCount: number;
@@ -50,6 +53,25 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
  const groupT1Calc = activeAll.map(e => calculateStudent(course, t1Group, e.id));
  const groupAverage = groupCalc.length ? groupCalc.reduce((s, c) => s + c.globalScore, 0) / groupCalc.length : 0;
  const groupT1Average = groupT1Calc.length ? groupT1Calc.reduce((s, c) => s + c.globalScore, 0) / groupT1Calc.length : 0;
+
+ const termCount = course.configuration.termCount || 2;
+ const termCheckpoints = Array.from({length: Math.max(0, termCount - 1)}, (_, i) => i + 1).map(term => {
+  const termGroup = groupAsOfTerm(course, group, term);
+  const studentScore = calculateStudent(course, termGroup, enrollmentId).globalScore;
+  const groupScores = activeAll.map(e => calculateStudent(course, termGroup, e.id).globalScore);
+  const groupAvg = groupScores.length ? groupScores.reduce((s, v) => s + v, 0) / groupScores.length : 0;
+  return {term, studentScore, groupAvg};
+ });
+ const trendPoints = [
+  {label: "Inici", value: 0},
+  ...termCheckpoints.map(c => ({label: `${termOrdinal(c.term)} trimestre`, value: c.studentScore})),
+  {label: "Actual", value: calc.globalScore},
+ ];
+ const groupTrendPoints = [
+  {label: "Inici", value: 0},
+  ...termCheckpoints.map(c => ({label: `${termOrdinal(c.term)} trimestre`, value: c.groupAvg})),
+  {label: "Actual", value: groupAverage},
+ ];
 
  const hasStudentEvidence = group.grades.some(g => g.enrollmentId === enrollmentId && g.status !== "pending");
  const trendDelta = hasStudentEvidence ? calc.globalScore - calcT1.globalScore : 0;
@@ -120,5 +142,5 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
  if (!strengths.length) strengths.push("Encara no hi ha prou evidències per destacar fortaleses.");
  if (!improve.length) improve.push("Cap aspecte prioritari detectat amb les dades actuals.");
 
- return {calc, calcT1, hasStudentEvidence, trendDelta, groupAverage, groupT1Average, raRows, withEvidence, achievedCount, riskRas, activitiesTotal: activitiesAll.length, delivered, deliveryPct, typeRows, diagnosis, strengths, improve, actions};
+ return {calc, calcT1, hasStudentEvidence, trendDelta, groupAverage, groupT1Average, trendPoints, groupTrendPoints, raRows, withEvidence, achievedCount, riskRas, activitiesTotal: activitiesAll.length, delivered, deliveryPct, typeRows, diagnosis, strengths, improve, actions};
 }

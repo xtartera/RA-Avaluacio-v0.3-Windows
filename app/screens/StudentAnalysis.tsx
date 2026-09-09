@@ -19,7 +19,7 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report}: {cou
  const {enrollment, student} = current;
 
  const a = analyzeStudent(course, group, enrollment.id);
- const {calc, calcT1, hasStudentEvidence, trendDelta, groupAverage, groupT1Average, raRows, withEvidence, achievedCount, riskRas, activitiesTotal, delivered, deliveryPct, typeRows, diagnosis, strengths, improve, actions} = a;
+ const {calc, hasStudentEvidence, trendDelta, trendPoints, groupTrendPoints, raRows, withEvidence, achievedCount, riskRas, activitiesTotal, delivered, deliveryPct, typeRows, diagnosis, strengths, improve, actions} = a;
 
  const activitiesAll = course.configuration.activities.filter(act => act.status === "active");
  const activeAll = group.enrollments.filter(e => e.status === "active");
@@ -65,7 +65,7 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report}: {cou
    </div>
 
    <div className="analysisRow">
-    <article className="panel"><div className="panelHeader"><h2>Evolució de la nota projectada</h2></div><TrendLine series={[{label: "Alumne", color: "var(--blue)", points: [{label: "Inici", value: 0}, {label: "1r trimestre", value: calcT1.globalScore}, {label: "Actual", value: calc.globalScore}]}, {label: "Grup", color: "#aab4c4", dashed: true, showValues: false, points: [{label: "Inici", value: 0}, {label: "1r trimestre", value: groupT1Average}, {label: "Actual", value: groupAverage}]}]}/></article>
+    <article className="panel"><div className="panelHeader"><h2>Evolució de la nota projectada</h2></div><TrendLine series={[{label: "Alumne", color: "var(--blue)", points: trendPoints}, {label: "Grup", color: "#aab4c4", dashed: true, showValues: false, points: groupTrendPoints}]}/></article>
     <article className="panel"><div className="panelHeader"><h2>Situació actual</h2></div><GradeBand score={calc.globalScore} riskThreshold={course.configuration.riskThreshold}/></article>
     <article className="panel"><div className="panelHeader"><h2>Rendiment per tipologia d’activitat</h2></div>{typeRows.length ? <div style={{display: "flex", flexDirection: "column", gap: 12, marginTop: 4}}>{typeRows.map(t => <div key={t.type.id}><div style={{display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5}}><span>{t.type.name}</span><b>{t.average !== null ? t.average.toFixed(2) : "—"}</b></div><div className="barTrack"><i style={{width: `${t.average !== null ? t.average / 10 * 100 : 0}%`, background: "var(--blue)"}}/></div></div>)}</div> : <p className="muted">Encara no hi ha activitats qualificades.</p>}</article>
    </div>
