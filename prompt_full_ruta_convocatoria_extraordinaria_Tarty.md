@@ -163,7 +163,7 @@ totes a `session: "ordinaria"`, així que cap càlcul actual varia).
 
 ------------------------------------------------------------------------
 
-## FASE 2 — Entrada de dades (interfície) · Pendent
+## FASE 2 — Entrada de dades (interfície) · ✅ FETA (2026-09-11)
 
 ### Objectiu
 
@@ -214,20 +214,86 @@ presentat per alumne, sense necessitat encara de nous informes.
 
 ### Criteris d'acceptació
 
-- [ ] Es pot crear una activitat d'extraordinària vinculada a un o més
-      RA i qualificar-la des de `Grades.tsx` amb normalitat.
-- [ ] Es pot marcar un alumne com a repetidor des de `Students.tsx` i
-      introduir-hi el `baseline`; es pot desmarcar sense perdre altres
-      dades de la matrícula.
-- [ ] La nova pantalla/secció mostra correctament els alumnes bloquejats
-      a l'ordinària, el seu `baseline` si són repetidors, i permet
-      editar `extraordinariaPresented`.
-- [ ] Un alumne repetidor amb `baseline: 2` que es presenta a
+- [x] Es pot crear una activitat d'extraordinària vinculada a un o més
+      RA i qualificar-la des de `Grades.tsx` amb normalitat. **Verificat
+      de cap a cap amb Playwright** (curs de prova sembrat directament a
+      IndexedDB): creada «Recuperació RA1» com a extraordinària
+      vinculada a RA1, qualificada amb un 9 a `Grades.tsx`, i la
+      pantalla «Extraordinària» mostra «RA1 recuperat» i «Mòdul
+      superat» immediatament.
+- [x] Es pot marcar un alumne com a repetidor (acció «Gestiona
+      convocatòria» a `Students.tsx`) i introduir-hi el `baseline`; es
+      pot desmarcar sense perdre altres dades de la matrícula.
+- [x] La nova pantalla «Extraordinària» mostra correctament els
+      alumnes bloquejats a l'ordinària, el seu `baseline` si són
+      repetidors, i permet editar `extraordinariaPresented`.
+- [x] Un alumne repetidor amb `baseline: 2` que es presenta a
       l'extraordinària apareix marcat amb l'avís d'exhauriment
-      (`convocatoriaConsumida = 4`).
-- [ ] El resultat final mostrat coincideix amb el que calcula
-      `calculateFinalStudent` (validar-ho manualment amb un cas de SOX).
-- [ ] `npm test` i `npx tsc --noEmit` sense errors.
+      (`convocatoriaConsumida = 4`) — cobert pel test unitari de
+      `convocatoriaExhaurida` de la Fase 1; la insígnia visual
+      («Convocatòria exhaurida») s'ha comprovat pel codi a
+      `Students.tsx` i `Extraordinaria.tsx`.
+- [x] El resultat final mostrat coincideix amb el que calcula
+      `calculateFinalStudent` (validat amb el cas de prova de cap a cap
+      esmentat més amunt).
+- [x] `npm test` (55/55), `npx tsc --noEmit` i `npm run build` sense
+      errors.
+
+### Què s'ha implementat
+
+- [`src/model/domain.ts`](src/model/domain.ts): (ja preparat a la Fase
+  1) `conflictingRecoveryActivity` reutilitzat aquí per a la validació
+  de la UI.
+- [`app/screens/Activities.tsx`](app/screens/Activities.tsx):
+  `ActivityEditor` té un nou selector **«Convocatòria»**
+  (Ordinària/Extraordinària); en triar «Extraordinària» apareixen
+  caselles de selecció múltiple amb els RA actius («RA que recupera
+  aquesta activitat»), amb avís i casella desactivada quan un RA ja té
+  una altra recuperació activa. La targeta de cada activitat mostra una
+  insígnia «Extraordinària» (en lloc del % de pes) i els codis de RA
+  que recupera (en lloc de la contribució a CA).
+- [`app/screens/Grades.tsx`](app/screens/Grades.tsx): el desplegable
+  d'activitats agrupa amb `<optgroup>` «Ordinària»/«Extraordinària»; la
+  capçalera de l'activitat indica «· Extraordinària» i el bloc
+  «Contribució als RA» mostra «Recupera: RA…» per a les activitats
+  d'extraordinària.
+- [`app/screens/Students.tsx`](app/screens/Students.tsx): nova acció
+  **«Gestiona convocatòria»** al menú «⋯» de cada alumne, amb un diàleg
+  (casella «Alumne repetidor» + camp `baseline` 0-3 quan està marcada).
+  Insígnies noves a la fila de l'alumne: «Repetidor» i, si
+  `convocatoriaExhaurida`, «Convocatòria exhaurida».
+- [`app/screens/Extraordinaria.tsx`](app/screens/Extraordinaria.tsx)
+  (nou): pantalla per grup amb la llista d'alumnes actius amb el mòdul
+  no superat a l'ordinària (segons `final.ordinaria`, sense necessitat
+  de cridar `calculateStudent` per separat), els seus RA pendents amb
+  estat (pendent/recuperat i nota), el selector
+  `extraordinariaPresented` (Pendent/Sí/No), el total
+  `convocatoriaConsumida` (amb avís si `convocatoriaExhaurida`) i el
+  resultat final (`modulePassed`).
+- [`app/lib/helpers.ts`](app/lib/helpers.ts): `Tab` inclou
+  `"extraordinaria"`.
+- [`app/page.tsx`](app/page.tsx): nova entrada «Extraordinària» al grup
+  de navegació «Avaluació» (amb l'icona `Repeat`), afegida a
+  `GROUP_SCOPED_TABS`, connectada i amb títol de pestanya.
+
+### Decisions preses durant la implementació
+
+- **Una sola acció «Gestiona convocatòria»** a `Students.tsx`, en lloc
+  de dues accions separades («Marca com a repetidor» / «Treu la
+  marca») previstes inicialment al full de ruta: un únic diàleg amb
+  una casella de verificació és més senzill i evita un menú «⋯» encara
+  més llarg. Funcionalment equivalent.
+- **Verificació manual real amb Playwright** (no prevista inicialment
+  als requisits, però necessària per confiar en el flux complet): com
+  que la base de dades comença buida i `Welcome.tsx` només permet
+  crear el primer curs important un Excel, s'ha sembrat un curs de
+  prova mínim directament a IndexedDB (mateix esquema que
+  `AppDatabase`) per poder navegar l'aplicació real. Aquest mètode és
+  reutilitzable per a futures verificacions manuals sense necessitat
+  d'un Excel real.
+- **`Activity.recoversRaIds` es desa buit** quan `session` torna a
+  "ordinaria" en editar una activitat (no es conserva un valor ocult),
+  per evitar estats inconsistents.
 
 ------------------------------------------------------------------------
 
