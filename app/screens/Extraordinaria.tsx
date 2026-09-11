@@ -1,5 +1,5 @@
 import {ClipboardCheck, Download, Repeat, Users} from "lucide-react";
-import {calculateFinalStudent, convocatoriaConsumida, convocatoriaExhaurida} from "../../src/model/calculation";
+import {calculateFinalStudent, convocatoriaConsumida, convocatoriaExhaurida, raIsFailing} from "../../src/model/calculation";
 import {downloadConvocatoriaActaCsv} from "../../src/controllers/database";
 import type {AcademicCourse, Group} from "../../src/model/domain";
 import {activePeople, findGroup, type Mutate} from "../lib/helpers";
@@ -8,7 +8,7 @@ export function Extraordinaria({course, group, mutate, goToGrades, goToActivitat
  const ras = course.configuration.learningResults.filter(r => r.status === "active");
  const recoveryActivityFor = (raId: string) => course.configuration.activities.find(a => a.status === "active" && a.session === "extraordinaria" && a.recoversRaIds.includes(raId));
  const people = activePeople(group).map(({student, enrollment}) => ({student, enrollment, final: calculateFinalStudent(course, group, enrollment.id)}));
- const blocked = people.filter(p => ras.some(ra => {const e = p.final.ordinaria.learningResults.get(ra.id); return !e || e.score < 5 || e.failingActivities > 0}));
+ const blocked = people.filter(p => ras.some(ra => raIsFailing(p.final.ordinaria.learningResults.get(ra.id))));
  const setPresented = (enrollmentId: string, value: boolean | null) => mutate(d => {
   findGroup(d, course.id, group.id).enrollments.find(e => e.id === enrollmentId)!.convocatoria.extraordinariaPresented = value;
  });
@@ -20,7 +20,7 @@ export function Extraordinaria({course, group, mutate, goToGrades, goToActivitat
   : <div className="managementTableScroll"><table className="managementTable">
    <thead><tr><th>Alumne</th><th>RA pendents</th><th>Presentat a l’extraordinària</th><th>Convocatòria</th><th>Resultat final</th></tr></thead>
    <tbody>{blocked.map(({student, enrollment, final}) => {
-    const pendingRas = ras.filter(ra => {const e = final.ordinaria.learningResults.get(ra.id); return !e || e.score < 5 || e.failingActivities > 0});
+    const pendingRas = ras.filter(ra => raIsFailing(final.ordinaria.learningResults.get(ra.id)));
     const consumed = convocatoriaConsumida(enrollment), exhaurida = convocatoriaExhaurida(enrollment);
     const presented = enrollment.convocatoria.extraordinariaPresented;
     return <tr key={enrollment.id}>

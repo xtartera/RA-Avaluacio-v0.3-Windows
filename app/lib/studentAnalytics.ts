@@ -1,6 +1,6 @@
 import type {ElementType} from "react";
 import {AlertTriangle, Info, ThumbsUp, TrendingDown, TrendingUp} from "lucide-react";
-import {calculateFinalStudent, calculateStudent, convocatoriaConsumida, convocatoriaExhaurida, groupAsOfTerm, totalGrade, type StudentCalculation} from "../../src/model/calculation";
+import {calculateFinalStudent, calculateStudent, convocatoriaConsumida, convocatoriaExhaurida, groupAsOfTerm, raIsAchieved, raIsFailing, totalGrade, type StudentCalculation} from "../../src/model/calculation";
 import type {AcademicCourse, Activity, ActivityType, Grade, Group, LearningResult} from "../../src/model/domain";
 import type {Tone} from "../components/analysis";
 import {termOrdinal} from "./helpers";
@@ -148,6 +148,7 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
 export interface RaConvocatoriaRow {
  ra: LearningResult;
  ordinariaAchieved: boolean;
+ pendent: boolean;
  recoveryActivity: Activity | null;
  recoveryScore: number | null;
  finalScore: number;
@@ -173,14 +174,15 @@ export function analyzeStudentConvocatoria(course: AcademicCourse, group: Group,
  const ras = course.configuration.learningResults.filter(r => r.status === "active");
  const raRows: RaConvocatoriaRow[] = ras.map(ra => {
   const ordEntry = final.ordinaria.learningResults.get(ra.id);
-  const ordinariaAchieved = !!ordEntry && ordEntry.score >= 5 && ordEntry.failingActivities === 0;
+  const ordinariaAchieved = raIsAchieved(ordEntry);
   const recoveryActivity = course.configuration.activities.find(a => a.status === "active" && a.session === "extraordinaria" && a.recoversRaIds.includes(ra.id)) ?? null;
   const recoveryGrade = recoveryActivity ? group.grades.find(g => g.enrollmentId === enrollmentId && g.activityId === recoveryActivity.id) : undefined;
   const recoveryScore = recoveryGrade ? totalGrade(recoveryGrade) : null;
   const fr = final.learningResults.get(ra.id)!;
-  return {ra, ordinariaAchieved, recoveryActivity, recoveryScore, finalScore: fr.score, finalAchieved: fr.achieved, source: fr.source};
+  return {ra, ordinariaAchieved, recoveryActivity, recoveryScore, finalScore: fr.score, finalAchieved: fr.achieved, source: fr.source, pendent: !ordinariaAchieved && !raIsFailing(ordEntry)};
  });
- const needingRecovery = raRows.filter(r => !r.ordinariaAchieved);
+ // Només els RA amb evidència real i suspesos necessiten recuperació; un RA sense evidència encara (pendent) no hi compta.
+ const needingRecovery = raRows.filter(r => !r.pendent && !r.ordinariaAchieved);
  const recoveredCount = needingRecovery.filter(r => r.finalAchieved).length;
  return {
   raRows, needingRecovery, recoveredCount, pendingCount: needingRecovery.length - recoveredCount,

@@ -197,6 +197,27 @@ export interface RaFinalResult {
   source: "ordinaria" | "extraordinaria";
 }
 
+interface RaEvidenceEntry {
+  score: number;
+  coverage: number;
+  failingActivities: number;
+}
+
+/**
+ * Un RA sense cap evidència avaluada encara (coverage 0%) no ha estat
+ * ni assolit ni suspès: està pendent. Distingir-ho de "no assolit" és
+ * necessari perquè `score` val 0 per defecte quan no hi ha evidència,
+ * i confondre'l amb un RA realment suspès marcaria com a bloquejats
+ * (o pendents de recuperar) alumnes que encara no han arribat a
+ * aquell RA.
+ */
+export function raIsAchieved(entry?: RaEvidenceEntry): boolean {
+  return !!entry && entry.coverage > 0 && entry.score >= 5 && entry.failingActivities === 0;
+}
+export function raIsFailing(entry?: RaEvidenceEntry): boolean {
+  return !!entry && entry.coverage > 0 && !(entry.score >= 5 && entry.failingActivities === 0);
+}
+
 export interface StudentFinalCalculation {
   ordinaria: StudentCalculation;
   learningResults: Map<string, RaFinalResult>;
@@ -222,10 +243,12 @@ export function calculateFinalStudent(course: AcademicCourse, group: Group, enro
   let globalScore = 0; let totalWeight = 0;
   for (const ra of ras) {
     const ordinariaEntry = ordinaria.learningResults.get(ra.id);
-    const ordinariaAchieved = !!ordinariaEntry && ordinariaEntry.score >= 5 && ordinariaEntry.failingActivities === 0;
     let result: RaFinalResult;
-    if (ordinariaAchieved) {
+    if (raIsAchieved(ordinariaEntry)) {
       result = {score: ordinariaEntry!.score, achieved: true, source: "ordinaria"};
+    } else if (!raIsFailing(ordinariaEntry)) {
+      // Pendent: encara no hi ha evidència d'aquest RA (no és que estigui suspès). No té sentit buscar-hi recuperació.
+      result = {score: ordinariaEntry?.score ?? 0, achieved: false, source: "ordinaria"};
     } else {
       const recoveryActivity = activities.find(a => a.status === "active" && a.session === "extraordinaria" && a.recoversRaIds.includes(ra.id));
       const recoveryGrade = recoveryActivity ? group.grades.find(g => g.enrollmentId === enrollmentId && g.activityId === recoveryActivity.id) : undefined;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {activityIsEvaluated,calculateFinalStudent,calculateStudent,convocatoriaConsumida,convocatoriaExhaurida,finalInteger,groupAsOfTerm,totalGrade} from "../src/model/calculation.ts";
+import {activityIsEvaluated,calculateFinalStudent,calculateStudent,convocatoriaConsumida,convocatoriaExhaurida,finalInteger,groupAsOfTerm,raIsAchieved,raIsFailing,totalGrade} from "../src/model/calculation.ts";
 import {createCourse,newEnrollment,newId,nowIso,type Grade} from "../src/model/domain.ts";
 
 function fixture(){
@@ -236,4 +236,46 @@ test("convocatoriaConsumida i convocatoriaExhaurida es deriven del baseline i de
  enrollment.convocatoria.extraordinariaPresented=false;
  assert.equal(convocatoriaConsumida(enrollment),3);
  assert.equal(convocatoriaExhaurida(enrollment),false);
+});
+
+test("raIsAchieved i raIsFailing distingeixen un RA pendent (sense evidència) d'un de genuïnament suspès",()=>{
+ assert.equal(raIsAchieved(undefined),false);
+ assert.equal(raIsFailing(undefined),false);
+ assert.equal(raIsAchieved({score:0,coverage:0,failingActivities:0}),false);
+ assert.equal(raIsFailing({score:0,coverage:0,failingActivities:0}),false);
+ assert.equal(raIsFailing({score:3,coverage:50,failingActivities:0}),true);
+ assert.equal(raIsAchieved({score:7,coverage:100,failingActivities:0}),true);
+ assert.equal(raIsFailing({score:7,coverage:100,failingActivities:1}),true);
+});
+
+test("un RA sense cap evidència (pendent) no es tracta com a suspès: calculateFinalStudent no li busca recuperació encara que n'hi hagi una qualificada",()=>{
+ const course=createCourse("2026–2027"),group=course.groups[0],config=course.configuration;
+ const type1={id:newId("type"),name:"RA1",weight:.5,status:"active" as const};
+ const type2={id:newId("type"),name:"RA2",weight:.5,status:"active" as const};
+ const ra1={id:newId("ra"),code:"RA1",description:"RA1",order:1,status:"active" as const};
+ const ra2={id:newId("ra"),code:"RA2",description:"RA2 encara no iniciat",order:2,status:"active" as const};
+ const ca1={id:newId("ca"),learningResultId:ra1.id,code:"1.A",description:"CA1",order:1,status:"active" as const};
+ const ca2={id:newId("ca"),learningResultId:ra2.id,code:"2.A",description:"CA2",order:1,status:"active" as const};
+ const act1={id:newId("activity"),name:"Examen RA1",activityTypeId:type1.id,term:1,date:null,order:1,status:"active" as const,session:"ordinaria" as const,recoversRaIds:[]};
+ const act2={id:newId("activity"),name:"Examen RA2",activityTypeId:type2.id,term:2,date:null,order:2,status:"active" as const,session:"ordinaria" as const,recoversRaIds:[]};
+ const recovery2={id:newId("activity"),name:"Recuperació RA2",activityTypeId:type2.id,term:1,date:null,order:3,status:"active" as const,session:"extraordinaria" as const,recoversRaIds:[ra2.id]};
+ config.activityTypes=[type1,type2];config.learningResults=[ra1,ra2];config.criteria=[ca1,ca2];config.activities=[act1,act2,recovery2];
+ config.links=[{id:newId("link"),activityId:act1.id,criterionId:ca1.id,allocation:1},{id:newId("link"),activityId:act2.id,criterionId:ca2.id,allocation:1}];
+ const student={id:newId("student"),name:"Alumne 1"},enrollment=newEnrollment(student.id,group.id);
+ group.students.push(student);group.enrollments.push(enrollment);
+ group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:act1.id,status:"graded",baseValue:3,bonuses:[],updatedAt:nowIso()});
+ group.activityStates.push({activityId:act1.id,automaticEvaluatedAt:nowIso(),manualOverride:null});
+ // RA2 no té cap nota d'ordinària (pendent), però algú ja ha qualificat per error la seva recuperació.
+ group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:recovery2.id,status:"graded",baseValue:9,bonuses:[],updatedAt:nowIso()});
+
+ const ordinaria=calculateStudent(course,group,enrollment.id);
+ assert.equal(ordinaria.learningResults.get(ra2.id)!.coverage,0);
+ assert.equal(raIsFailing(ordinaria.learningResults.get(ra2.id)),false);
+ assert.equal(raIsFailing(ordinaria.learningResults.get(ra1.id)),true);
+
+ const final=calculateFinalStudent(course,group,enrollment.id);
+ assert.equal(final.learningResults.get(ra2.id)!.source,"ordinaria");
+ assert.equal(final.learningResults.get(ra2.id)!.achieved,false);
+ assert.equal(final.learningResults.get(ra1.id)!.source,"ordinaria");
+ assert.equal(final.learningResults.get(ra1.id)!.achieved,false);
 });

@@ -599,6 +599,69 @@ exhaurida, una que ja ho tenia tot aprovat): "Alumnes que recuperen: 2",
 selector no apareix per a l'alumna sense necessitat de recuperació.
 `npm test` (55/55), `tsc` i `build` sense errors.
 
+### Correcció important: "pendent" confós amb "no assolit" a tot el motor de convocatòria (2026-09-11)
+
+L'usuari va detectar que "Alumnes i matrícules" mostrava la nota
+projectada sense cap indicació que el mòdul no estava superat, i va
+demanar trobar el cas real a les dades de SOX sense dir-ne el nom.
+S'ha localitzat analitzant una còpia de seguretat real
+(`ra-avaluacio-2026-09-05.json`, l'única disponible) amb un script que
+importa directament `calculateStudent` del projecte: **OLMO AGUILAR,
+URIEL** (nota 5,43 amb RA4 i RA5 realment no assolits), i tres casos
+més amb el mateix patró (**AYADA FANKOUCH OMAR**, **BONICH TORRES
+JANA**, **TALLANT YAGÜE IZAN**).
+
+En investigar-ho es va trobar un problema més greu i general: el RA6
+tenia **0% de cobertura per a gairebé tota la classe** (encara no
+avaluat). Totes les comprovacions de "RA no assolit"/"mòdul bloquejat"
+introduïdes en aquesta funcionalitat (`moduleBlockedOrdinaria` a
+`StudentReport.tsx`, `blockedRaIds` a `summarizeConvocatoria`, la
+llista `blocked` a `Extraordinaria.tsx`, `needingRecovery` a
+`analyzeStudentConvocatoria`, i el mateix `calculateFinalStudent`)
+tractaven un RA sense evidència (`score` per defecte 0, que és `<5`)
+exactament igual que un RA avaluat i suspès. Sense aquesta correcció,
+la pantalla "Extraordinària" hauria marcat **9 alumnes més** com a
+pendents de recuperar el RA6, quan en realitat encara no hi han
+arribat.
+
+Solució: noves funcions `raIsAchieved`/`raIsFailing` a
+[`src/model/calculation.ts`](src/model/calculation.ts) — un RA compta
+com "no assolit" (i, per tant, bloqueja el mòdul / necessita
+recuperació) només si `coverage > 0` **i** (`score < 5` o
+`failingActivities > 0`); amb `coverage === 0` és "pendent", ni assolit
+ni suspès. Aplicat de manera consistent a `calculateFinalStudent`
+(ja no busca recuperació per a un RA pendent, encara que n'hi hagi una
+qualificada per error), `StudentReport.tsx`, `Extraordinaria.tsx`,
+`groupAnalytics.summarizeConvocatoria` i
+`studentAnalytics.analyzeStudentConvocatoria` (aquesta última hi afegeix
+un camp `pendent` explícit, usat també per mostrar "Pendent" en lloc de
+"No assolit"/"0,00" a la taula "Total" d'Anàlisi de l'alumne).
+
+**A "Alumnes i matrícules"** ([`app/screens/Students.tsx`](app/screens/Students.tsx)),
+la petició original de l'usuari: la cel·la "Nota projectada" ara marca
+en vermell la nota i hi afegeix un avís "RA no assolit" quan l'alumne
+té algun RA genuïnament suspès (amb `raIsFailing`), independentment
+que la mitjana superi el 5.
+
+**Límit conegut, deixat deliberadament així**: `modulePassed` (la
+resolució final) continua exigint que **tots** els RA actius estiguin
+assolits, RA pendents inclosos — un alumne no pot quedar "Mòdul
+superat" mentre quedi algun RA sense evidència, encara que hagi
+recuperat tots els que sí estaven genuïnament suspesos. És correcte
+(el mòdul de veritat no està resolt mentre falti avaluar contingut),
+però és rellevant només si s'usa la pantalla d'extraordinària abans
+que l'ordinària estigui completa per a tothom — no hauria de passar en
+ús normal (l'extraordinària és de juny, quan tot ja està avaluat).
+
+Verificat amb dues noves proves unitàries (`raIsAchieved`/`raIsFailing`
+distingeixen pendent de suspès; `calculateFinalStudent` no aplica una
+recuperació qualificada a un RA pendent) i reexecutant l'anàlisi contra
+les dades reals de SOX: després del fix, només queden els **4** casos
+genuïns (Omar, Jana, Uriel, Izan), no els 13 d'abans. Verificat també
+visualment amb Playwright (un alumne amb un RA genuïnament suspès surt
+marcat; un altre amb un RA merament pendent no). `npm test` (57/57),
+`tsc` i `build` sense errors.
+
 ------------------------------------------------------------------------
 
 ## FASE 4 — Detecció automàtica de repetidors · Futura i opcional (no planificada)

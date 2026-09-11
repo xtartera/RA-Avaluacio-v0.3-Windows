@@ -1,6 +1,6 @@
 import type {ElementType} from "react";
 import {AlertCircle, AlertTriangle, Info, Sparkles, ThumbsUp, TrendingDown, TrendingUp} from "lucide-react";
-import {activityInsights, calculateFinalStudent, calculateStudent, convocatoriaExhaurida, deliveryRate, groupAsOfTerm, groupStdDev, type StudentCalculation} from "../../src/model/calculation";
+import {activityInsights, calculateFinalStudent, calculateStudent, convocatoriaExhaurida, deliveryRate, groupAsOfTerm, groupStdDev, raIsFailing, type StudentCalculation} from "../../src/model/calculation";
 import type {AcademicCourse, Enrollment, Group, LearningResult} from "../../src/model/domain";
 import {computeBands, termOrdinal} from "./helpers";
 import type {ActivityRow, Tone} from "../components/analysis";
@@ -102,7 +102,7 @@ export function summarizeConvocatoria(course: AcademicCourse, group: Group): Gro
  const rows = active.map(enrollment => {
   const name = group.students.find(s => s.id === enrollment.studentId)?.name ?? "—";
   const final = calculateFinalStudent(course, group, enrollment.id);
-  const blockedRaIds = new Set(ras.filter(ra => {const e = final.ordinaria.learningResults.get(ra.id); return !e || e.score < 5 || e.failingActivities > 0}).map(ra => ra.id));
+  const blockedRaIds = new Set(ras.filter(ra => raIsFailing(final.ordinaria.learningResults.get(ra.id))).map(ra => ra.id));
   return {name, blockedRaIds, final};
  });
  const blocked = rows.filter(r => r.blockedRaIds.size > 0);
