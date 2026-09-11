@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 import {
-  createCourse, newId, nowIso,
+  createCourse, newEnrollment, newId, nowIso,
   type AcademicCourse, type Activity, type ActivityCriterionLink, type ActivityType,
   type AssessmentCriterion, type Grade, type GradeBonus, type LearningResult,
 } from "../model/domain.ts";
@@ -96,6 +96,7 @@ export async function importEvaluationWorkbook(file: File, academicYear = "2026â
     const activity: Activity = {
       id: newId("activity"), name: normalizeActivityName(rawName), activityTypeId: type.id,
       term: column < 25 ? 1 : 2, date: null, order: activityByColumn.size + 1, status: "active",
+      session: "ordinaria", recoversRaIds: [],
     };
     activityByColumn.set(column, activity); config.activities.push(activity);
   }
@@ -116,7 +117,7 @@ export async function importEvaluationWorkbook(file: File, academicYear = "2026â
     const name = text(instruments, `B${row}`);
     if (!name || genericStudent(name)) continue;
     const student = {id: newId("student"), name};
-    const enrollment = {id: newId("enrollment"), studentId: student.id, groupId: group.id, status: "active" as const, createdAt: nowIso()};
+    const enrollment = newEnrollment(student.id, group.id);
     group.students.push(student); group.enrollments.push(enrollment);
     for (const [column, activity] of activityByColumn) {
       const cell = instruments[XLSX.utils.encode_cell({r: row - 1, c: column})];
@@ -235,7 +236,7 @@ export function applyActivitiesCsv(course: AcademicCourse, rows: ActivityCsvRow[
       typesCreated++;
       newTypeNames.push(type.name);
     }
-    const activity: Activity = {id: newId("activity"), name: row.name, activityTypeId: type.id, term: row.term, date: row.date, order: config.activities.length + 1, status: "active"};
+    const activity: Activity = {id: newId("activity"), name: row.name, activityTypeId: type.id, term: row.term, date: row.date, order: config.activities.length + 1, status: "active", session: "ordinaria", recoversRaIds: []};
     config.activities.push(activity);
     for (const group of course.groups) group.activityStates.push({activityId: activity.id, automaticEvaluatedAt: null, manualOverride: null});
     created++;

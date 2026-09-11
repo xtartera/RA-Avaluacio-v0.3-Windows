@@ -1,4 +1,4 @@
-import {newId, nowIso, type Group} from "../model/domain.ts";
+import {newEnrollment, newId, type Group} from "../model/domain.ts";
 
 const normalizeName = (name: string) => name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("ca").replace(/\s+/g, " ").trim();
 
@@ -12,7 +12,7 @@ export function mergeStudentRoster(group: Group, names: string[]): void {
    matched.add(existing.id);
   } else {
    const student = {id: newId("student"), name};
-   const enrollment = {id: newId("enrollment"), studentId: student.id, groupId: group.id, status: "active" as const, createdAt: nowIso()};
+   const enrollment = newEnrollment(student.id, group.id);
    group.students.push(student);
    group.enrollments.push(enrollment);
    matched.add(enrollment.id);

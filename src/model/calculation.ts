@@ -1,4 +1,4 @@
-import type {AcademicCourse, Activity, AssessmentCriterion, Grade, Group, LearningResult, RaAveraging} from "./domain.ts";
+import type {AcademicCourse, Activity, AssessmentCriterion, Enrollment, Grade, Group, LearningResult, RaAveraging} from "./domain.ts";
 
 export const totalGrade = (grade: Grade | undefined): number | null => {
   if (!grade || grade.status === "pending") return null;
@@ -19,7 +19,7 @@ export function activityWeights(course: AcademicCourse): Map<string, number> {
   const {activities, activityTypes} = course.configuration;
   const result = new Map<string, number>();
   for (const type of activityTypes.filter(item => item.status === "active")) {
-    const members = activities.filter(activity => activity.status === "active" && activity.activityTypeId === type.id);
+    const members = activities.filter(activity => activity.status === "active" && activity.activityTypeId === type.id && activity.session === "ordinaria");
     for (const activity of members) result.set(activity.id, members.length ? type.weight / members.length : 0);
   }
   return result;
@@ -29,7 +29,7 @@ export function theoreticalActivityWeights(course: AcademicCourse): Map<string, 
   const {activities, activityTypes} = course.configuration;
   const result = new Map<string, number>();
   for (const type of activityTypes.filter(item => item.status === "active")) {
-    const members = activities.filter(activity => activity.activityTypeId === type.id);
+    const members = activities.filter(activity => activity.activityTypeId === type.id && activity.session === "ordinaria");
     for (const activity of members) result.set(activity.id, members.length ? type.weight / members.length : 0);
   }
   return result;
@@ -146,7 +146,7 @@ export function groupStdDev(course: AcademicCourse, group: Group): number {
 }
 
 export function deliveryRate(course: AcademicCourse, group: Group): number {
-  const activities = course.configuration.activities.filter(a => a.status === "active");
+  const activities = course.configuration.activities.filter(a => a.status === "active" && a.session === "ordinaria");
   const enrollments = group.enrollments.filter(e => e.status === "active");
   if (!activities.length || !enrollments.length) return 0;
   let delivered = 0;
@@ -171,7 +171,7 @@ export interface ActivityInsight {
 }
 
 export function activityInsights(course: AcademicCourse, group: Group): ActivityInsight[] {
-  const activities = course.configuration.activities.filter(a => a.status === "active");
+  const activities = course.configuration.activities.filter(a => a.status === "active" && a.session === "ordinaria");
   const enrollments = group.enrollments.filter(e => e.status === "active");
   return activities.map(activity => {
     const grades = enrollments.map(e => group.grades.find(g => g.enrollmentId === e.id && g.activityId === activity.id));
@@ -189,4 +189,66 @@ export function groupAverage(course: AcademicCourse, group: Group): number {
   const active = group.enrollments.filter(e => e.status === "active");
   if (!active.length) return 0;
   return active.reduce((sum, e) => sum + calculateStudent(course, group, e.id).globalScore, 0) / active.length;
+}
+
+export interface RaFinalResult {
+  score: number;
+  achieved: boolean;
+  source: "ordinaria" | "extraordinaria";
+}
+
+export interface StudentFinalCalculation {
+  ordinaria: StudentCalculation;
+  learningResults: Map<string, RaFinalResult>;
+  globalScore: number;
+  modulePassed: boolean;
+}
+
+/**
+ * Resolució final d'un alumne un cop es té en compte la convocatòria
+ * extraordinària: cada RA no assolit a l'ordinària es recalcula amb la
+ * seva activitat de recuperació (`recoversRaIds`), si n'hi ha i té nota.
+ * La nota de recuperació substitueix la de l'ordinària tal qual (sense
+ * capar-la ni comprovar activitats obligatòries). La ponderació global
+ * és sempre la de l'ordinària (`raWeights`): l'extraordinària no hi
+ * afegeix ni en treu pes.
+ */
+export function calculateFinalStudent(course: AcademicCourse, group: Group, enrollmentId: string): StudentFinalCalculation {
+  const ordinaria = calculateStudent(course, group, enrollmentId);
+  const weights = raWeights(course);
+  const activities = course.configuration.activities;
+  const ras = course.configuration.learningResults.filter(r => r.status === "active");
+  const learningResults = new Map<string, RaFinalResult>();
+  let globalScore = 0; let totalWeight = 0;
+  for (const ra of ras) {
+    const ordinariaEntry = ordinaria.learningResults.get(ra.id);
+    const ordinariaAchieved = !!ordinariaEntry && ordinariaEntry.score >= 5 && ordinariaEntry.failingActivities === 0;
+    let result: RaFinalResult;
+    if (ordinariaAchieved) {
+      result = {score: ordinariaEntry!.score, achieved: true, source: "ordinaria"};
+    } else {
+      const recoveryActivity = activities.find(a => a.status === "active" && a.session === "extraordinaria" && a.recoversRaIds.includes(ra.id));
+      const recoveryGrade = recoveryActivity ? group.grades.find(g => g.enrollmentId === enrollmentId && g.activityId === recoveryActivity.id) : undefined;
+      const recoveryScore = recoveryGrade ? totalGrade(recoveryGrade) : null;
+      result = recoveryScore !== null
+        ? {score: recoveryScore, achieved: recoveryScore >= 5, source: "extraordinaria"}
+        : {score: ordinariaEntry?.score ?? 0, achieved: false, source: "ordinaria"};
+    }
+    learningResults.set(ra.id, result);
+    const weight = weights.get(ra.id) ?? 0;
+    globalScore += result.score * weight;
+    totalWeight += weight;
+  }
+  const modulePassed = ras.length > 0 && [...learningResults.values()].every(r => r.achieved);
+  return {ordinaria, learningResults, globalScore: totalWeight ? globalScore / totalWeight : 0, modulePassed};
+}
+
+/** Convocatòries consumides: el baseline heretat + l'ordinària d'enguany
+ * (sempre es consumeix) + l'extraordinària, només si l'alumne s'hi presenta. */
+export function convocatoriaConsumida(enrollment: Enrollment): number {
+  return enrollment.convocatoria.baseline + 1 + (enrollment.convocatoria.extraordinariaPresented === true ? 1 : 0);
+}
+
+export function convocatoriaExhaurida(enrollment: Enrollment): boolean {
+  return convocatoriaConsumida(enrollment) >= 4;
 }

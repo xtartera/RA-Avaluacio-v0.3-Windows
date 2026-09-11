@@ -43,6 +43,37 @@ test("migrateDatabase afegeix termCount als cursos que no en tenen (dades desade
  assert.equal(migrated.courses[0]!.configuration.termCount, 2);
 });
 
+function oldShapedDatabaseWithActivityAndEnrollment(): unknown {
+ return {
+  schemaVersion: 1,
+  gradeHistory: [],
+  courses: [{
+   id: "course1", academicYear: "2026–2027", active: true, archived: false, isTest: false,
+   configuration: {
+    moduleName: "SOX", abbreviation: "SOX", level: "2n SMX",
+    learningResults: [], criteria: [], activityTypes: [],
+    activities: [{id: "act1", name: "Examen", activityTypeId: "type1", term: 1, date: null, order: 1, status: "active"}],
+    links: [],
+   },
+   groups: [{
+    id: "group1", code: "A", name: "Grup A", capacity: 25,
+    enrollments: [{id: "enr1", studentId: "student1", groupId: "group1", status: "active", createdAt: ""}],
+    students: [], grades: [], activityStates: [], comments: [],
+   }],
+   imports: [], createdAt: "", updatedAt: "",
+  }],
+ };
+}
+
+test("migrateDatabase afegeix session i recoversRaIds a les activitats, i convocatoria a les matrícules, que no en tenen (dades desades abans de la convocatòria extraordinària)", () => {
+ const migrated = migrateDatabase(oldShapedDatabaseWithActivityAndEnrollment() as AppDatabase);
+ const activity = migrated.courses[0]!.configuration.activities[0]!;
+ assert.equal(activity.session, "ordinaria");
+ assert.deepEqual(activity.recoversRaIds, []);
+ const enrollment = migrated.courses[0]!.groups[0]!.enrollments[0]!;
+ assert.deepEqual(enrollment.convocatoria, {isRepeater: false, baseline: 0, extraordinariaPresented: null});
+});
+
 test("createCourse sense indicar grups en crea dos (A i B), per compatibilitat amb cursos existents", () => {
  const course = createCourse("2026–2027");
  assert.deepEqual(course.groups.map(g => g.code), ["A", "B"]);

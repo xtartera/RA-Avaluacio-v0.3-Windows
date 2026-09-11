@@ -27,6 +27,8 @@ export interface ActivityType {
   status: EntityStatus;
 }
 
+export type Session = "ordinaria" | "extraordinaria";
+
 export interface Activity {
   id: Id;
   name: string;
@@ -35,6 +37,8 @@ export interface Activity {
   date: string | null;
   order: number;
   status: EntityStatus;
+  session: Session;
+  recoversRaIds: Id[];
 }
 
 export interface ActivityCriterionLink {
@@ -82,12 +86,19 @@ export interface Student {
   name: string;
 }
 
+export interface Convocatoria {
+  isRepeater: boolean;
+  baseline: number;
+  extraordinariaPresented: boolean | null;
+}
+
 export interface Enrollment {
   id: Id;
   studentId: Id;
   groupId: Id;
   status: "active" | "archived" | "withdrawn";
   createdAt: string;
+  convocatoria: Convocatoria;
 }
 
 export interface GradeBonus {
@@ -172,6 +183,16 @@ export interface AppDatabase {
 export const nowIso = () => new Date().toISOString();
 export const newId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
+export const emptyConvocatoria = (): Convocatoria => ({isRepeater: false, baseline: 0, extraordinariaPresented: null});
+
+export function newEnrollment(studentId: Id, groupId: Id): Enrollment {
+  return {id: newId("enrollment"), studentId, groupId, status: "active", createdAt: nowIso(), convocatoria: emptyConvocatoria()};
+}
+
+export function conflictingRecoveryActivity(activities: Activity[], raId: Id, excludeActivityId?: Id): Activity | undefined {
+  return activities.find(a => a.id !== excludeActivityId && a.status === "active" && a.session === "extraordinaria" && a.recoversRaIds.includes(raId));
+}
+
 export function emptyGroup(code: GroupCode): Group {
   return {
     id: newId("group"), code, name: `Grup ${code}`, capacity: 25,
@@ -198,6 +219,15 @@ export function migrateDatabase(data: AppDatabase): AppDatabase {
     if (!course.configuration.cicleNivell) course.configuration.cicleNivell = "Grau mitjà";
     if (!course.configuration.curs) course.configuration.curs = "2n";
     if (!course.configuration.termCount) course.configuration.termCount = 2;
+    for (const activity of course.configuration.activities) {
+      if (!activity.session) activity.session = "ordinaria";
+      if (!activity.recoversRaIds) activity.recoversRaIds = [];
+    }
+    for (const group of course.groups) {
+      for (const enrollment of group.enrollments) {
+        if (!enrollment.convocatoria) enrollment.convocatoria = emptyConvocatoria();
+      }
+    }
   }
   return data;
 }

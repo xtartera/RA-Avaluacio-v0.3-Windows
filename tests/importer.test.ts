@@ -265,8 +265,8 @@ test("buildActivitiesCsv omet les activitats arxivades i posa entre cometes els 
   const course = createCourse("2026–2027");
   course.configuration.activityTypes.push({id: "type-examen", name: "Examen", weight: 1, status: "active"});
   course.configuration.activities.push(
-    {id: "act-1", name: "Examen, part 1", activityTypeId: "type-examen", term: 1, date: null, order: 1, status: "active"},
-    {id: "act-2", name: "Activitat arxivada", activityTypeId: "type-examen", term: 1, date: null, order: 2, status: "archived"},
+    {id: "act-1", name: "Examen, part 1", activityTypeId: "type-examen", term: 1, date: null, order: 1, status: "active", session: "ordinaria", recoversRaIds: []},
+    {id: "act-2", name: "Activitat arxivada", activityTypeId: "type-examen", term: 1, date: null, order: 2, status: "archived", session: "ordinaria", recoversRaIds: []},
   );
   const csv = buildActivitiesCsv(course);
   assert.deepEqual(csv.split("\r\n"), [
