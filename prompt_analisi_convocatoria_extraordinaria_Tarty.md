@@ -183,20 +183,31 @@ a activitats ordinàries.
 
 ## 7. Impacte a la interfície (visió general)
 
-Detall pas a pas al full de ruta, però en resum:
+Detall pas a pas al full de ruta (inclosa una correcció de disseny
+feta arran de proves reals de l'usuari — veure Fase 2 del full de
+ruta), però en resum, l'estat final:
 
-- Selector de sessió (ordinària/extraordinària) i selecció múltiple de
-  RA en crear/editar una activitat.
-- `Grades.tsx` no requereix canvis estructurals: les activitats
-  d'extraordinària hi apareixen com qualsevol altra.
-- A `Students.tsx` (menú "⋯" de cada alumne, on ja hi ha "Arxivar",
-  "Registrar baixa formal", etc.): nova acció **"Marca com a
-  repetidor"**, que revela el camp `baseline` per introduir-hi
-  manualment les convocatòries ja exhaurides.
-- Pantalla o secció nova "Extraordinària" per grup: alumnes amb mòdul
-  no superat a l'ordinària, RA pendents, camp `extraordinariaPresented`,
-  resolució final en viu, i el total de convocatòria consumida
-  (derivat) amb avís quan arriba a 4.
+- **Dues pantalles separades i sense ambigüitat entre convocatòries**:
+  "Activitats" (ordinària, sense cap noció d'extraordinària) i
+  "Activitats extraordinàries" (pantalla nova, rèplica visual de
+  l'anterior, amb un editor propi i més simple: Nom, Tipus, Data
+  opcional i RA que recupera — sense selector de convocatòria, perquè
+  el context de la pantalla ja ho decideix).
+- `Grades.tsx`: el desplegable d'activitats agrupa Ordinària/
+  Extraordinària; en qualificar una activitat d'extraordinària, la
+  llista d'alumnes es filtra **per defecte** a qui necessita recuperar
+  algun dels RA d'aquella activitat (amb un enllaç "Mostra tot
+  l'alumnat" per veure la resta) — així una mateixa activitat de
+  recuperació serveix per a tots els alumnes que la necessiten, sense
+  haver-la de crear ni assignar un per un.
+- A `Students.tsx` (menú "⋯" de cada alumne): nova acció **"Gestiona
+  convocatòria"**, amb la casella "Alumne repetidor" que revela el
+  camp `baseline`.
+- Pantalla "Extraordinària" per grup (seguiment, no creació): alumnes
+  amb mòdul no superat a l'ordinària, RA pendents amb accés directe a
+  qualificar-los (o avís si encara no hi ha activitat de recuperació),
+  camp `extraordinariaPresented`, resolució final en viu, i el total
+  de convocatòria consumida (derivat) amb avís quan arriba a 4.
 - `StudentReport`/`GroupReport`: vista de resolució final i
   estadístiques de convocatòria (aprovats ordinària vs. finals,
   alumnes que exhaureixen convocatòries).

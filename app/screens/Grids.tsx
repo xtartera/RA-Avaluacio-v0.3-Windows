@@ -8,7 +8,7 @@ import {activePeople, normalize, raStatusReason, termOrdinal, useGridMaxHeight} 
 const number=(n:number)=>n.toLocaleString("ca",{minimumFractionDigits:2,maximumFractionDigits:2});
 export function Grids({course,group,report}:{course:AcademicCourse;group:Group;report:(id:string)=>void}) {
  const [view,setView]=useState<"activitats"|"ra">("activitats");
- const acts=course.configuration.activities.filter(a=>a.status==="active");
+ const acts=course.configuration.activities.filter(a=>a.status==="active"&&a.session==="ordinaria");
  return <div className="gridsWorkspace"><div className="gridViewTabs" role="group" aria-label="Tipus de graella"><button aria-pressed={view==="activitats"} onClick={()=>setView("activitats")}><Table2/><span>Activitats<small>Notes i seguiment dels lliuraments</small></span></button><button aria-pressed={view==="ra"} onClick={()=>setView("ra")}><Target/><span>Resultats d’aprenentatge<small>Assoliment, cobertura i nota projectada</small></span></button></div>{view==="activitats"?<ActivityGrid key={group.id} course={course} group={group} acts={acts}/>:<RaGrid key={group.id} course={course} group={group} report={report}/>}</div>;
 }
 function GridSearch({query,change}:{query:string;change:(value:string)=>void}){return <label className="searchField"><Search/><input aria-label="Cerca alumnes a la graella" placeholder="Cerca un alumne…" value={query} onChange={e=>change(e.target.value)}/></label>;}

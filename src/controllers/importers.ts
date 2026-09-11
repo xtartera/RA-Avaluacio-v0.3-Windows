@@ -260,7 +260,7 @@ function csvCell(value: string): string {
 export function buildActivitiesCsv(course: AcademicCourse): string {
   const config = course.configuration;
   const lines = ["nom,tipus,trimestre,data,ca,percentatge"];
-  for (const activity of config.activities.filter(a => a.status === "active")) {
+  for (const activity of config.activities.filter(a => a.status === "active" && a.session === "ordinaria")) {
     const type = config.activityTypes.find(t => t.id === activity.activityTypeId);
     const prefix = [activity.name, type?.name ?? "", String(activity.term), activity.date ?? ""].map(csvCell).join(",");
     const links = config.links.filter(l => l.activityId === activity.id);

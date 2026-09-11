@@ -241,40 +241,28 @@ presentat per alumne, sense necessitat encara de nous informes.
 
 ### Què s'ha implementat
 
-- [`src/model/domain.ts`](src/model/domain.ts): (ja preparat a la Fase
-  1) `conflictingRecoveryActivity` reutilitzat aquí per a la validació
-  de la UI.
-- [`app/screens/Activities.tsx`](app/screens/Activities.tsx):
-  `ActivityEditor` té un nou selector **«Convocatòria»**
-  (Ordinària/Extraordinària); en triar «Extraordinària» apareixen
-  caselles de selecció múltiple amb els RA actius («RA que recupera
-  aquesta activitat»), amb avís i casella desactivada quan un RA ja té
-  una altra recuperació activa. La targeta de cada activitat mostra una
-  insígnia «Extraordinària» (en lloc del % de pes) i els codis de RA
-  que recupera (en lloc de la contribució a CA).
-- [`app/screens/Grades.tsx`](app/screens/Grades.tsx): el desplegable
-  d'activitats agrupa amb `<optgroup>` «Ordinària»/«Extraordinària»; la
-  capçalera de l'activitat indica «· Extraordinària» i el bloc
-  «Contribució als RA» mostra «Recupera: RA…» per a les activitats
-  d'extraordinària.
 - [`app/screens/Students.tsx`](app/screens/Students.tsx): nova acció
   **«Gestiona convocatòria»** al menú «⋯» de cada alumne, amb un diàleg
   (casella «Alumne repetidor» + camp `baseline` 0-3 quan està marcada).
   Insígnies noves a la fila de l'alumne: «Repetidor» i, si
   `convocatoriaExhaurida`, «Convocatòria exhaurida».
 - [`app/screens/Extraordinaria.tsx`](app/screens/Extraordinaria.tsx)
-  (nou): pantalla per grup amb la llista d'alumnes actius amb el mòdul
-  no superat a l'ordinària (segons `final.ordinaria`, sense necessitat
-  de cridar `calculateStudent` per separat), els seus RA pendents amb
-  estat (pendent/recuperat i nota), el selector
-  `extraordinariaPresented` (Pendent/Sí/No), el total
-  `convocatoriaConsumida` (amb avís si `convocatoriaExhaurida`) i el
-  resultat final (`modulePassed`).
+  (nou): pantalla de seguiment per grup, amb els alumnes actius amb el
+  mòdul no superat a l'ordinària, els seus RA pendents amb estat
+  (pendent/recuperat i nota), el selector `extraordinariaPresented`
+  (Pendent/Sí/No), el total `convocatoriaConsumida` (amb avís si
+  `convocatoriaExhaurida`) i el resultat final (`modulePassed`).
 - [`app/lib/helpers.ts`](app/lib/helpers.ts): `Tab` inclou
   `"extraordinaria"`.
 - [`app/page.tsx`](app/page.tsx): nova entrada «Extraordinària» al grup
   de navegació «Avaluació» (amb l'icona `Repeat`), afegida a
   `GROUP_SCOPED_TABS`, connectada i amb títol de pestanya.
+
+**Aquesta primera versió va quedar substituïda de seguida per la
+correcció de disseny descrita més avall** (la pantalla
+«Extraordinària» inicialment també servia per crear i qualificar
+activitats de recuperació; ara només fa seguiment). Es documenta aquí
+per mantenir l'historial de decisions, no com a estat final.
 
 ### Decisions preses durant la implementació
 
@@ -291,49 +279,78 @@ presentat per alumne, sense necessitat encara de nous informes.
   `AppDatabase`) per poder navegar l'aplicació real. Aquest mètode és
   reutilitzable per a futures verificacions manuals sense necessitat
   d'un Excel real.
-- **`Activity.recoversRaIds` es desa buit** quan `session` torna a
-  "ordinaria" en editar una activitat (no es conserva un valor ocult),
-  per evitar estats inconsistents.
 
-### Correcció d'usabilitat arran de la primera prova de l'usuari (2026-09-11)
+### Correcció de disseny arran del feedback de l'usuari (2026-09-11, dues rondes)
 
-En provar la Fase 2, l'usuari va assenyalar que la pantalla
-«Extraordinària» només permetia marcar «presentat/no presentat», però
-no hi havia manera de **crear** una activitat de recuperació ni de
-**qualificar-la** sense sortir-ne (calia recordar anar a «Activitats» i
-triar «Extraordinària» al desplegable, i després a «Notes» a buscar-la
-al desplegable agrupat) — un flux poc descobrible per a la tasca
-central de la funcionalitat.
+**Primera ronda**: l'usuari va assenyalar que la pantalla
+«Extraordinària» només permetia marcar «presentat/no presentat», sense
+manera de crear ni qualificar activitats de recuperació sense sortir-ne.
+Es va provar una primera solució (afegir un panell de creació dins de
+la mateixa pantalla «Extraordinària», i un selector «Convocatòria»
+dins l'editor d'activitats compartit amb `Activities.tsx`).
 
-Solució aplicada a
-[`app/screens/Extraordinaria.tsx`](app/screens/Extraordinaria.tsx):
+**Segona ronda (la que es manté)**: l'usuari va assenyalar dos
+problemes reals amb aquella primera solució:
 
-- Nou panell **«Activitats de recuperació»** a dalt de la pantalla:
-  llista les activitats d'extraordinària existents (RA que recuperen,
-  estat) amb botons **Qualifica** (salta a «Notes» amb l'activitat ja
-  seleccionada, reutilitzant `goToGrades`/`focusActivity`, el mateix
-  patró que ja feia servir `Activities.tsx`), **Edita** i
-  **Arxiva/Restaura**. Botó **«Nova activitat de recuperació»** que
-  obre el mateix `ActivityEditor` de `Activities.tsx` (reutilitzat, no
-  duplicat) amb la convocatòria preseleccionada a «Extraordinària».
-- A la taula d'alumnat, cada RA pendent té ara una icona d'acció
-  directa: **`+`** («Crea l'activitat de recuperació d'aquest RA», si
-  encara no n'hi ha cap, amb el RA ja premarcat a l'editor) o
-  **qualificar** (si ja existeix, salta directament a «Notes» amb
-  aquella activitat concreta seleccionada).
-- `ActivityEditor` ([`app/screens/Activities.tsx`](app/screens/Activities.tsx))
-  admet ara `defaultSession`/`defaultRecoverRaIds` opcionals, perquè
-  qui l'obre (`Extraordinaria.tsx`) pugui preseleccionar la
-  convocatòria i el RA sense necessitat de duplicar el component.
-- [`app/page.tsx`](app/page.tsx): `Extraordinaria` rep `goToGrades`,
-  igual que `Activities`.
+1. Barrejar activitats ordinàries i extraordinàries al mateix editor
+   (amb un desplegable «Convocatòria») no separava prou clarament les
+   dues convocatòries — volia una **pantalla rèplica d'«Activitats»**,
+   però només per a l'extraordinària.
+2. Un examen de recuperació d'un RA sol ser **el mateix per a tots els
+   alumnes que l'han de recuperar**; calia el "lligam" entre alumnes i
+   activitat (qui l'ha de fer i qui no), que encara no existia — a
+   `Grades.tsx`, qualificar una activitat de recuperació mostrava
+   sempre **tot** l'alumnat del grup, no només qui necessitava
+   recuperar aquell RA.
 
-Verificat de cap a cap amb Playwright: crear l'activitat des del botó
-«+» d'un RA concret, qualificar-la des del botó «Qualifica» de la
-taula d'activitats de recuperació, i comprovar que torna a
-«Extraordinària» amb «RA1 recuperat» i «Mòdul superat» — sense sortir
-mai de la pantalla «Extraordinària» excepte per introduir la nota.
-`npm test` (55/55), `tsc` i `build` sense errors.
+Solució final aplicada:
+
+- **Nova pantalla independent**
+  [`app/screens/ActivitatsExtraordinaries.tsx`](app/screens/ActivitatsExtraordinaries.tsx),
+  amb entrada pròpia al menú «Avaluació» («Activitats extraordinàries»,
+  no és una pestanya de grup: les activitats són del curs, no d'un
+  grup concret). Rèplica visual d'`Activities.tsx` (mateixes targetes),
+  amb un `RecoveryActivityEditor` propi i més simple: Nom, Tipus
+  d'activitat (es manté el selector, decisió explícita de l'usuari),
+  Data opcional, i RA que recupera (selecció múltiple, amb la mateixa
+  validació de conflictes `conflictingRecoveryActivity`). Sense camp
+  «Trimestre» (no aplica; es desa un valor intern) ni selector de
+  convocatòria (el context ja ho decideix: tot el que es crea aquí és
+  sempre `session: "extraordinaria"`).
+- [`app/screens/Activities.tsx`](app/screens/Activities.tsx) **revertit
+  a ordinària pura**: `ActivityEditor` torna a no tenir cap noció de
+  convocatòria (sempre crea `session: "ordinaria"`); la targeta i
+  `RelationsOverview` filtren `session === "ordinaria"`, així que una
+  activitat d'extraordinària mai hi apareix.
+- [`src/controllers/importers.ts`](src/controllers/importers.ts)
+  (`buildActivitiesCsv`) i
+  [`app/screens/Grids.tsx`](app/screens/Grids.tsx) (graella
+  d'activitats) filtren també `session === "ordinaria"`, pel mateix
+  motiu de separació neta que ja s'havia aplicat a `calculation.ts` a
+  la Fase 1.
+- **El "lligam" alumne↔activitat, a
+  [`app/screens/Grades.tsx`](app/screens/Grades.tsx)**: en qualificar
+  una activitat `session === "extraordinaria"`, la llista d'alumnes es
+  filtra **per defecte** a qui té algun dels `recoversRaIds` d'aquella
+  activitat no assolit a l'ordinària (`calculateStudent` per candidat),
+  amb un enllaç **«Mostra tot l'alumnat»** que revela la resta. El
+  filtre es reinicia en canviar d'activitat.
+- [`app/screens/Extraordinaria.tsx`](app/screens/Extraordinaria.tsx)
+  torna a ser només seguiment (RA pendents, presentat, convocatòria,
+  resultat final): la creació d'activitats se'n va sencera a la
+  pantalla nova. Cada RA pendent mostra un accés «Qualifica» (si ja hi
+  ha recuperació creada) o un avís «sense activitat →» que porta a
+  «Activitats extraordinàries» (rep `goToActivitatsExtra`).
+- [`app/page.tsx`](app/page.tsx): nova pestanya `"activitatsextra"`
+  (no group-scoped, ja que les activitats són del curs), `Extraordinaria`
+  rep `goToGrades` i `goToActivitatsExtra`.
+
+Verificat de cap a cap amb Playwright, amb 3 alumnes de prova (2 amb
+RA1 suspès, 1 amb RA1 assolit): l'editor d'«Activitats» (ordinària) ja
+no mostra cap camp de convocatòria; la recuperació es crea a
+«Activitats extraordinàries»; en qualificar-la des de «Notes» només hi
+surten els 2 alumnes que la necessiten («Mostra tot l'alumnat» revela
+el tercer). `npm test` (55/55), `tsc` i `build` sense errors.
 
 ------------------------------------------------------------------------
 
