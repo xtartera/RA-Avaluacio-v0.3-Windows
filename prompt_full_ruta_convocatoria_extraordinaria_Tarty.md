@@ -448,6 +448,101 @@ ja existeixen, i preparar una exportació apta per a ús administratiu
   xifres consistents entre ells (RA1 recuperat, RA2 pendent,
   convocatòria 4/4 exhaurida, mòdul no superat).
 
+### Correcció arran de dades reals de SOX: la "NOTA PROJECTADA" no es recalculava amb l'extraordinària (2026-09-11)
+
+Provant l'informe amb un alumne real (RA no assolits recuperats),
+l'usuari va detectar dos problemes a
+[`app/screens/StudentReport.tsx`](app/screens/StudentReport.tsx):
+
+1. La capçalera de dalt (evolució, RA assolits/no assolits,
+   lliuraments, gràfic d'evolució, "Situació actual" i la taula
+   "Resultats d'aprenentatge") reflectia només l'ordinària, sense
+   indicar-ho enlloc — confús un cop l'alumne ja ha passat per
+   l'extraordinària.
+2. Un cop **tots** els RA quedaven assolits (gràcies a la recuperació),
+   la caixa **"NOTA PROJECTADA"** de dalt de tot seguia mostrant (un
+   cop revelada) la nota de l'ordinària, no la nota final recalculada
+   — nombres diferents sense explicació.
+
+**Per què els dos números difereixen** (calia explicar-ho, no només
+corregir-ho): `calculateStudent` (ordinària) pondera cada RA pel seu
+pes global **multiplicat pel seu percentatge de cobertura** i
+**renormalitza dividint només per la suma d'aquests pesos ja
+avaluats** — és el disseny correcte per a una *projecció provisional*
+en curs, on els RA encara no completament avaluats no han de pesar
+igual que els acabats. En canvi `calculateFinalStudent` (Fase 1)
+pondera cada RA pel seu **pes global sencer**, assumint que a hores
+d'ara (convocatòria extraordinària) tota l'avaluació ja està tancada.
+Si algun RA no arriba al 100% de cobertura segons l'aplicació (per
+exemple, un grup amb menys de 5 alumnes actius mai activa el llindar
+automàtic "avaluada" d'una activitat sense forçar-ho manualment a
+Notes → "Mode d'avaluació"), les dues fórmules donen resultats
+lleugerament diferents encara que les notes base siguin les mateixes.
+Reproduït i confirmat amb un cas de prova (RA1 amb un examen no marcat
+"avaluat": ordinària dona 6,33; final, amb el mateix RA1 recuperat a
+un 6, dona 7,00) — la direcció exacta de la diferència depèn de cada
+cas, però el mecanisme és sempre aquest.
+
+Solució aplicada:
+
+- `moduleBlockedOrdinaria` (l'antic `moduleBlocked`, calculat només amb
+  `calc`) es manté per decidir si cal mostrar la secció
+  d'extraordinària i per etiquetar les seccions només-ordinària.
+  `moduleBlocked` ara es calcula com `moduleBlockedOrdinaria &&
+  !final.modulePassed` — és a dir, un cop tots els RA queden resolts
+  (amb o sense recuperació), el mòdul deixa d'estar "bloquejat" i la
+  nota es mostra directament, sense haver de clicar "Mostra nota".
+- La caixa "NOTA PROJECTADA" i el seu "Final: X" ara mostren
+  `displayScore` (= `final.globalScore` quan `moduleBlockedOrdinaria`,
+  si no `calc.globalScore` com sempre) — cap canvi per als alumnes que
+  mai han necessitat l'extraordinària. S'hi afegeix "· amb
+  extraordinària" quan aplica.
+- Avís explícit sota els indicadors superiors («Els indicadors
+  d'aquesta secció... corresponen només a la convocatòria ordinària»),
+  i les capçaleres "Evolució de la nota projectada", "Situació actual"
+  i "Resultats d'aprenentatge" s'etiqueten "(ordinària)" quan
+  `moduleBlockedOrdinaria`.
+- El bloc "Convocatòria extraordinària" (renombrat "— resolució
+  final") ara tanca amb un requadre "NOTA FINAL" més visible, al costat
+  del resultat superat/no superat.
+
+Verificat amb un cas de prova que reprodueix exactament el mecanisme
+(RA1 amb cobertura del 50% a l'ordinària per un examen no marcat
+"avaluat", amb 1 sol alumne al grup): l'informe mostra "Situació actual
+(ordinària) 6,33" i, un cop la recuperació (nota 6) fa que tots els RA
+quedin assolits, la capçalera "NOTA PROJECTADA" mostra directament
+7,00 ("Final: 7 · 75,0% · amb extraordinària"), sense caldre revelar
+res. `npm test` (55/55), `tsc` i `build` sense errors.
+
+### Columna "Convocatòria" sempre visible a "Alumnes i matrícules" (2026-09-11)
+
+L'usuari va demanar que el número de convocatòria consumida fos
+visible permanentment a la pantalla d'alumnat (no només dins la
+pantalla "Extraordinària", que només mostra els alumnes bloquejats), i
+va confirmar el criteri de càlcul: un alumne de primera matrícula ha
+de mostrar `1` (consumirà l'ordinària d'enguany sí o sí; si a més va a
+extraordinària, en consumirà una segona), i un repetidor ha de sumar 1
+al valor que el docent li hagi introduït com a `baseline`. Això és
+exactament el que ja calculava `convocatoriaConsumida` des de la Fase
+1 — no calia tocar cap lògica de càlcul, només fer-lo visible.
+
+Afegit a [`app/screens/Students.tsx`](app/screens/Students.tsx): nova
+columna **"Convocatòria"** a la taula d'alumnat, entre "Cobertura" i
+"Seguiment", amb el valor `convocatoriaConsumida(enrollment)/4` per a
+tots els alumnes (no només repetidors o bloquejats), en vermell amb
+"· Exhaurida" quan `convocatoriaExhaurida`. La cel·la és clicable
+(obre el mateix diàleg "Gestiona convocatòria" que abans només hi
+havia al menú "⋯"), amb un `title` que desglossa el càlcul (baseline +
+ordinària + extraordinària). S'ha tret la insígnia redundant
+"Convocatòria exhaurida" de la cel·la del nom (ara la comunica la
+columna nova); es manté la insígnia "Repetidor" perquè explica *per
+què* el baseline és més gran que 0, cosa que la xifra sola no diu.
+
+Verificat visualment amb Playwright: un alumne de primera matrícula
+mostra "1/4"; un repetidor amb `baseline: 2` i presentat a
+l'extraordinària mostra "4/4 · Exhaurida" en vermell. `npm test`
+(55/55), `tsc` i `build` sense errors.
+
 ------------------------------------------------------------------------
 
 ## FASE 4 — Detecció automàtica de repetidors · Futura i opcional (no planificada)
