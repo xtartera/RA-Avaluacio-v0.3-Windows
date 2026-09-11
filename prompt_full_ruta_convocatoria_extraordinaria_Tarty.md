@@ -543,6 +543,62 @@ mostra "1/4"; un repetidor amb `baseline: 2` i presentat a
 l'extraordinària mostra "4/4 · Exhaurida" en vermell. `npm test`
 (55/55), `tsc` i `build` sense errors.
 
+### Perspectiva Ordinària / Extraordinària / Total a les pantalles d'Anàlisi (2026-09-11)
+
+L'usuari va assenyalar que "Anàlisi de l'alumne" i "Anàlisi del grup"
+mostraven estadístiques (RA assolits/no assolits, % d'aprovats, nota
+mitjana) calculades només amb l'ordinària, sense cap manera de veure-les
+també des de la perspectiva de l'extraordinària o del resultat final —
+"sempre es tracten les mateixes dades amb diferent perspectiva".
+
+**Abast decidit** (confirmat amb l'usuari abans de programar-ho): no
+totes les estadístiques tenen una versió "extraordinària" amb sentit
+propi. Es tripliquen només els KPI de capçalera i la taula
+d'assoliment per RA; es deixen com a **només ordinària** (etiquetades
+"(ordinària)" quan aplica) el gràfic d'evolució per trimestres, el
+rendiment per tipologia d'activitat, "últimes activitats" i la
+diagnosi/fortaleses/accions — són conceptes de seguiment continu, no
+d'un examen puntual de recuperació. A la perspectiva "Extraordinària"
+no es fabrica cap "nota projectada" (no té sentit mitjanar només els RA
+recuperats); es mostren comptadors (RA a recuperar/recuperats/pendents)
+en el seu lloc.
+
+**Disseny escollit** (decisió explícita de l'usuari): un **selector
+superior "Ordinària · Extraordinària · Total"** que recalcula els KPI i
+la taula de RA, en lloc de mostrar les tres seccions apilades.
+
+Implementat a:
+
+- [`app/lib/studentAnalytics.ts`](app/lib/studentAnalytics.ts): nova
+  funció `analyzeStudentConvocatoria(course, group, enrollmentId)` —
+  `raRows` (tots els RA amb `ordinariaAchieved`, `recoveryActivity`,
+  `recoveryScore`, `finalScore`/`finalAchieved`/`source`),
+  `needingRecovery`, `recoveredCount`/`pendingCount`, `finalScore`,
+  `modulePassed`, i `consumed`/`exhaurida`/`presented`
+  (reutilitzant `convocatoriaConsumida`/`convocatoriaExhaurida`).
+- [`app/lib/groupAnalytics.ts`](app/lib/groupAnalytics.ts):
+  `GroupConvocatoriaSummary` ampliat amb `finalAverage` (mitjana de
+  `final.globalScore` de tots els actius), `raRowsExtra` (per RA que
+  algú necessita recuperar: quants ho necessiten/recuperats/pendents i
+  mitjana de la recuperació) i `raRowsFinal` (mateixa forma que
+  `raRows` ordinària, però amb els valors finals).
+- [`app/screens/StudentAnalysis.tsx`](app/screens/StudentAnalysis.tsx)
+  i [`app/screens/GroupAnalysis.tsx`](app/screens/GroupAnalysis.tsx):
+  selector "Ordinària/Extraordinària/Total" a la pestanya Resum,
+  **només visible quan hi ha alguna cosa a recuperar** (cap canvi
+  visible per a alumnes/grups que no han necessitat mai
+  l'extraordinària). En triar Extraordinària o Total, canvien el KPI
+  row i la taula d'assoliment per RA; la resta de blocs es mantenen
+  (etiquetats "(ordinària)") amb una nota explicativa a sobre.
+
+Verificat de cap a cap amb Playwright (3 alumnes: una recupera i passa,
+un repetidor amb la recuperació encara insuficient i convocatòria
+exhaurida, una que ja ho tenia tot aprovat): "Alumnes que recuperen: 2",
+"Ja recuperats: 1", "Nota final mitjana: 7,50", "Aprovats finals: 67%"
+(2 de 3) — xifres creuades i consistents amb el càlcul manual. El
+selector no apareix per a l'alumna sense necessitat de recuperació.
+`npm test` (55/55), `tsc` i `build` sense errors.
+
 ------------------------------------------------------------------------
 
 ## FASE 4 — Detecció automàtica de repetidors · Futura i opcional (no planificada)

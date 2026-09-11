@@ -65,6 +65,23 @@ export function summarizeGroup(course: AcademicCourse, group: Group): GroupSumma
  };
 }
 
+export interface RaRecoveryGroupRow {
+ ra: LearningResult;
+ needingCount: number;
+ recoveredCount: number;
+ pendingCount: number;
+ average: number | null;
+}
+
+export interface RaFinalGroupRow {
+ ra: LearningResult;
+ average: number | null;
+ achievementPct: number | null;
+ passed: number;
+ failed: number;
+ total: number;
+}
+
 export interface GroupConvocatoriaSummary {
  blockedOrdinariaCount: number;
  passedFinalCount: number;
@@ -73,6 +90,9 @@ export interface GroupConvocatoriaSummary {
  stillBlockedNames: string[];
  exhaustedNames: string[];
  repeaterCount: number;
+ finalAverage: number;
+ raRowsExtra: RaRecoveryGroupRow[];
+ raRowsFinal: RaFinalGroupRow[];
 }
 
 export function summarizeConvocatoria(course: AcademicCourse, group: Group): GroupConvocatoriaSummary {
@@ -82,19 +102,39 @@ export function summarizeConvocatoria(course: AcademicCourse, group: Group): Gro
  const rows = active.map(enrollment => {
   const name = group.students.find(s => s.id === enrollment.studentId)?.name ?? "—";
   const final = calculateFinalStudent(course, group, enrollment.id);
-  const ordinariaBlocked = ras.some(ra => {const e = final.ordinaria.learningResults.get(ra.id); return !e || e.score < 5 || e.failingActivities > 0});
-  return {name, ordinariaBlocked, final};
+  const blockedRaIds = new Set(ras.filter(ra => {const e = final.ordinaria.learningResults.get(ra.id); return !e || e.score < 5 || e.failingActivities > 0}).map(ra => ra.id));
+  return {name, blockedRaIds, final};
  });
- const blocked = rows.filter(r => r.ordinariaBlocked);
+ const blocked = rows.filter(r => r.blockedRaIds.size > 0);
  const recoveredNames = blocked.filter(r => r.final.modulePassed).sort(byName).map(r => r.name);
  const stillBlockedNames = blocked.filter(r => !r.final.modulePassed).sort(byName).map(r => r.name);
  const exhaustedNames = active.filter(e => convocatoriaExhaurida(e)).map(e => group.students.find(s => s.id === e.studentId)?.name ?? "—").sort((a, b) => a.localeCompare(b, "ca"));
  const passedFinalCount = active.length - stillBlockedNames.length;
+ const finalAverage = active.length ? rows.reduce((sum, r) => sum + r.final.globalScore, 0) / active.length : 0;
+
+ const raRowsExtra: RaRecoveryGroupRow[] = ras.map(ra => {
+  const needing = rows.filter(r => r.blockedRaIds.has(ra.id));
+  const gradedRecoveries = needing.filter(r => r.final.learningResults.get(ra.id)!.source === "extraordinaria");
+  return {
+   ra, needingCount: needing.length, recoveredCount: gradedRecoveries.filter(r => r.final.learningResults.get(ra.id)!.achieved).length,
+   pendingCount: needing.length - gradedRecoveries.length,
+   average: gradedRecoveries.length ? gradedRecoveries.reduce((sum, r) => sum + r.final.learningResults.get(ra.id)!.score, 0) / gradedRecoveries.length : null,
+  };
+ }).filter(r => r.needingCount > 0);
+
+ const raRowsFinal: RaFinalGroupRow[] = ras.map(ra => {
+  const total = rows.length;
+  const scores = rows.map(r => r.final.learningResults.get(ra.id)!.score);
+  const passed = rows.filter(r => r.final.learningResults.get(ra.id)!.achieved).length;
+  return {ra, average: total ? scores.reduce((a, b) => a + b, 0) / total : null, achievementPct: total ? passed / total * 100 : null, passed, failed: total - passed, total};
+ });
+
  return {
   blockedOrdinariaCount: blocked.length,
   passedFinalCount, passedFinalPct: active.length ? passedFinalCount / active.length * 100 : 0,
   recoveredNames, stillBlockedNames, exhaustedNames,
   repeaterCount: active.filter(e => e.convocatoria.isRepeater).length,
+  finalAverage, raRowsExtra, raRowsFinal,
  };
 }
 

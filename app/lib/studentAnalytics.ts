@@ -1,7 +1,7 @@
 import type {ElementType} from "react";
 import {AlertTriangle, Info, ThumbsUp, TrendingDown, TrendingUp} from "lucide-react";
-import {calculateStudent, groupAsOfTerm, totalGrade, type StudentCalculation} from "../../src/model/calculation";
-import type {AcademicCourse, ActivityType, Grade, Group, LearningResult} from "../../src/model/domain";
+import {calculateFinalStudent, calculateStudent, convocatoriaConsumida, convocatoriaExhaurida, groupAsOfTerm, totalGrade, type StudentCalculation} from "../../src/model/calculation";
+import type {AcademicCourse, Activity, ActivityType, Grade, Group, LearningResult} from "../../src/model/domain";
 import type {Tone} from "../components/analysis";
 import {termOrdinal} from "./helpers";
 
@@ -143,4 +143,48 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
  if (!improve.length) improve.push("Cap aspecte prioritari detectat amb les dades actuals.");
 
  return {calc, calcT1, hasStudentEvidence, trendDelta, groupAverage, groupT1Average, trendPoints, groupTrendPoints, raRows, withEvidence, achievedCount, riskRas, activitiesTotal: activitiesAll.length, delivered, deliveryPct, typeRows, diagnosis, strengths, improve, actions};
+}
+
+export interface RaConvocatoriaRow {
+ ra: LearningResult;
+ ordinariaAchieved: boolean;
+ recoveryActivity: Activity | null;
+ recoveryScore: number | null;
+ finalScore: number;
+ finalAchieved: boolean;
+ source: "ordinaria" | "extraordinaria";
+}
+
+export interface StudentConvocatoriaAnalytics {
+ raRows: RaConvocatoriaRow[];
+ needingRecovery: RaConvocatoriaRow[];
+ recoveredCount: number;
+ pendingCount: number;
+ finalScore: number;
+ modulePassed: boolean;
+ consumed: number;
+ exhaurida: boolean;
+ presented: boolean | null;
+}
+
+export function analyzeStudentConvocatoria(course: AcademicCourse, group: Group, enrollmentId: string): StudentConvocatoriaAnalytics {
+ const enrollment = group.enrollments.find(e => e.id === enrollmentId)!;
+ const final = calculateFinalStudent(course, group, enrollmentId);
+ const ras = course.configuration.learningResults.filter(r => r.status === "active");
+ const raRows: RaConvocatoriaRow[] = ras.map(ra => {
+  const ordEntry = final.ordinaria.learningResults.get(ra.id);
+  const ordinariaAchieved = !!ordEntry && ordEntry.score >= 5 && ordEntry.failingActivities === 0;
+  const recoveryActivity = course.configuration.activities.find(a => a.status === "active" && a.session === "extraordinaria" && a.recoversRaIds.includes(ra.id)) ?? null;
+  const recoveryGrade = recoveryActivity ? group.grades.find(g => g.enrollmentId === enrollmentId && g.activityId === recoveryActivity.id) : undefined;
+  const recoveryScore = recoveryGrade ? totalGrade(recoveryGrade) : null;
+  const fr = final.learningResults.get(ra.id)!;
+  return {ra, ordinariaAchieved, recoveryActivity, recoveryScore, finalScore: fr.score, finalAchieved: fr.achieved, source: fr.source};
+ });
+ const needingRecovery = raRows.filter(r => !r.ordinariaAchieved);
+ const recoveredCount = needingRecovery.filter(r => r.finalAchieved).length;
+ return {
+  raRows, needingRecovery, recoveredCount, pendingCount: needingRecovery.length - recoveredCount,
+  finalScore: final.globalScore, modulePassed: final.modulePassed,
+  consumed: convocatoriaConsumida(enrollment), exhaurida: convocatoriaExhaurida(enrollment), presented: enrollment.convocatoria.extraordinariaPresented,
+ };
 }
