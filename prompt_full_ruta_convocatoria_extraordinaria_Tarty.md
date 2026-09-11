@@ -662,6 +662,46 @@ visualment amb Playwright (un alumne amb un RA genuïnament suspès surt
 marcat; un altre amb un RA merament pendent no). `npm test` (57/57),
 `tsc` i `build` sense errors.
 
+### Segona correcció a "Alumnes i matrícules": mostrar la nota final, i amagar-la de veritat quan no se supera (2026-09-11)
+
+L'usuari va assenyalar que la correcció anterior no n'hi havia prou: la
+cel·la "Nota projectada" a
+[`app/screens/Students.tsx`](app/screens/Students.tsx) cridava sempre
+`calculateStudent` (només ordinària), **mai** `calculateFinalStudent`.
+Efecte concret amb dades reals: alumnes que ja havien recuperat els
+seus RA a l'extraordinària (Uriel Olmo, Jana Bonich) seguien mostrant
+la seva nota **antiga** d'ordinària, no l'actualitzada; i un alumne que
+encara no supera el mòdul (Dídac Huescar) sortia amb la xifra **visible**
+en vermell, cosa que es llegeix igualment com "la meva nota" encara que
+el color avisi que no s'ha superat.
+
+Abans de tocar-ho es va demanar autorització explícita a l'usuari amb
+un resum del pla, confirmat sense canvis.
+
+Solució aplicada:
+
+- Per a cada alumne amb algun RA genuïnament suspès
+  (`moduleBlocked`, amb `raIsFailing`), es calcula
+  `calculateFinalStudent` i:
+  - Si amb l'extraordinària **ja supera** el mòdul → es mostra
+    directament la **nota final actualitzada**, amb l'etiqueta "amb
+    extraordinària" (cas Uriel/Jana).
+  - Si **encara no el supera** → la xifra queda **amagada** darrere
+    "No assolit", amb un botó "Mostra nota" (nou estat `revealed` per
+    alumne) que en revela el valor actual — exactament el mateix patró
+    que ja fa servir l'Informe individual (cas Dídac).
+- Per a qui mai ha tingut cap RA suspès, la cel·la queda exactament
+  igual que sempre (la nota d'ordinària, visible, sense cap canvi).
+- La "Cobertura" es manté tal qual (concepte d'ordinària, sense versió
+  final amb sentit).
+
+Verificat amb Playwright (dos alumnes amb RA1 suspès a l'ordinària: un
+que el recupera i supera el mòdul, un altre que el recupera però
+encara no l'assoleix): el primer mostra "7,50 · amb extraordinària"
+directament; el segon mostra "No assolit · Mostra nota", i en clicar-hi
+revela la nota i canvia a "Amaga". `npm test` (57/57), `tsc` i `build`
+sense errors.
+
 ------------------------------------------------------------------------
 
 ## FASE 4 — Detecció automàtica de repetidors · Futura i opcional (no planificada)
