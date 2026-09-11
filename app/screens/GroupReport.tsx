@@ -7,7 +7,7 @@ import {PassBar} from "../components/shared";
 
 export function GroupReport({course, group, close, compareGroupId}: {course: AcademicCourse; group: Group; close: () => void; compareGroupId?: string}) {
  const g = analyzeGroup(course, group, compareGroupId);
- const {own, other, otherGroup, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, bySuccess, byDifficulty, byMissing, diagnosis, actions, coverageGapWarning} = g;
+ const {own, other, otherGroup, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, bySuccess, byDifficulty, byMissing, diagnosis, actions, coverageGapWarning, convocatoria} = g;
 
  return createPortal(<div className="modal"><div className="report groupReport">
   <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={() => window.print()}><Printer/>Imprimeix</button></div>
@@ -40,7 +40,23 @@ export function GroupReport({course, group, close, compareGroupId}: {course: Aca
   <h2>Assoliment per Resultat d’Aprenentatge</h2>
   {raRows.length ? <table><thead><tr><th>RA</th><th>Mitjana</th><th style={{width: 220}}>Aprovats / suspesos</th></tr></thead><tbody>{raRows.map(r => <tr key={r.ra.id}><td><b>{r.ra.code}</b><br/><span className="muted" style={{fontSize: 11}}>{r.ra.description}</span></td><td>{r.average !== null ? r.average.toFixed(2) : <span className="pending">Pendent</span>}</td><td>{r.achievementPct !== null ? <><div style={{display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 5}}><span>{r.achievementPct.toFixed(0)}%</span><span className="muted">{r.passed}/{r.total}</span></div><PassBar passed={r.passed} failed={r.failed}/></> : <span className="pending">Evidència insuficient</span>}</td></tr>)}</tbody></table> : <p className="muted">Encara no hi ha cap RA actiu.</p>}
 
-  <h2>Activitats destacades</h2>
+  {convocatoria.blockedOrdinariaCount > 0 && <>
+  <h2>Convocatòria extraordinària</h2>
+  <div className="reportStats cols6">
+   <div className="reportStat"><span>Aprovats a l’ordinària</span><strong>{own.passedPct.toFixed(0)}%</strong><em>{own.passed} de {own.withEvidenceCount} amb RA avaluats</em></div>
+   <div className="reportStat"><span>Aprovats finals</span><strong>{convocatoria.passedFinalPct.toFixed(0)}%</strong><em>{convocatoria.passedFinalCount} de {own.count} alumnes actius</em></div>
+   <div className="reportStat"><span>Passen a extraordinària</span><strong>{convocatoria.blockedOrdinariaCount}</strong><em>alumne(s) amb algun RA no assolit</em></div>
+   <div className="reportStat"><span>Alumnat repetidor</span><strong>{convocatoria.repeaterCount}</strong><em>de {own.count} alumnes actius</em></div>
+   <div className="reportStat"><span>Convocatòries exhaurides</span><strong>{convocatoria.exhaustedNames.length}</strong><em>alumne(s) a la 4a convocatòria</em></div>
+  </div>
+  <div style={{display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 22}}>
+   <NameBlock title="Recuperats a l’extraordinària" names={convocatoria.recoveredNames} hint="No superaven l’ordinària però sí el mòdul final, amb les dades actuals de l’extraordinària."/>
+   <NameBlock title="Encara no superen el mòdul" names={convocatoria.stillBlockedNames} hint="Segueixen amb algun RA no assolit després de l’extraordinària (o encara sense recuperar)."/>
+   <NameBlock title="Convocatòries exhaurides" names={convocatoria.exhaustedNames} hint="Han arribat a 4 convocatòries consumides."/>
+  </div>
+ </>}
+
+ <h2>Activitats destacades</h2>
   <div className="actGrid" style={{marginBottom: 22}}>
    <ActivitySubPanel tone="green" title="Major èxit" rows={bySuccess} metric="Mitjana" cell={r => r.average!.toFixed(2)}/>
    <ActivitySubPanel tone="red" title="Més dificultat" rows={byDifficulty} metric="% suspesos" cell={r => r.failPct !== null ? `${r.failPct.toFixed(0)}%` : "—"}/>

@@ -1,6 +1,6 @@
 import type {ElementType} from "react";
 import {AlertCircle, AlertTriangle, Info, Sparkles, ThumbsUp, TrendingDown, TrendingUp} from "lucide-react";
-import {activityInsights, calculateStudent, deliveryRate, groupAsOfTerm, groupStdDev, type StudentCalculation} from "../../src/model/calculation";
+import {activityInsights, calculateFinalStudent, calculateStudent, convocatoriaExhaurida, deliveryRate, groupAsOfTerm, groupStdDev, type StudentCalculation} from "../../src/model/calculation";
 import type {AcademicCourse, Enrollment, Group, LearningResult} from "../../src/model/domain";
 import {computeBands, termOrdinal} from "./helpers";
 import type {ActivityRow, Tone} from "../components/analysis";
@@ -65,6 +65,39 @@ export function summarizeGroup(course: AcademicCourse, group: Group): GroupSumma
  };
 }
 
+export interface GroupConvocatoriaSummary {
+ blockedOrdinariaCount: number;
+ passedFinalCount: number;
+ passedFinalPct: number;
+ recoveredNames: string[];
+ stillBlockedNames: string[];
+ exhaustedNames: string[];
+ repeaterCount: number;
+}
+
+export function summarizeConvocatoria(course: AcademicCourse, group: Group): GroupConvocatoriaSummary {
+ const active = group.enrollments.filter(e => e.status === "active");
+ const ras = course.configuration.learningResults.filter(r => r.status === "active");
+ const byName = (a: {name: string}, b: {name: string}) => a.name.localeCompare(b.name, "ca");
+ const rows = active.map(enrollment => {
+  const name = group.students.find(s => s.id === enrollment.studentId)?.name ?? "—";
+  const final = calculateFinalStudent(course, group, enrollment.id);
+  const ordinariaBlocked = ras.some(ra => {const e = final.ordinaria.learningResults.get(ra.id); return !e || e.score < 5 || e.failingActivities > 0});
+  return {name, ordinariaBlocked, final};
+ });
+ const blocked = rows.filter(r => r.ordinariaBlocked);
+ const recoveredNames = blocked.filter(r => r.final.modulePassed).sort(byName).map(r => r.name);
+ const stillBlockedNames = blocked.filter(r => !r.final.modulePassed).sort(byName).map(r => r.name);
+ const exhaustedNames = active.filter(e => convocatoriaExhaurida(e)).map(e => group.students.find(s => s.id === e.studentId)?.name ?? "—").sort((a, b) => a.localeCompare(b, "ca"));
+ const passedFinalCount = active.length - stillBlockedNames.length;
+ return {
+  blockedOrdinariaCount: blocked.length,
+  passedFinalCount, passedFinalPct: active.length ? passedFinalCount / active.length * 100 : 0,
+  recoveredNames, stillBlockedNames, exhaustedNames,
+  repeaterCount: active.filter(e => e.convocatoria.isRepeater).length,
+ };
+}
+
 export interface RaGroupRow {
  ra: LearningResult;
  average: number | null;
@@ -101,6 +134,7 @@ export interface GroupAnalytics {
  diagnosis: {tone: Tone; icon: ElementType; text: string}[];
  actions: string[];
  coverageGapWarning: boolean;
+ convocatoria: GroupConvocatoriaSummary;
 }
 
 export function analyzeGroup(course: AcademicCourse, group: Group, compareGroupId?: string): GroupAnalytics {
@@ -176,6 +210,7 @@ export function analyzeGroup(course: AcademicCourse, group: Group, compareGroupI
  if (!actions.length) actions.push("Cap actuació prioritària detectada amb les dades actuals.");
 
  const coverageGapWarning = !!(other && Math.abs(own.coverage - other.coverage) > 15);
+ const convocatoria = summarizeConvocatoria(course, group);
 
- return {own, otherGroup, other, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, t1, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, insights, bySuccess, byDifficulty, byMissing, weakestRa, worstDelivery, diagnosis, actions, coverageGapWarning};
+ return {own, otherGroup, other, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, t1, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, insights, bySuccess, byDifficulty, byMissing, weakestRa, worstDelivery, diagnosis, actions, coverageGapWarning, convocatoria};
 }

@@ -17,7 +17,7 @@ export function GroupAnalysis({course, group, goTo}: {course: AcademicCourse; gr
  const otherCandidates = course.groups.filter(x => x.id !== group.id);
  const effectiveCompareId = otherCandidates.some(o => o.id === compareId) ? compareId! : undefined;
  const g = analyzeGroup(course, group, effectiveCompareId);
- const {own, other, otherGroup, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, bySuccess, byDifficulty, byMissing, diagnosis, actions, coverageGapWarning} = g;
+ const {own, other, otherGroup, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, bySuccess, byDifficulty, byMissing, diagnosis, actions, coverageGapWarning, convocatoria} = g;
 
  return <>
   <div className="panelHeader" style={{marginBottom: 16}}>
@@ -63,6 +63,12 @@ export function GroupAnalysis({course, group, goTo}: {course: AcademicCourse; gr
    </div>
 
    <article className="panel" style={{marginBottom: 16}}><div className="panelHeader"><h2>Assoliment per Resultat d’Aprenentatge</h2></div><p className="muted" style={{margin: "0 0 12px"}}>Un alumne "aprova" un RA quan aquest RA arriba a nota ≥5 i no té cap activitat obligatòria suspesa vinculada.</p>{raRows.length ? <table><thead><tr><th>RA</th><th>Mitjana</th><th style={{width: 260}}>Aprovats / suspesos</th></tr></thead><tbody>{raRows.map(r => <tr key={r.ra.id}><td><b>{r.ra.code}</b><br/><span className="muted" style={{fontSize: 11}}>{r.ra.description}</span></td><td>{r.average !== null ? r.average.toFixed(2) : <span className="pending">Pendent</span>}</td><td>{r.achievementPct !== null ? <><div style={{display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 5}}><span>{r.achievementPct.toFixed(0)}% assoliment</span><span className="muted">{r.passed}/{r.total}</span></div><PassBar passed={r.passed} failed={r.failed}/></> : <span className="pending">Evidència insuficient</span>}</td></tr>)}</tbody></table> : <p className="muted">Encara no hi ha cap RA actiu.</p>}</article>
+
+   {convocatoria.blockedOrdinariaCount > 0 && <article className="panel"><div className="panelHeader"><h2>Convocatòria extraordinària</h2><button title="Obre la pantalla Extraordinària" onClick={() => goTo("extraordinaria")}>Gestiona-la</button></div><p className="muted" style={{margin: "0 0 12px"}}>{convocatoria.blockedOrdinariaCount} alumne(s) amb el mòdul no superat a l’ordinària · {convocatoria.passedFinalPct.toFixed(0)}% d’aprovats finals (comptant la recuperació) · {convocatoria.exhaustedNames.length} amb convocatòries exhaurides.</p><div style={{display: "flex", flexWrap: "wrap", gap: 20}}>
+    <div><span className="muted" style={{fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em"}}>Recuperats</span><p style={{margin: "4px 0 0", fontSize: 12}}>{convocatoria.recoveredNames.length ? convocatoria.recoveredNames.join(", ") : "Cap encara."}</p></div>
+    <div><span className="muted" style={{fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em"}}>Encara no superen el mòdul</span><p style={{margin: "4px 0 0", fontSize: 12}}>{convocatoria.stillBlockedNames.length ? convocatoria.stillBlockedNames.join(", ") : "Cap."}</p></div>
+    {convocatoria.exhaustedNames.length > 0 && <div><span className="risk" style={{fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em"}}>Convocatòries exhaurides</span><p style={{margin: "4px 0 0", fontSize: 12}}>{convocatoria.exhaustedNames.join(", ")}</p></div>}
+   </div></article>}
 
    <article className="panel"><div className="panelHeader"><h2>Activitats destacades</h2></div>
     <div className="actGrid">

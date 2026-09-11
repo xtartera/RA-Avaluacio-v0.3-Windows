@@ -297,7 +297,7 @@ presentat per alumne, sense necessitat encara de nous informes.
 
 ------------------------------------------------------------------------
 
-## FASE 3 — Informes i acta · Pendent
+## FASE 3 — Informes i acta · ✅ FETA (2026-09-11)
 
 ### Objectiu
 
@@ -333,13 +333,63 @@ ja existeixen, i preparar una exportació apta per a ús administratiu
 
 ### Criteris d'acceptació
 
-- [ ] Els informes existents no es trenquen ni canvien de comportament
-      quan no hi ha cap activitat d'extraordinària (compatibilitat amb
-      cursos que no la fan servir).
-- [ ] Amb dades reals de SOX amb algun cas de recuperació, l'informe
-      individual i el de grup reflecteixen correctament el resultat
-      final.
-- [ ] `npm test` i `npx tsc --noEmit` sense errors.
+- [x] Els informes existents no es trenquen ni canvien de comportament
+      quan no hi ha cap activitat d'extraordinària (les seccions noves
+      només es mostren si `moduleBlocked`/`blockedOrdinariaCount > 0`;
+      la taula «Assoliment per RA» existent es manté intacta, reflectint
+      només l'ordinària com sempre).
+- [x] Amb un cas de prova amb recuperació (verificat de cap a cap amb
+      Playwright, no amb dades reals de SOX): l'informe individual, la
+      pantalla «Anàlisi del grup» i l'informe de grup exportable
+      reflecteixen correctament el resultat final (RA recuperat,
+      convocatòria consumida i exhaurida, mòdul superat/no superat).
+- [x] `npm test` (55/55), `npx tsc --noEmit` i `npm run build` sense
+      errors.
+
+### Què s'ha implementat
+
+- [`app/screens/StudentReport.tsx`](app/screens/StudentReport.tsx): nou
+  bloc **«Convocatòria extraordinària»** (només visible si
+  `moduleBlocked`), amb el total `convocatoriaConsumida`/`isRepeater`,
+  el detall per RA no assolit a l'ordinària (recuperat/pendent, amb la
+  nota de recuperació) i el resultat final del mòdul
+  (`calculateFinalStudent`).
+- [`app/lib/groupAnalytics.ts`](app/lib/groupAnalytics.ts): nova funció
+  `summarizeConvocatoria(course, group)` (alumnes bloquejats a
+  l'ordinària, aprovats finals, recuperats, encara bloquejats,
+  convocatòries exhaurides, nombre de repetidors), afegida a
+  `GroupAnalytics.convocatoria`.
+- [`app/screens/GroupReport.tsx`](app/screens/GroupReport.tsx) i
+  [`app/screens/GroupAnalysis.tsx`](app/screens/GroupAnalysis.tsx):
+  nova secció **«Convocatòria extraordinària»** (només si hi ha algun
+  alumne bloquejat) amb aprovats ordinària vs. finals, alumnat
+  repetidor, convocatòries exhaurides i les llistes de noms
+  corresponents. No es mostra res quan el mòdul no fa servir
+  l'extraordinària (cap canvi visible per a cursos existents).
+- [`src/controllers/database.ts`](src/controllers/database.ts): nova
+  funció `buildConvocatoriaActaCsv(course, group)` /
+  `downloadConvocatoriaActaCsv(course, group)` — CSV amb l'alumnat
+  actiu del grup (repetidor, convocatòria consumida i exhaurida, nota
+  final per RA, resultat final). Botó **«Exporta acta CSV»** a
+  [`app/screens/Extraordinaria.tsx`](app/screens/Extraordinaria.tsx).
+
+### Decisions preses durant la implementació
+
+- **L'acta és un CSV, no un informe imprimible nou**: reutilitza el
+  patró ja existent d'exportació CSV (`exportActivitiesCsv` a
+  `Activities.tsx`) en lloc de crear un tercer tipus d'informe
+  imprimible; n'hi havia prou per a l'ús administratiu descrit
+  (alumne, convocatòria, resultat per RA i final).
+- **La taula «Assoliment per RA» existent no es toca**: continua
+  mostrant només l'ordinària (tal com ha fet sempre); la informació de
+  l'extraordinària s'afegeix en un bloc nou i diferenciat, per no
+  confondre "assoliment a l'ordinària" amb "resultat final".
+- **Verificació de cap a cap amb un curs de prova sembrat via
+  Playwright** (dos RA, un recuperat i l'altre no, alumne repetidor
+  amb `baseline: 2` i presentat a l'extraordinària): s'ha comprovat
+  visualment que els tres informes i la pantalla d'anàlisi mostren les
+  xifres consistents entre ells (RA1 recuperat, RA2 pendent,
+  convocatòria 4/4 exhaurida, mòdul no superat).
 
 ------------------------------------------------------------------------
 
@@ -389,6 +439,18 @@ idea documentada per si mai calgués anar més enllà de la marca manual.
 
 ## Estat del full de ruta
 
-**Cap fase iniciada.** Aquest document és el punt de partida acordat
-amb el professor (curs pilot: SOX 2025-2026) abans de començar la
-implementació de la Fase 1.
+**Fases 1, 2 i 3 fetes i validades (2026-09-11)**: model de dades i
+motor de càlcul, entrada de dades (activitats de recuperació, gestió
+de repetidors, pantalla «Extraordinària»), i informes/acta amb el
+resultat final. `npm test` (55/55), `npx tsc --noEmit` i `npm run
+build` sense errors a cada fase; el flux complet (crear recuperació →
+qualificar-la → veure el RA recuperat als tres informes) s'ha verificat
+de cap a cap amb Playwright contra l'aplicació real (sense dades
+reals de SOX encara).
+
+Pendent per quan es vulgui:
+- Provar-ho amb dades reals de SOX 2025-2026 (aquest full de ruta s'ha
+  validat amb un curs de prova sembrat directament, no amb el curs
+  real).
+- Fase 4 (detecció automàtica de repetidors): oberta, sense data,
+  documentada com a idea futura.

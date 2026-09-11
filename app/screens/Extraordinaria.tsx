@@ -1,5 +1,6 @@
-import {Repeat, Users} from "lucide-react";
+import {Download, Repeat, Users} from "lucide-react";
 import {calculateFinalStudent, convocatoriaConsumida, convocatoriaExhaurida} from "../../src/model/calculation";
+import {downloadConvocatoriaActaCsv} from "../../src/controllers/database";
 import type {AcademicCourse, Group} from "../../src/model/domain";
 import {activePeople, findGroup, type Mutate} from "../lib/helpers";
 
@@ -11,7 +12,7 @@ export function Extraordinaria({course, group, mutate}: {course: AcademicCourse;
   findGroup(d, course.id, group.id).enrollments.find(e => e.id === enrollmentId)!.convocatoria.extraordinariaPresented = value;
  });
  return <article className="panel managementPanel">
-  <div className="managementHeader"><div className="managementTitle"><span className="sectionIcon"><Repeat/></span><div><h2>Convocatòria extraordinària</h2><p>{blocked.length} alumne(s) actiu(s) del grup {group.code} amb el mòdul no superat a l’ordinària.</p></div></div></div>
+  <div className="managementHeader"><div className="managementTitle"><span className="sectionIcon"><Repeat/></span><div><h2>Convocatòria extraordinària</h2><p>{blocked.length} alumne(s) actiu(s) del grup {group.code} amb el mòdul no superat a l’ordinària.</p></div></div><button title="Exporta una acta CSV amb l’alumnat actiu del grup: repetidor, convocatòria consumida, nota final per RA i resultat final." onClick={() => downloadConvocatoriaActaCsv(course, group)}><Download/>Exporta acta CSV</button></div>
   {!ras.length ? <div className="tableEmpty"><Repeat/><strong>Encara no hi ha cap RA actiu</strong><span>Configura els RA del mòdul a «RA, CA i pesos» abans de gestionar l’extraordinària.</span></div>
   : !blocked.length ? <div className="tableEmpty"><Users/><strong>Cap alumne pendent</strong><span>Tot l’alumnat actiu supera el mòdul a l’ordinària (o encara no hi ha prou evidència per saber-ho).</span></div>
   : <div className="managementTableScroll"><table className="managementTable">
