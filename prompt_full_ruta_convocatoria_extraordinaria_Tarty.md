@@ -295,6 +295,46 @@ presentat per alumne, sense necessitat encara de nous informes.
   "ordinaria" en editar una activitat (no es conserva un valor ocult),
   per evitar estats inconsistents.
 
+### Correcció d'usabilitat arran de la primera prova de l'usuari (2026-09-11)
+
+En provar la Fase 2, l'usuari va assenyalar que la pantalla
+«Extraordinària» només permetia marcar «presentat/no presentat», però
+no hi havia manera de **crear** una activitat de recuperació ni de
+**qualificar-la** sense sortir-ne (calia recordar anar a «Activitats» i
+triar «Extraordinària» al desplegable, i després a «Notes» a buscar-la
+al desplegable agrupat) — un flux poc descobrible per a la tasca
+central de la funcionalitat.
+
+Solució aplicada a
+[`app/screens/Extraordinaria.tsx`](app/screens/Extraordinaria.tsx):
+
+- Nou panell **«Activitats de recuperació»** a dalt de la pantalla:
+  llista les activitats d'extraordinària existents (RA que recuperen,
+  estat) amb botons **Qualifica** (salta a «Notes» amb l'activitat ja
+  seleccionada, reutilitzant `goToGrades`/`focusActivity`, el mateix
+  patró que ja feia servir `Activities.tsx`), **Edita** i
+  **Arxiva/Restaura**. Botó **«Nova activitat de recuperació»** que
+  obre el mateix `ActivityEditor` de `Activities.tsx` (reutilitzat, no
+  duplicat) amb la convocatòria preseleccionada a «Extraordinària».
+- A la taula d'alumnat, cada RA pendent té ara una icona d'acció
+  directa: **`+`** («Crea l'activitat de recuperació d'aquest RA», si
+  encara no n'hi ha cap, amb el RA ja premarcat a l'editor) o
+  **qualificar** (si ja existeix, salta directament a «Notes» amb
+  aquella activitat concreta seleccionada).
+- `ActivityEditor` ([`app/screens/Activities.tsx`](app/screens/Activities.tsx))
+  admet ara `defaultSession`/`defaultRecoverRaIds` opcionals, perquè
+  qui l'obre (`Extraordinaria.tsx`) pugui preseleccionar la
+  convocatòria i el RA sense necessitat de duplicar el component.
+- [`app/page.tsx`](app/page.tsx): `Extraordinaria` rep `goToGrades`,
+  igual que `Activities`.
+
+Verificat de cap a cap amb Playwright: crear l'activitat des del botó
+«+» d'un RA concret, qualificar-la des del botó «Qualifica» de la
+taula d'activitats de recuperació, i comprovar que torna a
+«Extraordinària» amb «RA1 recuperat» i «Mòdul superat» — sense sortir
+mai de la pantalla «Extraordinària» excepte per introduir la nota.
+`npm test` (55/55), `tsc` i `build` sense errors.
+
 ------------------------------------------------------------------------
 
 ## FASE 3 — Informes i acta · ✅ FETA (2026-09-11)
