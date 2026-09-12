@@ -12,6 +12,26 @@
 > document. La feina descrita en aquest prompt **encara no s'ha
 > implementat**: continua sent un full de ruta pendent d'executar.
 
+> **Implementat (12/09/2026):** tota la feina d'aquest prompt s'ha dut a
+> terme. Es van ampliar les variables CSS a `app/globals.css` (uns 55
+> tokens nous, incloent-hi tots els casos trobats a la revisió — famílies
+> `tint-*`/`accent-text-*` per a matisos i textos derivats de marca que no
+> constaven a la primera anàlisi), es van definir els blocs
+> `[data-palette="verd-pissarra"]` i `[data-palette="porpra-modern"]`, es
+> va crear `app/lib/theme.ts` (`useColorPalette`, `applyPalette`,
+> `readStoredPalette`, aplicat abans del primer render des de
+> `src/main.tsx`) i la pantalla `app/screens/Aparenca.tsx` — amb la
+> previsualització en miniatura viva proposada a la secció 5, no els
+> quadrats plans. Es va afegir un bloc `@media print{:root{...}}` al final
+> de `globals.css` que reforça els valors de "Blau clàssic" a totes les
+> variables perquè els informes impresos mai segueixin la paleta activa a
+> pantalla (comprovat amb Playwright: `--dark-btn` computat sota
+> `page.emulateMedia({media:"print"})` és `#1d2d4b` encara que la paleta
+> activa sigui "Porpra modern"). Verificat amb `tsc --noEmit`, `npm test`
+> (57/57), `npm run build` i Playwright (canvi de paleta, persistència a
+> `localStorage` després de recarregar, recoloració de la barra lateral i
+> la navegació, botó de "Torna a la paleta per defecte").
+
 ## 1. Rol i objectiu
 
 Actua com a **desenvolupador frontend sènior** especialitzat en aplicacions

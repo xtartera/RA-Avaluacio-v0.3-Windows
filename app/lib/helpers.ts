@@ -1,7 +1,7 @@
 import {useLayoutEffect, useRef, useState} from "react";
 import {nowIso, type AcademicCourse, type AppDatabase, type Group} from "../../src/model/domain";
 
-export type Tab="resum"|"cursos"|"alumnes"|"notes"|"activitats"|"activitatsextra"|"graelles"|"extraordinaria"|"analisigrup"|"analisialumne"|"informes"|"configuracio"|"dades"|"arxivats"|"ajuda"|"ajudaextra"|"presentacio";
+export type Tab="resum"|"cursos"|"alumnes"|"notes"|"activitats"|"activitatsextra"|"graelles"|"extraordinaria"|"analisigrup"|"analisialumne"|"informes"|"configuracio"|"dades"|"arxivats"|"aparenca"|"ajuda"|"ajudaextra"|"presentacio";
 export type Mutate=(fn:(d:AppDatabase)=>void)=>void;
 export const normalize=(s:string)=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("ca").replace(/\s+/g," ").trim();
 export const TYPE_COLORS=["#3975e8","#795fd7","#b76a12","#0e8fa0","#c2478a","#5b6b8c"];

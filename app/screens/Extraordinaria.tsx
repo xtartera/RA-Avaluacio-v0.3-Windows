@@ -35,7 +35,7 @@ export function Extraordinaria({course, group, mutate, goToGrades, goToActivitat
       return <div key={ra.id} style={{display: "flex", alignItems: "center", gap: 4}}>
        <span className={r.achieved ? "ok" : "risk"} title={`${r.source === "extraordinaria" ? "Recuperat a l’extraordinària" : "Ordinària"}: ${r.score.toFixed(2)}`}>{ra.code} {r.achieved ? "recuperat" : "pendent"}</span>
        {!r.achieved && (recovery
-        ? <button title={`Qualifica «${recovery.name}»`} aria-label={`Qualifica la recuperació de ${ra.code} de ${student.name}`} onClick={() => goToGrades(recovery.id)} style={{display: "inline-flex", alignItems: "center", justifyContent: "center", border: "1px solid #dce6f4", background: "#f8faff", color: "#3975e8", borderRadius: 7, padding: 5, cursor: "pointer"}}><ClipboardCheck size={14}/></button>
+        ? <button title={`Qualifica «${recovery.name}»`} aria-label={`Qualifica la recuperació de ${ra.code} de ${student.name}`} onClick={() => goToGrades(recovery.id)} style={{display: "inline-flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--tint-border-c)", background: "var(--tint-icon)", color: "var(--primary)", borderRadius: 7, padding: 5, cursor: "pointer"}}><ClipboardCheck size={14}/></button>
         : <button className="risk" style={{border: 0, background: "none", padding: 0, fontSize: 11, cursor: "pointer"}} title="Encara no hi ha cap activitat de recuperació per a aquest RA" onClick={goToActivitatsExtra}>sense activitat →</button>)}
       </div>;
      })}</div></td>

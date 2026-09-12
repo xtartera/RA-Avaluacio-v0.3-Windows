@@ -41,7 +41,7 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report}: {cou
  return <>
   <div className="panelHeader" style={{marginBottom: 16}}>
    <div style={{display: "flex", alignItems: "center", gap: 14}}>
-    <div style={{width: 46, height: 46, borderRadius: 13, background: "linear-gradient(145deg,#3975e8,#795fd7)", display: "grid", placeItems: "center", color: "white", fontWeight: 800, fontSize: 17, flexShrink: 0}}>{student.name.charAt(0).toUpperCase()}</div>
+    <div style={{width: 46, height: 46, borderRadius: 13, background: "linear-gradient(145deg,var(--primary),var(--primary-2))", display: "grid", placeItems: "center", color: "white", fontWeight: 800, fontSize: 17, flexShrink: 0}}>{student.name.charAt(0).toUpperCase()}</div>
     <div><strong style={{fontSize: 16, display: "block"}}>{student.name}</strong><span className="muted" style={{fontSize: 12}}>Grup {group.code} · {course.configuration.abbreviation}</span></div>
    </div>
    <div className="actionRow">
