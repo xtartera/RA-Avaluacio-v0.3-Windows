@@ -735,6 +735,26 @@ mostra "2 de 2" (abans hauria mostrat "1 de 2"), i el requadre
 "Situació actual" mostra les dues barres, 5,50 (ordinària) i 7,50
 (final). `npm test` (57/57), `tsc` i `build` sense errors.
 
+### Quarta correcció: "Situació actual" també faltava a la pantalla "Anàlisi de l'alumne" (2026-09-12)
+
+L'usuari va assenyalar que el requadre "Situació actual" continuava
+mostrant només l'ordinària tant a l'informe com "a la pantalla". El
+fix anterior només s'havia aplicat a
+[`app/screens/StudentReport.tsx`](app/screens/StudentReport.tsx)
+(l'informe); **la pantalla "Anàlisi de l'alumne"**
+([`app/screens/StudentAnalysis.tsx`](app/screens/StudentAnalysis.tsx))
+no s'havia tocat — s'hi ha afegit ara la mateixa segona barra
+"Situació final (amb extraordinària)" sota la d'ordinària, reutilitzant
+`conv.finalScore` (ja calculat per `analyzeStudentConvocatoria`, usat
+pels KPI de la perspectiva "Total"), mostrada sempre que
+`hasConvocatoria`, independentment de quina perspectiva
+(Ordinària/Extraordinària/Total) estigui seleccionada.
+
+Es va reverificar també l'informe amb el mateix cas exacte per
+descartar que fos un problema de compilació/caché: als dos llocs surt
+correctament "Situació final (amb extraordinària)" amb la nota final.
+`npm test` (57/57), `tsc` i `build` sense errors.
+
 ------------------------------------------------------------------------
 
 ## FASE 4 — Detecció automàtica de repetidors · Futura i opcional (no planificada)
