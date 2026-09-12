@@ -784,6 +784,45 @@ superava el mòdul), amb les xifres consistents amb les de "Anàlisi del
 grup", i el botó CSV antic ha desaparegut. `npm test` (57/57), `tsc` i
 `build` sense errors.
 
+### Taula creuada Alumne × RA a l'acta, la mateixa a Graelles, i un botó sense estil (2026-09-12)
+
+Tres peticions seguides de l'usuari sobre la mateixa àrea:
+
+1. **A l'acta imprimible**, afegir al final una taula creuada
+   alumne × RA amb la nota de la recuperació a cada encreuament on
+   l'alumne s'havia de presentar, en verd si acaba assolint el RA i en
+   vermell si no.
+2. **A "Graelles"**, afegir un tercer apartat "Extraordinària" amb
+   bàsicament el mateix contingut que aquesta taula creuada, seguint
+   l'estil visual ja existent del "Mapa d'assoliment dels RA".
+3. A "Convocatòria extraordinària", el botó d'icona "Qualifica" (al
+   costat de cada RA pendent) es veia sense estil (queia al disseny
+   per defecte del navegador).
+
+Solució:
+
+- [`app/screens/Extraordinaria.tsx`](app/screens/Extraordinaria.tsx):
+  nova secció "Qualificacions de l'extraordinària per RA" al final de
+  `ActaExtraordinariaPrintReport`, amb una taula Alumne × RA;
+  reutilitza les classes ja existents `activityScore`/`cellPassed`/
+  `cellFailed`/`cellPending` (les mateixes de la Graella d'activitats),
+  així no calia CSS nou. Cel·les amb «—» quan el RA no calia
+  recuperar-lo. El botó "Qualifica" ara té un estil propi (fons blau
+  clar, vora, cantonades arrodonides) en lloc del botó per defecte del
+  navegador.
+- [`app/screens/Grids.tsx`](app/screens/Grids.tsx): tercera pestanya
+  "Extraordinària" a "Graelles" (al costat d'"Activitats" i "Resultats
+  d'aprenentatge"), amb el component nou `ExtraordinariaGrid` — mateixa
+  taula creuada, amb cerca d'alumne i l'estil `visualGrid` ja existent
+  a la pantalla. Només hi apareixen els alumnes amb algun RA no assolit
+  a l'ordinària.
+
+Verificat amb Playwright: el botó "Qualifica" ja no es veu sense estil;
+l'acta mostra la taula creuada amb "7,00" en verd per a un RA recuperat
+i "Pendent" en gris per a un encara sense qualificar; la pestanya nova
+de Graelles mostra exactament la mateixa informació amb "—" per als RA
+no aplicables. `npm test` (57/57), `tsc` i `build` sense errors.
+
 ------------------------------------------------------------------------
 
 ## FASE 4 — Detecció automàtica de repetidors · Futura i opcional (no planificada)

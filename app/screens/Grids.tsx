@@ -1,15 +1,15 @@
 import {useState} from "react";
 import {createPortal} from "react-dom";
-import {Printer, Search, Table2, Target, Users, CheckCircle2, AlertTriangle, ChevronDown, X} from "lucide-react";
-import {calculateStudent, finalInteger, raWeights, totalGrade} from "../../src/model/calculation";
+import {Printer, Repeat, Search, Table2, Target, Users, CheckCircle2, AlertTriangle, ChevronDown, X} from "lucide-react";
+import {calculateFinalStudent, calculateStudent, finalInteger, raIsFailing, raWeights, totalGrade} from "../../src/model/calculation";
 import type {AcademicCourse, Activity, Group} from "../../src/model/domain";
 import {activePeople, normalize, raStatusReason, termOrdinal, useGridMaxHeight} from "../lib/helpers";
 
 const number=(n:number)=>n.toLocaleString("ca",{minimumFractionDigits:2,maximumFractionDigits:2});
 export function Grids({course,group,report}:{course:AcademicCourse;group:Group;report:(id:string)=>void}) {
- const [view,setView]=useState<"activitats"|"ra">("activitats");
+ const [view,setView]=useState<"activitats"|"ra"|"extraordinaria">("activitats");
  const acts=course.configuration.activities.filter(a=>a.status==="active"&&a.session==="ordinaria");
- return <div className="gridsWorkspace"><div className="gridViewTabs" role="group" aria-label="Tipus de graella"><button aria-pressed={view==="activitats"} onClick={()=>setView("activitats")}><Table2/><span>Activitats<small>Notes i seguiment dels lliuraments</small></span></button><button aria-pressed={view==="ra"} onClick={()=>setView("ra")}><Target/><span>Resultats d’aprenentatge<small>Assoliment, cobertura i nota projectada</small></span></button></div>{view==="activitats"?<ActivityGrid key={group.id} course={course} group={group} acts={acts}/>:<RaGrid key={group.id} course={course} group={group} report={report}/>}</div>;
+ return <div className="gridsWorkspace"><div className="gridViewTabs" role="group" aria-label="Tipus de graella"><button aria-pressed={view==="activitats"} onClick={()=>setView("activitats")}><Table2/><span>Activitats<small>Notes i seguiment dels lliuraments</small></span></button><button aria-pressed={view==="ra"} onClick={()=>setView("ra")}><Target/><span>Resultats d’aprenentatge<small>Assoliment, cobertura i nota projectada</small></span></button><button aria-pressed={view==="extraordinaria"} onClick={()=>setView("extraordinaria")}><Repeat/><span>Extraordinària<small>Notes de recuperació per RA</small></span></button></div>{view==="activitats"?<ActivityGrid key={group.id} course={course} group={group} acts={acts}/>:view==="ra"?<RaGrid key={group.id} course={course} group={group} report={report}/>:<ExtraordinariaGrid key={group.id} course={course} group={group}/>}</div>;
 }
 function GridSearch({query,change}:{query:string;change:(value:string)=>void}){return <label className="searchField"><Search/><input aria-label="Cerca alumnes a la graella" placeholder="Cerca un alumne…" value={query} onChange={e=>change(e.target.value)}/></label>;}
 function StudentName({name}:{name:string}){return <div className="studentIdentity"><span className="studentAvatar" aria-hidden="true">{name.split(/\s+/).slice(0,2).map(n=>n[0]).join("")}</span><strong>{name}</strong></div>;}
@@ -49,4 +49,18 @@ function RaPrintReport({course,group,ras,weights,raStats,rows,close}:{course:Aca
 
   <footer>{course.configuration.moduleName} · Grup {group.code} · {course.academicYear} · Dades locals</footer>
  </div></div>, document.body);
+}
+function ExtraordinariaGrid({course,group}:{course:AcademicCourse;group:Group}) {
+ const [query,setQuery]=useState("");
+ const ras=course.configuration.learningResults.filter(r=>r.status==="active");
+ const withFinal=activePeople(group).map(p=>({...p,final:calculateFinalStudent(course,group,p.enrollment.id)}));
+ const blocked=withFinal.filter(p=>ras.some(ra=>raIsFailing(p.final.ordinaria.learningResults.get(ra.id))));
+ const people=blocked.filter(p=>normalize(p.student.name).includes(normalize(query)));
+ const {ref,maxH}=useGridMaxHeight<HTMLDivElement>();
+ return <article className="panel managementPanel"><div className="managementHeader"><div className="managementTitle"><span className="sectionIcon"><Repeat/></span><div><h2>Extraordinària</h2><p>Grup {group.code} · {blocked.length} alumnes amb el mòdul no superat a l’ordinària</p></div></div><div className="gridLegend"><span className="legendPassed">RA recuperat</span><span className="legendFailed">RA no recuperat</span><span>Pendent · Encara sense qualificar</span></div></div><div className="managementToolbar"><GridSearch query={query} change={setQuery}/></div>{!ras.length?<div className="tableEmpty"><Repeat/><strong>Encara no hi ha cap RA actiu</strong></div>:!blocked.length?<div className="tableEmpty"><Users/><strong>Cap alumne pendent</strong><span>Tot l’alumnat actiu supera el mòdul a l’ordinària (o encara no hi ha prou evidència per saber-ho).</span></div>:<div className="gridScroll visualGrid" ref={ref} style={{maxHeight:maxH}} tabIndex={0} aria-label="Graella de recuperacions amb desplaçament"><table><thead><tr><th scope="col">Alumne</th>{ras.map(ra=><th scope="col" key={ra.id} title={ra.description}><span className="gridRaCode">{ra.code}</span></th>)}</tr></thead><tbody>{people.map(({student,enrollment,final})=><tr key={enrollment.id}><td><StudentName name={student.name}/></td>{ras.map(ra=>{
+  const pending=raIsFailing(final.ordinaria.learningResults.get(ra.id));
+  if(!pending)return <td key={ra.id}><span className="muted">—</span></td>;
+  const r=final.learningResults.get(ra.id)!,graded=r.source==="extraordinaria";
+  return <td key={ra.id}><span className={`activityScore ${graded?(r.achieved?"cellPassed":"cellFailed"):"cellPending"}`} title={graded?`Recuperació de ${ra.code}: ${r.score.toFixed(2)}`:`${ra.code} pendent de qualificar la recuperació`}>{graded?number(r.score):"Pendent"}</span></td>;
+ })}</tr>)}</tbody></table></div>}{(!people.length&&blocked.length>0)&&<div className="tableEmpty"><Search/><strong>No hi ha alumnes amb aquesta cerca</strong></div>}<footer className="managementFooter">Només es mostren els alumnes amb algun RA no assolit a l’ordinària. La nota mostrada és la de l’activitat de recuperació (convocatòria extraordinària); «—» indica que aquell RA ja estava assolit a l’ordinària.</footer></article>;
 }

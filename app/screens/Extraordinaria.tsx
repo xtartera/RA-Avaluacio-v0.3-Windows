@@ -35,7 +35,7 @@ export function Extraordinaria({course, group, mutate, goToGrades, goToActivitat
       return <div key={ra.id} style={{display: "flex", alignItems: "center", gap: 4}}>
        <span className={r.achieved ? "ok" : "risk"} title={`${r.source === "extraordinaria" ? "Recuperat a l’extraordinària" : "Ordinària"}: ${r.score.toFixed(2)}`}>{ra.code} {r.achieved ? "recuperat" : "pendent"}</span>
        {!r.achieved && (recovery
-        ? <button title={`Qualifica «${recovery.name}»`} aria-label={`Qualifica la recuperació de ${ra.code} de ${student.name}`} onClick={() => goToGrades(recovery.id)}><ClipboardCheck size={14}/></button>
+        ? <button title={`Qualifica «${recovery.name}»`} aria-label={`Qualifica la recuperació de ${ra.code} de ${student.name}`} onClick={() => goToGrades(recovery.id)} style={{display: "inline-flex", alignItems: "center", justifyContent: "center", border: "1px solid #dce6f4", background: "#f8faff", color: "#3975e8", borderRadius: 7, padding: 5, cursor: "pointer"}}><ClipboardCheck size={14}/></button>
         : <button className="risk" style={{border: 0, background: "none", padding: 0, fontSize: 11, cursor: "pointer"}} title="Encara no hi ha cap activitat de recuperació per a aquest RA" onClick={goToActivitatsExtra}>sense activitat →</button>)}
       </div>;
      })}</div></td>
@@ -88,6 +88,23 @@ function ActaExtraordinariaPrintReport({course, group, close}: {course: Academic
     </tr>;
    })}</tbody>
   </table> : <p className="muted">Cap alumne actiu amb el mòdul no superat a l’ordinària.</p>}
+
+  {blocked.length > 0 && <>
+   <h2>Qualificacions de l’extraordinària per RA</h2>
+   <p className="muted" style={{margin: "0 0 12px", fontSize: 11}}>Només es mostra nota als encreuaments on l’alumne s’havia de presentar (RA no assolit a l’ordinària). En verd, els RA que acaben quedant assolits amb la recuperació; en vermell, els que no.</p>
+   <table><thead><tr><th>Alumne</th>{ras.map(ra => <th key={ra.id} style={{textAlign: "center"}}>{ra.code}</th>)}</tr></thead>
+    <tbody>{blocked.map(({student, enrollment, final}) => <tr key={enrollment.id}>
+     <td><strong>{student.name}</strong></td>
+     {ras.map(ra => {
+      const pending = raIsFailing(final.ordinaria.learningResults.get(ra.id));
+      if (!pending) return <td key={ra.id} style={{textAlign: "center"}} className="muted">—</td>;
+      const r = final.learningResults.get(ra.id)!;
+      const graded = r.source === "extraordinaria";
+      return <td key={ra.id} style={{textAlign: "center"}}>{graded ? <span className={`activityScore ${r.achieved ? "cellPassed" : "cellFailed"}`}>{r.score.toFixed(2)}</span> : <span className="activityScore cellPending">Pendent</span>}</td>;
+     })}
+    </tr>)}</tbody>
+   </table>
+  </>}
 
   <footer>{course.configuration.moduleName} · Grup {group.code} · {course.academicYear} · Dades locals</footer>
  </div></div>, document.body);
