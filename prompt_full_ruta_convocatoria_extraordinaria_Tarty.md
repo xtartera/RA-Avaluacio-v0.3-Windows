@@ -823,6 +823,41 @@ i "Pendent" en gris per a un encara sense qualificar; la pestanya nova
 de Graelles mostra exactament la mateixa informació amb "—" per als RA
 no aplicables. `npm test` (57/57), `tsc` i `build` sense errors.
 
+### Nou apartat d'Ajuda: "Com funciona l'extraordinària" (2026-09-12)
+
+L'usuari va demanar un document d'ajuda que expliqués, de manera
+entenedora, les regles i el càlcul de la convocatòria extraordinària —
+seguint el mateix format que ja existia per a "Com es calcula"
+(`public/CALCUL-NOTES.md`, amb diagrames SVG inline, taules i blocs de
+fórmula), i basant-me en tota la informació ja recollida en aquest
+full de ruta i l'anàlisi.
+
+Implementat:
+
+- Nou [`public/EXTRAORDINARIA-INFO.md`](public/EXTRAORDINARIA-INFO.md):
+  9 seccions (ordinària vs. extraordinària, la distinció pendent/
+  assolit/no assolit amb un diagrama de flux, com es defineixen les
+  activitats de recuperació, el filtratge automàtic a Notes, la
+  fórmula de la nota final, quan es considera superat el mòdul, la
+  fórmula de convocatòria consumida/exhaurida, una taula de "on es
+  gestiona cada cosa" i un resum final).
+- [`app/screens/ExtraordinariaHelp.tsx`](app/screens/ExtraordinariaHelp.tsx)
+  (nou): mateix patró exacte que `Help.tsx`/`Presentacio.tsx` (fetch +
+  `marked` + `dangerouslySetInnerHTML`), sense duplicar-hi lògica nova.
+- Nova entrada **"Com funciona l'extraordinària"** al grup de navegació
+  "Ajuda" (entre "Com es calcula" i "Presentació mòdul"). Es va haver
+  de triar aquest nom (en lloc de "Convocatòria extraordinària", el
+  nom "natural") perquè ja hi havia una pantalla de gestió amb
+  exactament aquell nom al grup "Avaluació" — dues entrades amb el
+  mateix text al menú lateral haurien estat confuses (i, de fet, van
+  fer fallar la primera verificació amb Playwright per ambigüitat).
+
+Verificat amb Playwright: el document es carrega, es renderitza el
+diagrama SVG de la secció 2, i el contingut coincideix amb el fitxer
+font. `npm test` (57/57), `tsc` i `build` sense errors (el `.md` nou es
+copia automàticament a `dist/` en fer `npm run build`, igual que la
+resta de documents d'ajuda).
+
 ------------------------------------------------------------------------
 
 ## FASE 4 — Detecció automàtica de repetidors · Futura i opcional (no planificada)
