@@ -702,6 +702,39 @@ directament; el segon mostra "No assolit · Mostra nota", i en clicar-hi
 revela la nota i canvia a "Amaga". `npm test` (57/57), `tsc` i `build`
 sense errors.
 
+### Tercera correcció a l'Informe individual: "RA assolits" només comptava l'ordinària, i faltava la situació final (2026-09-12)
+
+Amb el cas real de Dídac Huescar (un RA assolit a l'ordinària i un
+altre recuperat a l'extraordinària, els dos ja resolts favorablement),
+l'usuari va detectar que a
+[`app/screens/StudentReport.tsx`](app/screens/StudentReport.tsx) el
+requadre superior "RA assolits" seguia comptant **només** l'ordinària
+(`a.achievedCount`), tot i que la capçalera "NOTA PROJECTADA" ja s'havia
+corregit per mostrar la nota final. També va suggerir afegir, al
+requadre "Situació actual", una segona línia amb l'assoliment final
+(ordinària + extraordinària), no només l'ordinària.
+
+Solució:
+
+- "RA assolits"/"RA no assolits" (i els seus subtítols) ara compten,
+  quan `moduleBlockedOrdinaria`, els RA **finals** (`final.learningResults`)
+  en lloc dels d'ordinària — amb l'etiqueta "(final)" al costat del
+  títol. Sense canvis per a qui mai ha tingut cap RA suspès.
+- El requadre "Situació actual (ordinària)" ara mostra, quan aplica, una
+  segona barra **"Situació final (amb extraordinària)"** amb el mateix
+  component `GradeBand`, sota la de l'ordinària, dins el mateix
+  requadre — tal com va demanar l'usuari.
+- Nota explicativa del requadre superior actualitzada per deixar clar
+  que "RA assolits"/"RA no assolits" ja compten la recuperació, mentre
+  que el gràfic d'evolució i la taula "Resultats d'aprenentatge" més
+  avall continuen sent només ordinària.
+
+Verificat amb Playwright (RA1 assolit a l'ordinària, RA2 suspès a
+l'ordinària i recuperat a l'extraordinària): "RA assolits (final)"
+mostra "2 de 2" (abans hauria mostrat "1 de 2"), i el requadre
+"Situació actual" mostra les dues barres, 5,50 (ordinària) i 7,50
+(final). `npm test` (57/57), `tsc` i `build` sense errors.
+
 ------------------------------------------------------------------------
 
 ## FASE 4 — Detecció automàtica de repetidors · Futura i opcional (no planificada)
