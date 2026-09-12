@@ -755,6 +755,35 @@ descartar que fos un problema de compilació/caché: als dos llocs surt
 correctament "Situació final (amb extraordinària)" amb la nota final.
 `npm test` (57/57), `tsc` i `build` sense errors.
 
+### Acta imprimible en lloc de l'exportació CSV (2026-09-12)
+
+L'usuari va demanar substituir el botó "Exporta acta CSV" de la
+pantalla "Convocatòria extraordinària" per un informe imprimible en
+finestra modal, a l'estil visual dels informes d'anàlisi d'alumne i de
+grup (`StudentReport.tsx`/`GroupReport.tsx`), en lloc d'un fitxer CSV.
+
+Implementat a
+[`app/screens/Extraordinaria.tsx`](app/screens/Extraordinaria.tsx):
+nou component `ActaExtraordinariaPrintReport` (mateix patró `.report`
++ `createPortal` que la resta d'informes), amb capçalera
+(`reportHead`, icona, títol, % d'aprovats finals com a xifra
+destacada), una graella de 6 estadístiques (reutilitzant
+`summarizeConvocatoria` de `groupAnalytics.ts`: passen a
+extraordinària, recuperats, encara no superen, convocatòries
+exhaurides, alumnat repetidor, nota final mitjana) i una taula amb el
+detall per alumne (RA pendents amb l'estat de recuperació, presentat,
+convocatòria consumida, resultat final). Botó "Imprimeix acta" que
+obre la finestra modal; eliminat el botó i les funcions CSV
+(`buildConvocatoriaActaCsv`/`downloadConvocatoriaActaCsv` a
+[`src/controllers/database.ts`](src/controllers/database.ts), sense
+cap altre punt que les fes servir).
+
+Verificat amb Playwright (3 alumnes amb resultats mixtos): l'acta
+inclou només els alumnes bloquejats a l'ordinària (no l'alumna que ja
+superava el mòdul), amb les xifres consistents amb les de "Anàlisi del
+grup", i el botó CSV antic ha desaparegut. `npm test` (57/57), `tsc` i
+`build` sense errors.
+
 ------------------------------------------------------------------------
 
 ## FASE 4 — Detecció automàtica de repetidors · Futura i opcional (no planificada)
