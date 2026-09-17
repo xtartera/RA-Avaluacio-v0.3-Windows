@@ -60,7 +60,7 @@ function ActivityContributionPrintReport({course,close}:{course:AcademicCourse;c
  const activeCount=activities.filter(a=>a.status==="active").length;
  const[introHtml,setIntroHtml]=useState<string|null>(null);
  useEffect(()=>{let alive=true;fetch("/CALCUL-NOTES.md").then(r=>r.text()).then(async text=>{const body=text.split("\n---\n")[0];const rendered=await marked.parse(body);if(alive)setIntroHtml(rendered)}).catch(()=>{if(alive)setIntroHtml("<p>No s’ha pogut carregar el document «Com es calcula».</p>")});return()=>{alive=false}},[]);
- return createPortal(<div className="modal"><div className="report raPrintReport">
+ return createPortal(<div className="modal"><div className="report raPrintReport contribReport">
   <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={()=>window.print()}><Printer/>Imprimeix</button></div>
 
   <div className="reportHead"><FileSpreadsheet/><div><small>INFORME DE CONTRIBUCIÓ D’ACTIVITATS</small><h1>Contribució de les activitats a la nota global</h1><p>{cfg.level} · {cfg.moduleName} · {course.academicYear}</p></div><div className="bigScore"><span>ACTIVITATS ACTIVES</span><strong>{activeCount}</strong><em>de {activities.length} en total</em></div></div>
