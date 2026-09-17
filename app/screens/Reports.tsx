@@ -1,5 +1,6 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {createPortal} from "react-dom";
+import {marked} from "marked";
 import {AlertTriangle, FileSpreadsheet, Printer, X} from "lucide-react";
 import {activityWeights, raWeights, theoreticalActivityWeights, theoreticalRaWeights} from "../../src/model/calculation";
 import type {AcademicCourse} from "../../src/model/domain";
@@ -57,28 +58,33 @@ function ActivityContributionPrintReport({course,close}:{course:AcademicCourse;c
  const realRa=raWeights(course),teoricRa=theoreticalRaWeights(course);
  const realTotal=[...real.values()].reduce((sum,w)=>sum+w,0),teoricTotal=[...teoric.values()].reduce((sum,w)=>sum+w,0);
  const activeCount=activities.filter(a=>a.status==="active").length;
- return createPortal(<div className="modal"><div className="report">
+ const[introHtml,setIntroHtml]=useState<string|null>(null);
+ useEffect(()=>{let alive=true;fetch("/CALCUL-NOTES.md").then(r=>r.text()).then(async text=>{const body=text.split("\n---\n")[0];const rendered=await marked.parse(body);if(alive)setIntroHtml(rendered)}).catch(()=>{if(alive)setIntroHtml("<p>No s’ha pogut carregar el document «Com es calcula».</p>")});return()=>{alive=false}},[]);
+ return createPortal(<div className="modal"><div className="report raPrintReport">
   <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={()=>window.print()}><Printer/>Imprimeix</button></div>
 
   <div className="reportHead"><FileSpreadsheet/><div><small>INFORME DE CONTRIBUCIÓ D’ACTIVITATS</small><h1>Contribució de les activitats a la nota global</h1><p>{cfg.level} · {cfg.moduleName} · {course.academicYear}</p></div><div className="bigScore"><span>ACTIVITATS ACTIVES</span><strong>{activeCount}</strong><em>de {activities.length} en total</em></div></div>
 
-  <h2>Pes de cada RA sobre la nota global</h2>
+  <div className="helpContent">{introHtml===null?<p className="muted">Carregant…</p>:<div dangerouslySetInnerHTML={{__html:introHtml}}/>}</div>
+
+  <h2>9. Contribució de les activitats a la nota global, per RA</h2>
+  <p>Igual que a la secció 2, cada activitat reparteix el seu pes entre els CA i, per tant, entre els RA als quals contribueix. La taula següent mostra, per a cada activitat, quin percentatge del seu propi pes es treballa a cada RA — el mateix desglossament que ja es veu a la pantalla «Informes i extraccions», aquí encasillat per columnes en lloc d’en una sola llista.</p>
+
   <div className="reportRow3" style={{gridTemplateColumns:"1fr 1fr"}}>
    <div className="reportBlock">
-    <h3>Curs complet (100%)</h3>
+    <h3>Pes de cada RA — Curs complet (100%)</h3>
     <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{ras.map(ra=><span className="bonus" key={ra.id}>{ra.code} {((teoricRa.get(ra.id)??0)*100).toFixed(1)}%</span>)}</div>
     {Math.abs(teoricTotal-1)>=.005&&<p className="risk" style={{marginTop:8}}><AlertTriangle size={13}/> Suma {(teoricTotal*100).toFixed(1)}%, no el 100%</p>}
    </div>
    <div className="reportBlock">
-    <h3>Pes real actual</h3>
+    <h3>Pes de cada RA — Pes real actual</h3>
     <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{ras.map(ra=><span className="bonus" key={ra.id}>{ra.code} {((realRa.get(ra.id)??0)*100).toFixed(1)}%</span>)}</div>
     {Math.abs(realTotal-1)>=.005&&<p className="risk" style={{marginTop:8}}><AlertTriangle size={13}/> Suma {(realTotal*100).toFixed(1)}%, no el 100% — hi ha algun tipus d’activitat sense cap activitat activa</p>}
    </div>
   </div>
 
-  <h2>Detall per activitat</h2>
-  <table><thead><tr><th>Activitat</th><th>Tipus</th><th>Estat</th><th>RA treballats</th><th>Pes teòric (100%)</th><th>Pes real actual</th></tr></thead>
-   <tbody>{activities.map(a=>{const type=types.find(t=>t.id===a.activityTypeId)!,th=teoric.get(a.id)??0,re=real.get(a.id)??0,shares=raShares(cfg,a.id);return <tr key={a.id} className={a.status==="archived"?"archived":""}><td><strong>{a.name}</strong></td><td>{type.name}</td><td>{a.status==="active"?"Activa":"Arxivada"}</td><td>{shares.length?shares.map(s=>`${s.code} ${(s.pct*100).toFixed(0)}%`).join(" · "):"—"}</td><td>{(th*100).toFixed(1)}%</td><td>{(re*100).toFixed(1)}%</td></tr>})}</tbody>
+  <table><thead><tr><th>Activitat</th><th>Tipus</th><th>Estat</th>{ras.map(ra=><th key={ra.id} title={ra.description} style={{textAlign:"center"}}>{ra.code}</th>)}<th>Pes teòric (100%)</th><th>Pes real actual</th></tr></thead>
+   <tbody>{activities.map(a=>{const type=types.find(t=>t.id===a.activityTypeId)!,th=teoric.get(a.id)??0,re=real.get(a.id)??0,shareMap=new Map(raShares(cfg,a.id).map(s=>[s.code,s.pct]));return <tr key={a.id} className={a.status==="archived"?"archived":""}><td><strong>{a.name}</strong></td><td>{type.name}</td><td>{a.status==="active"?"Activa":"Arxivada"}</td>{ras.map(ra=>{const pct=shareMap.get(ra.code);return <td key={ra.id} style={{textAlign:"center"}}>{pct!==undefined?`${(pct*100).toFixed(0)}%`:"—"}</td>})}<td>{(th*100).toFixed(1)}%</td><td>{(re*100).toFixed(1)}%</td></tr>})}</tbody>
   </table>
 
   <footer>{cfg.moduleName} · {course.academicYear} · Dades locals</footer>
