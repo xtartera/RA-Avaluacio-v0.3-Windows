@@ -1,7 +1,7 @@
 import type {ElementType} from "react";
 import {AlertTriangle, Info, ThumbsUp, TrendingDown, TrendingUp} from "lucide-react";
 import {calculateFinalStudent, calculateStudent, convocatoriaConsumida, convocatoriaExhaurida, groupAsOfTerm, raIsAchieved, raIsFailing, totalGrade, type StudentCalculation} from "../../src/model/calculation";
-import type {AcademicCourse, Activity, ActivityType, Grade, Group, LearningResult} from "../../src/model/domain";
+import type {AcademicCourse, Activity, ActivityType, Grade, Group, LearningResult, WorkUnit} from "../../src/model/domain";
 import type {Tone} from "../components/analysis";
 import {termOrdinal} from "./helpers";
 
@@ -21,6 +21,20 @@ export interface ActivityTypeRow {
  available: number;
 }
 
+export interface WorkUnitActivityRow {
+ activity: Activity;
+ grade: number | null;
+ status: "graded" | "not_presented" | "pending";
+ required: boolean;
+ suspesa: boolean;
+}
+
+export interface WorkUnitRow {
+ unit: WorkUnit | null;
+ raCodes: string[];
+ activities: WorkUnitActivityRow[];
+}
+
 export interface StudentAnalytics {
  calc: StudentCalculation;
  calcT1: StudentCalculation;
@@ -38,6 +52,7 @@ export interface StudentAnalytics {
  delivered: number;
  deliveryPct: number;
  typeRows: ActivityTypeRow[];
+ workUnitRows: WorkUnitRow[];
  diagnosis: {tone: Tone; icon: ElementType; text: string}[];
  strengths: string[];
  improve: string[];
@@ -106,6 +121,24 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
   return {type, average, available: acts.length};
  }).filter(t => t.available > 0).sort((a, b) => (b.average ?? -1) - (a.average ?? -1));
 
+ const ordinariaActive = activitiesAll.filter(a => a.session === "ordinaria");
+ const minGrade = course.configuration.requiredActivityMinGrade;
+ const raByIdForUnits = new Map(course.configuration.learningResults.map(r => [r.id, r]));
+ const activityRow = (a: Activity, required: boolean): WorkUnitActivityRow => {
+  const g = group.grades.find(x => x.enrollmentId === enrollmentId && x.activityId === a.id);
+  const grade = totalGrade(g);
+  return {activity: a, grade, status: g?.status === "not_presented" ? "not_presented" : g?.status === "graded" ? "graded" : "pending", required, suspesa: grade !== null && grade < minGrade};
+ };
+ const activeUnits = course.configuration.workUnits.filter(u => u.status === "active").sort((a, b) => a.order - b.order);
+ const workUnitRows: WorkUnitRow[] = activeUnits.map(unit => {
+  const acts = ordinariaActive.filter(a => unit.activityIds.includes(a.id)).sort((a, b) => a.order - b.order);
+  const raCodes = unit.learningResultIds.map(id => raByIdForUnits.get(id)?.code).filter((x): x is string => !!x);
+  return {unit, raCodes, activities: acts.map(a => activityRow(a, unit.requiredActivityIds.includes(a.id)))};
+ }).filter(row => row.activities.length > 0);
+ const assignedIds = new Set(activeUnits.flatMap(u => u.activityIds));
+ const unassigned = ordinariaActive.filter(a => !assignedIds.has(a.id)).sort((a, b) => a.order - b.order);
+ if (unassigned.length) workUnitRows.push({unit: null, raCodes: [], activities: unassigned.map(a => activityRow(a, false))});
+
  const diagnosis: StudentAnalytics["diagnosis"] = [];
  const strengths: string[] = [];
  const improve: string[] = [];
@@ -142,7 +175,7 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
  if (!strengths.length) strengths.push("Encara no hi ha prou evidències per destacar fortaleses.");
  if (!improve.length) improve.push("Cap aspecte prioritari detectat amb les dades actuals.");
 
- return {calc, calcT1, hasStudentEvidence, trendDelta, groupAverage, groupT1Average, trendPoints, groupTrendPoints, raRows, withEvidence, achievedCount, riskRas, activitiesTotal: activitiesAll.length, delivered, deliveryPct, typeRows, diagnosis, strengths, improve, actions};
+ return {calc, calcT1, hasStudentEvidence, trendDelta, groupAverage, groupT1Average, trendPoints, groupTrendPoints, raRows, withEvidence, achievedCount, riskRas, activitiesTotal: activitiesAll.length, delivered, deliveryPct, typeRows, workUnitRows, diagnosis, strengths, improve, actions};
 }
 
 export interface RaConvocatoriaRow {
