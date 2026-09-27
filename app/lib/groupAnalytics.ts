@@ -157,6 +157,9 @@ export interface GroupAnalytics {
  withdrawnNames: string[];
  totalEnrolled: number;
  withdrawnPct: number;
+ archivedEnrollments: Enrollment[];
+ archivedNames: string[];
+ archivedPct: number;
  t1: GroupSummary;
  hasEvolution: boolean;
  trendDelta: number;
@@ -187,6 +190,10 @@ export function analyzeGroup(course: AcademicCourse, group: Group, compareGroupI
  const withdrawnNames = withdrawnEnrollments.map(e => group.students.find(s => s.id === e.studentId)?.name ?? "—").sort((a, b) => a.localeCompare(b, "ca"));
  const totalEnrolled = group.enrollments.length;
  const withdrawnPct = totalEnrolled ? withdrawnEnrollments.length / totalEnrolled * 100 : 0;
+
+ const archivedEnrollments = group.enrollments.filter(e => e.status === "archived");
+ const archivedNames = archivedEnrollments.map(e => group.students.find(s => s.id === e.studentId)?.name ?? "—").sort((a, b) => a.localeCompare(b, "ca"));
+ const archivedPct = totalEnrolled ? archivedEnrollments.length / totalEnrolled * 100 : 0;
 
  const termCount = course.configuration.termCount || 2;
  const termCheckpoints = Array.from({length: Math.max(0, termCount - 1)}, (_, i) => i + 1)
@@ -252,5 +259,5 @@ export function analyzeGroup(course: AcademicCourse, group: Group, compareGroupI
  const coverageGapWarning = !!(other && Math.abs(own.coverage - other.coverage) > 15);
  const convocatoria = summarizeConvocatoria(course, group);
 
- return {own, otherGroup, other, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, t1, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, insights, bySuccess, byDifficulty, byMissing, weakestRa, worstDelivery, diagnosis, actions, coverageGapWarning, convocatoria};
+ return {own, otherGroup, other, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, archivedEnrollments, archivedNames, archivedPct, t1, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, insights, bySuccess, byDifficulty, byMissing, weakestRa, worstDelivery, diagnosis, actions, coverageGapWarning, convocatoria};
 }

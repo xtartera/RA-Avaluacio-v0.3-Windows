@@ -7,7 +7,7 @@ import {PassBar} from "../components/shared";
 
 export function GroupReport({course, group, close, compareGroupId}: {course: AcademicCourse; group: Group; close: () => void; compareGroupId?: string}) {
  const g = analyzeGroup(course, group, compareGroupId);
- const {own, other, otherGroup, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, bySuccess, byDifficulty, byMissing, diagnosis, actions, coverageGapWarning, convocatoria} = g;
+ const {own, other, otherGroup, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, archivedEnrollments, archivedNames, archivedPct, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, bySuccess, byDifficulty, byMissing, diagnosis, actions, coverageGapWarning, convocatoria} = g;
 
  return createPortal(<div className="modal"><div className="report groupReport">
   <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={() => window.print()}><Printer/>Imprimeix</button></div>
@@ -20,6 +20,7 @@ export function GroupReport({course, group, close, compareGroupId}: {course: Aca
    <div className="reportStat"><span>En risc</span><strong>{own.riskPct.toFixed(0)}%</strong><em>{own.risk} de {own.withEvidenceCount} amb RA avaluats</em></div>
    <div className="reportStat"><span>Excel·lència</span><strong>{own.excellencePct.toFixed(0)}%</strong><em>{own.excellence} de {own.withEvidenceCount} amb RA avaluats</em></div>
    <div className="reportStat"><span>Baixes</span><strong>{withdrawnPct.toFixed(0)}%</strong><em>{withdrawnEnrollments.length} de {totalEnrolled} matriculats</em></div>
+   <div className="reportStat"><span>Arxivats</span><strong>{archivedPct.toFixed(0)}%</strong><em>{archivedEnrollments.length} de {totalEnrolled} matriculats</em></div>
    <div className="reportStat"><span>Cobertura avaluada</span><strong>{own.coverage.toFixed(0)}%</strong><em>del pes total del mòdul</em></div>
   </div>
   <p className="muted" style={{margin: "-10px 0 20px", fontSize: 11}}>Aprovats, zona límit, en risc i excel·lència es calculen per assoliment de tots els RA (nota ≥5 i sense activitat obligatòria suspesa), no per la mitjana global.</p>
@@ -88,6 +89,7 @@ export function GroupReport({course, group, close, compareGroupId}: {course: Aca
    <NameBlock title="En risc" names={own.riskNames} hint="Alumnes amb 2 o més RA no assolits. No mira la mitjana global, sinó el nombre de RA suspesos."/>
    <NameBlock title="Excel·lència" names={own.excellenceNames}/>
    <NameBlock title="Baixes" names={withdrawnNames}/>
+   <NameBlock title="Arxivats" names={archivedNames}/>
   </div>
 
   <footer>{course.configuration.moduleName} · Grup {group.code} · Dades locals</footer>
