@@ -43,8 +43,8 @@ function ActivityContributionReport({course}:{course:AcademicCourse}){
   </div>
   <div className="gridScroll" ref={ref} style={{maxHeight:maxH}}>
    <table>
-    <thead><tr><th>Activitat</th><th>Tipus</th><th>Estat</th><th>RA treballats</th><th>Pes sobre la nota global</th></tr></thead>
-    <tbody>{activities.map(a=>{const type=types.find(t=>t.id===a.activityTypeId)!,w=weights.get(a.id)??0,shares=raShares(cfg,a.id);return <tr key={a.id} className={a.status==="archived"?"archived":""}><td><strong>{a.name}</strong></td><td><span style={{color:typeColor(course,type.id)}}>{type.name}</span></td><td>{a.status==="active"?<span className="ok">Activa</span>:<span className="risk">Arxivada</span>}</td><td>{shares.length?<div style={{display:"flex",flexWrap:"wrap",gap:6}}>{shares.map(s=><span className="bonus" key={s.code} title={`${s.code}: suma dels CA amb valor a aquesta activitat`}>{s.code} {(s.pct*100).toFixed(0)}%</span>)}</div>:<span className="muted">Sense relacions</span>}</td><td className="score">{(w*100).toFixed(1)}%</td></tr>})}</tbody>
+    <thead><tr><th>Activitat</th><th>Tipus</th><th>Estat</th>{ras.map(ra=><th key={ra.id} title={ra.description} style={{textAlign:"center"}}>{ra.code}</th>)}<th>Pes sobre la nota global</th></tr></thead>
+    <tbody>{activities.map(a=>{const type=types.find(t=>t.id===a.activityTypeId)!,w=weights.get(a.id)??0,shareMap=new Map(raShares(cfg,a.id).map(s=>[s.code,s.pct]));return <tr key={a.id} className={a.status==="archived"?"archived":""}><td><strong>{a.name}</strong></td><td><span style={{color:typeColor(course,type.id)}}>{type.name}</span></td><td>{a.status==="active"?<span className="ok">Activa</span>:<span className="risk">Arxivada</span>}</td>{ras.map(ra=>{const pct=shareMap.get(ra.code);return <td key={ra.id} style={{textAlign:"center"}}>{pct!==undefined?<span className="bonus" title={`${ra.code}: suma dels CA amb valor a aquesta activitat`}>{(pct*100).toFixed(0)}%</span>:<span className="muted">—</span>}</td>})}<td className="score">{(w*100).toFixed(1)}%</td></tr>})}</tbody>
    </table>
   </div>
   {showPrint&&<ActivityContributionPrintReport course={course} close={()=>setShowPrint(false)}/>}
