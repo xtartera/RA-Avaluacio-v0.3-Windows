@@ -91,9 +91,9 @@ test("groupAsOfTerm admet més de dos trimestres (p. ex. per a un curs de tres)"
  group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:act2.id,status:"graded",baseValue:6,bonuses:[],updatedAt:nowIso()});
  group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:act3.id,status:"graded",baseValue:10,bonuses:[],updatedAt:nowIso()});
  group.activityStates.push(
-  {activityId:act1.id,automaticEvaluatedAt:nowIso(),manualOverride:null},
-  {activityId:act2.id,automaticEvaluatedAt:nowIso(),manualOverride:null},
-  {activityId:act3.id,automaticEvaluatedAt:nowIso(),manualOverride:null},
+  {activityId:act1.id,automaticEvaluatedAt:nowIso(),manualOverride:null,locked:false},
+  {activityId:act2.id,automaticEvaluatedAt:nowIso(),manualOverride:null,locked:false},
+  {activityId:act3.id,automaticEvaluatedAt:nowIso(),manualOverride:null,locked:false},
  );
  const asOfT2=calculateStudent(course,groupAsOfTerm(course,group,2),enrollment.id);
  assert.equal(asOfT2.globalCoverage,2/3*100);
@@ -155,7 +155,7 @@ function finalFixture(){
  group.students.push(student);group.enrollments.push(enrollment);
  group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:act1.id,status:"graded",baseValue:3,bonuses:[],updatedAt:nowIso()});
  group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:act2.id,status:"graded",baseValue:8,bonuses:[],updatedAt:nowIso()});
- group.activityStates.push({activityId:act1.id,automaticEvaluatedAt:nowIso(),manualOverride:null},{activityId:act2.id,automaticEvaluatedAt:nowIso(),manualOverride:null});
+ group.activityStates.push({activityId:act1.id,automaticEvaluatedAt:nowIso(),manualOverride:null,locked:false},{activityId:act2.id,automaticEvaluatedAt:nowIso(),manualOverride:null,locked:false});
  return {course,group,config,ra1,ra2,act1,act2,enrollment};
 }
 
@@ -212,7 +212,7 @@ test("calculateFinalStudent: la recuperació desbloqueja un RA amb activitat obl
  group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:bigActivity.id,status:"graded",baseValue:9,bonuses:[],updatedAt:nowIso()});
  group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:examActivity.id,status:"graded",baseValue:2,bonuses:[],updatedAt:nowIso()});
  group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:recovery.id,status:"graded",baseValue:6,bonuses:[],updatedAt:nowIso()});
- group.activityStates.push({activityId:bigActivity.id,automaticEvaluatedAt:nowIso(),manualOverride:null},{activityId:examActivity.id,automaticEvaluatedAt:nowIso(),manualOverride:null});
+ group.activityStates.push({activityId:bigActivity.id,automaticEvaluatedAt:nowIso(),manualOverride:null,locked:false},{activityId:examActivity.id,automaticEvaluatedAt:nowIso(),manualOverride:null,locked:false});
  const ordinariaEntry=calculateStudent(course,group,enrollment.id).learningResults.get(ra.id)!;
  assert.equal(ordinariaEntry.score>=5,true);
  assert.equal(ordinariaEntry.failingActivities,1);
@@ -264,7 +264,7 @@ test("un RA sense cap evidència (pendent) no es tracta com a suspès: calculate
  const student={id:newId("student"),name:"Alumne 1"},enrollment=newEnrollment(student.id,group.id);
  group.students.push(student);group.enrollments.push(enrollment);
  group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:act1.id,status:"graded",baseValue:3,bonuses:[],updatedAt:nowIso()});
- group.activityStates.push({activityId:act1.id,automaticEvaluatedAt:nowIso(),manualOverride:null});
+ group.activityStates.push({activityId:act1.id,automaticEvaluatedAt:nowIso(),manualOverride:null,locked:false});
  // RA2 no té cap nota d'ordinària (pendent), però algú ja ha qualificat per error la seva recuperació.
  group.grades.push({id:newId("grade"),enrollmentId:enrollment.id,activityId:recovery2.id,status:"graded",baseValue:9,bonuses:[],updatedAt:nowIso()});
 

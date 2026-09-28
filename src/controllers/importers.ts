@@ -134,7 +134,7 @@ export async function importEvaluationWorkbook(file: File, academicYear = "2026â
   }
   for (const activity of config.activities) {
     const count = group.grades.filter(g => g.activityId === activity.id && g.status !== "pending").length;
-    group.activityStates.push({activityId: activity.id, automaticEvaluatedAt: count >= 5 ? nowIso() : null, manualOverride: null});
+    group.activityStates.push({activityId: activity.id, automaticEvaluatedAt: count >= 5 ? nowIso() : null, manualOverride: null, locked: false});
   }
   course.imports.push({id: newId("import"), fileName: file.name, importedAt: nowIso(), warnings});
   return {course, warnings, summary:{learningResults:learningResults.length, criteria:criteria.length, activities:config.activities.length, students:group.students.length, grades:group.grades.length}};
@@ -238,7 +238,7 @@ export function applyActivitiesCsv(course: AcademicCourse, rows: ActivityCsvRow[
     }
     const activity: Activity = {id: newId("activity"), name: row.name, activityTypeId: type.id, term: row.term, date: row.date, order: config.activities.length + 1, status: "active", session: "ordinaria", recoversRaIds: []};
     config.activities.push(activity);
-    for (const group of course.groups) group.activityStates.push({activityId: activity.id, automaticEvaluatedAt: null, manualOverride: null});
+    for (const group of course.groups) group.activityStates.push({activityId: activity.id, automaticEvaluatedAt: null, manualOverride: null, locked: false});
     created++;
     let allocated = 0;
     for (const link of row.links) {

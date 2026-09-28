@@ -133,6 +133,7 @@ export interface GroupActivityState {
   activityId: Id;
   automaticEvaluatedAt: string | null;
   manualOverride: "evaluated" | "pending" | null;
+  locked: boolean;
 }
 
 export interface StudentReportComment {
@@ -226,6 +227,9 @@ export function migrateDatabase(data: AppDatabase): AppDatabase {
     for (const group of course.groups) {
       for (const enrollment of group.enrollments) {
         if (!enrollment.convocatoria) enrollment.convocatoria = emptyConvocatoria();
+      }
+      for (const state of group.activityStates) {
+        if (state.locked === undefined) state.locked = false;
       }
     }
   }

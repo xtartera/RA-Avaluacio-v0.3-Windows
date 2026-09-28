@@ -16,7 +16,7 @@ test("desfer una primera nota restaura l’estat automàtic i conserva l’histo
  const db: AppDatabase = {schemaVersion:1,courses:[course],gradeHistory:[]};
  const grade: Grade = {id:"g",enrollmentId:"e",activityId:"a",status:"graded",baseValue:7,bonuses:[],updatedAt:"now"};
  group.grades.push(grade);
- group.activityStates.push({activityId:"a",automaticEvaluatedAt:"now",manualOverride:null});
+ group.activityStates.push({activityId:"a",automaticEvaluatedAt:"now",manualOverride:null,locked:false});
  assert.equal(undoGrade(db,group,{gradeId:"g",activityId:"a",previous:null,activityState:null}),true);
  assert.equal(group.grades.length,0);
  assert.equal(group.activityStates.length,0);
@@ -29,7 +29,7 @@ test("desfer no presentat recupera la nota, les bonificacions i l’estat manual
  const db:AppDatabase={schemaVersion:1,courses:[course],gradeHistory:[]};
  const previous:Grade={id:"g",enrollmentId:"e",activityId:"a",status:"graded",baseValue:8,bonuses:[{id:"b",value:.5,reason:"Treball extra",source:"manual",createdAt:"before"}],updatedAt:"before"};
  group.grades.push({...previous,status:"not_presented",baseValue:null});
- const state={activityId:"a",automaticEvaluatedAt:null,manualOverride:"pending" as const};
+ const state={activityId:"a",automaticEvaluatedAt:null,manualOverride:"pending" as const,locked:false};
  undoGrade(db,group,{gradeId:"g",activityId:"a",previous,activityState:state});
  assert.deepEqual(group.grades[0],previous);
  assert.deepEqual(group.activityStates[0],state);

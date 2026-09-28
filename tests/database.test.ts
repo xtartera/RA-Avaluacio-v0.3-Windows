@@ -74,6 +74,33 @@ test("migrateDatabase afegeix session i recoversRaIds a les activitats, i convoc
  assert.deepEqual(enrollment.convocatoria, {isRepeater: false, baseline: 0, extraordinariaPresented: null});
 });
 
+function oldShapedDatabaseWithActivityState(): unknown {
+ return {
+  schemaVersion: 1,
+  gradeHistory: [],
+  courses: [{
+   id: "course1", academicYear: "2026–2027", active: true, archived: false, isTest: false,
+   configuration: {
+    moduleName: "SOX", abbreviation: "SOX", level: "2n SMX",
+    learningResults: [], criteria: [], activityTypes: [],
+    activities: [{id: "act1", name: "Examen", activityTypeId: "type1", term: 1, date: null, order: 1, status: "active", session: "ordinaria", recoversRaIds: []}],
+    links: [],
+   },
+   groups: [{
+    id: "group1", code: "A", name: "Grup A", capacity: 25,
+    enrollments: [], students: [], grades: [], comments: [],
+    activityStates: [{activityId: "act1", automaticEvaluatedAt: null, manualOverride: null}],
+   }],
+   imports: [], createdAt: "", updatedAt: "",
+  }],
+ };
+}
+
+test("migrateDatabase afegeix locked:false als estats d'activitat que no en tenen (dades desades abans del bloqueig d'activitats)", () => {
+ const migrated = migrateDatabase(oldShapedDatabaseWithActivityState() as AppDatabase);
+ assert.equal(migrated.courses[0]!.groups[0]!.activityStates[0]!.locked, false);
+});
+
 test("createCourse sense indicar grups en crea dos (A i B), per compatibilitat amb cursos existents", () => {
  const course = createCourse("2026–2027");
  assert.deepEqual(course.groups.map(g => g.code), ["A", "B"]);

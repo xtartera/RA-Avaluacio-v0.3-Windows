@@ -63,7 +63,7 @@ function RecoveryActivityEditor({course, activity, mutate, close}: {course: Acad
    } else {
     const a = {id: newId("activity"), name: name.trim(), activityTypeId: typeId, term: cfg.termCount || 2, date: date || null, order: cfg.activities.length + 1, status: "active" as const, session: "extraordinaria" as const, recoversRaIds: recoverIds};
     cfg.activities.push(a);
-    findCourse(d, course.id).groups.forEach(g => g.activityStates.push({activityId: a.id, automaticEvaluatedAt: null, manualOverride: null}));
+    findCourse(d, course.id).groups.forEach(g => g.activityStates.push({activityId: a.id, automaticEvaluatedAt: null, manualOverride: null, locked: false}));
    }
   });
   close();
