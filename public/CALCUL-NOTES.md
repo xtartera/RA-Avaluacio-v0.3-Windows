@@ -99,15 +99,15 @@ notaGlobal = Σ [ notaRA × pesRA × (coberturaRA / 100) ] / Σ [ pesRA × (cobe
 
 ### El mateix càlcul, amb tipus d'activitat molt diferents
 
-L'exemple d'amunt és amb un Speedrun (quadern virtual), que és el cas amb **més activitats repartint-se un pes**: moltes activitats petites, cadascuna amb un pes individual molt baix. Però la fórmula `pesActivitat = pesTipus / nombreActivitatsDelTipus` és exactament la mateixa per a **qualsevol** tipus — el que canvia és el pes del tipus i, sobretot, **entre quantes activitats es reparteix**. Un projecte integrador o una activitat de síntesi/examen solen tenir un pes de tipus similar o fins i tot més gran, però repartit entre **molt poques activitats** (sovint una de sola), de manera que cada activitat individual pesa molt més:
+L'exemple d'amunt és amb un Speedrun (quadern virtual), que és el cas amb **més activitats repartint-se un pes**: moltes activitats petites, cadascuna amb un pes individual molt baix. Però la fórmula `pesActivitat = pesTipus / nombreActivitatsDelTipus` és exactament la mateixa per a **qualsevol** tipus — el que canvia és **entre quantes activitats es reparteix** el pes del tipus (i, de vegades, també el pes del tipus mateix). Exemple real amb els tipus d'un curs SOX:
 
 | Tipus d'activitat | Pes del tipus | Nre. d'activitats d'aquest tipus | Pes de cada activitat |
 |---|---|---|---|
 | Speedrun / quadern virtual | 20% | 17 | 20% ÷ 17 ≈ **1,18%** |
-| Projecte integrador | 15% | 3 | 15% ÷ 3 = **5%** |
-| Activitat de síntesi / examen | 15% | 1 | 15% ÷ 1 = **15%** |
+| Projecte integrador (PR-Obert) | 20% | 3 | 20% ÷ 3 ≈ **6,67%** |
+| Activitat de síntesi / examen (ExTeòric, ExPràctic) | 30% | 4 | 30% ÷ 4 = **7,5%** |
 
-Amb aquests pesos, un sol examen final val tant com uns 12-13 speedruns junts. Per això:
+Fixa't que el Speedrun i el Projecte integrador tenen **el mateix pes de tipus (20%)** — la diferència de pes per activitat ve únicament de repartir-lo entre 17 activitats o entre només 3. Els exàmens, a més, tenen un pes de tipus més gran (30%) repartit entre poques activitats (4), de manera que **el pes d'un sol examen (7,5%) és més de 6 vegades el d'un sol speedrun (1,18%)**. Per això:
 
 - **Suspendre una única activitat de síntesi o un projecte integrador té molt més impacte** en la nota del CA/RA que suspendre un sol speedrun — no perquè es tracti diferent al càlcul, sinó perquè arrossega un pes individual molt més gran.
 - Si, a més, aquesta activitat de síntesi/examen és **obligatòria** dins d'una UT, també pot bloquejar el RA sencer com a "No assolit" independentment de la mitjana (vegeu la secció 6) — un doble motiu pel qual aquestes activitats solen ser les més determinants del mòdul.
@@ -140,6 +140,17 @@ Aquest llindar es pot forçar manualment amb l'interruptor "Estat manual" de la 
 ## 6. Unitats de treball (UT) i l'estat "No assolit"
 
 Una UT agrupa diverses activitats (projectes, exàmens, speedruns...) i es vincula a un o més RA. D'aquestes activitats, algunes es marquen com **obligatòries**: si l'alumne en suspèn alguna (nota < 5), el RA vinculat queda com **"No assolit"**, independentment de la nota calculada — encara que la mitjana surti per sobre de 5.
+
+Exemple real (curs SOX), amb els RA que cada UT té vinculats i quines de les seves activitats són obligatòries:
+
+| UT | RA vinculats | Activitats obligatòries d'aquesta UT |
+|---|---|---|
+| UT1 | RA1 | ExTeoric 1, ExPractic 1 |
+| UT2 | RA2, RA3 | ExTeoric 20, ExPractic 20 |
+| UT3 | RA4, RA5 | ExTeoric 30, ExPractic 30 |
+| UT4 | RA6 | ExTeòric 40, ExPràctic 40 |
+
+Fixa't que una mateixa UT pot vincular-se a **més d'un RA alhora** (com UT2 amb RA2 i RA3): si l'examen obligatori d'aquella UT queda suspès, **tots** els RA vinculats queden "No assolit", no només un.
 
 Un RA també queda "No assolit" simplement si la seva mitjana calculada no arriba a 5, encara que no hi hagi cap UT de per mig. L'aplicació distingeix els dos casos amb un motiu curt:
 
