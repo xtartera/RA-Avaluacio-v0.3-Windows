@@ -97,6 +97,22 @@ I la **nota global** és la mitjana dels RA, ponderada pel seu pes **i** per qua
 notaGlobal = Σ [ notaRA × pesRA × (coberturaRA / 100) ] / Σ [ pesRA × (coberturaRA / 100) ]
 ```
 
+### El mateix càlcul, amb tipus d'activitat molt diferents
+
+L'exemple d'amunt és amb un Speedrun (quadern virtual), que és el cas amb **més activitats repartint-se un pes**: moltes activitats petites, cadascuna amb un pes individual molt baix. Però la fórmula `pesActivitat = pesTipus / nombreActivitatsDelTipus` és exactament la mateixa per a **qualsevol** tipus — el que canvia és el pes del tipus i, sobretot, **entre quantes activitats es reparteix**. Un projecte integrador o una activitat de síntesi/examen solen tenir un pes de tipus similar o fins i tot més gran, però repartit entre **molt poques activitats** (sovint una de sola), de manera que cada activitat individual pesa molt més:
+
+| Tipus d'activitat | Pes del tipus | Nre. d'activitats d'aquest tipus | Pes de cada activitat |
+|---|---|---|---|
+| Speedrun / quadern virtual | 20% | 17 | 20% ÷ 17 ≈ **1,18%** |
+| Projecte integrador | 15% | 3 | 15% ÷ 3 = **5%** |
+| Activitat de síntesi / examen | 15% | 1 | 15% ÷ 1 = **15%** |
+
+Amb aquests pesos, un sol examen final val tant com uns 12-13 speedruns junts. Per això:
+
+- **Suspendre una única activitat de síntesi o un projecte integrador té molt més impacte** en la nota del CA/RA que suspendre un sol speedrun — no perquè es tracti diferent al càlcul, sinó perquè arrossega un pes individual molt més gran.
+- Si, a més, aquesta activitat de síntesi/examen és **obligatòria** dins d'una UT, també pot bloquejar el RA sencer com a "No assolit" independentment de la mitjana (vegeu la secció 6) — un doble motiu pel qual aquestes activitats solen ser les més determinants del mòdul.
+- Cada tipus d'activitat té el seu propi pes i nombre d'activitats configurats a "RA, CA i pesos"; els valors de la taula són només un exemple il·lustratiu, no una regla fixa de l'aplicació.
+
 ## 3. Cobertura: per què la nota és "projectada"
 
 La **cobertura** d'un RA és quin percentatge del seu pes ja s'ha avaluat. Un RA amb activitats encara pendents de qualificar té una nota que és només una **projecció**, no la nota final — per això totes les pantalles mostren sempre el `% avaluat` al costat de la nota.
