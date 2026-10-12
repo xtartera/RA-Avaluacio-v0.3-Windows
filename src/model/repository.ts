@@ -8,9 +8,10 @@ export interface AppRepository {
 
 const EMPTY: AppDatabase = {schemaVersion: 1, courses: [], gradeHistory: []};
 const DB_NAME = "ra-avaluacio";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STATE_STORE = "state";
 const HANDLE_STORE = "handles";
+const ATTACHMENT_STORE = "attachments";
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -19,6 +20,7 @@ function openDb(): Promise<IDBDatabase> {
       const db = request.result;
       if (!db.objectStoreNames.contains(STATE_STORE)) db.createObjectStore(STATE_STORE);
       if (!db.objectStoreNames.contains(HANDLE_STORE)) db.createObjectStore(HANDLE_STORE);
+      if (!db.objectStoreNames.contains(ATTACHMENT_STORE)) db.createObjectStore(ATTACHMENT_STORE);
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -49,6 +51,35 @@ export class IndexedDbRepository implements AppRepository {
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
     });
   }
+}
+
+/**
+ * Còpia dels PDF originals dels qüestionaris diagnòstics. Es guarden a part de la base de dades
+ * principal (que es reescriu sencera a cada canvi) perquè pesen centenars de KB cadascun.
+ */
+export async function putAttachment(id: string, data: Blob): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(ATTACHMENT_STORE, "readwrite");
+    tx.objectStore(ATTACHMENT_STORE).put(data, id);
+    tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+  });
+}
+export async function getAttachment(id: string): Promise<Blob | null> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(ATTACHMENT_STORE, "readonly").objectStore(ATTACHMENT_STORE).get(id);
+    request.onsuccess = () => resolve(request.result ?? null);
+    request.onerror = () => reject(request.error);
+  });
+}
+export async function deleteAttachment(id: string): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(ATTACHMENT_STORE, "readwrite");
+    tx.objectStore(ATTACHMENT_STORE).delete(id);
+    tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+  });
 }
 
 async function loadHandle(): Promise<FileSystemFileHandle | null> {

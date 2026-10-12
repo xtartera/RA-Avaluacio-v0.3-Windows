@@ -3,14 +3,14 @@ import {AlertTriangle, Printer, Users, X} from "lucide-react";
 import type {AcademicCourse, Group} from "../../src/model/domain";
 import {analyzeGroup} from "../lib/groupAnalytics";
 import {ActivitySubPanel, DiagList, Donut, DONUT_COLORS, EvoBar, TrendLine} from "../components/analysis";
-import {PassBar} from "../components/shared";
+import {PassBar, ReportLogo} from "../components/shared";
 
 export function GroupReport({course, group, close, compareGroupId}: {course: AcademicCourse; group: Group; close: () => void; compareGroupId?: string}) {
  const g = analyzeGroup(course, group, compareGroupId);
  const {own, other, otherGroup, bands, withdrawnEnrollments, withdrawnNames, totalEnrolled, withdrawnPct, archivedEnrollments, archivedNames, archivedPct, hasEvolution, trendDelta, improved, worsened, stable, trendPoints, raRows, bySuccess, byDifficulty, byMissing, diagnosis, actions, coverageGapWarning, convocatoria} = g;
 
  return createPortal(<div className="modal"><div className="report groupReport">
-  <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={() => window.print()}><Printer/>Imprimeix</button></div>
+  <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={() => window.print()}><Printer/>Imprimeix</button></div><ReportLogo/>
 
   <div className="reportHead"><Users/><div><small>INFORME D’ANÀLISI DEL GRUP</small><h1>Grup {group.code}</h1><p>{course.configuration.level} · {course.configuration.moduleName} · {course.academicYear}</p></div><div className="bigScore"><span>NOTA PROJECTADA</span><strong>{own.average.toFixed(2)}</strong><em>{own.count} alumnes actius · {own.coverage.toFixed(1)}% avaluat</em></div></div>
 

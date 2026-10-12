@@ -1,3 +1,4 @@
+import {ReportLogo} from "../components/shared";
 import {useState} from "react";
 import {createPortal} from "react-dom";
 import {ClipboardCheck, Printer, Repeat, Users, X} from "lucide-react";
@@ -61,7 +62,7 @@ function ActaExtraordinariaPrintReport({course, group, close}: {course: Academic
  const blocked = people.filter(p => ras.some(ra => raIsFailing(p.final.ordinaria.learningResults.get(ra.id))));
  const presentedLabel = (v: boolean | null) => v === null ? "Pendent" : v ? "Sí" : "No";
  return createPortal(<div className="modal"><div className="report">
-  <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={() => window.print()}><Printer/>Imprimeix</button></div>
+  <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={() => window.print()}><Printer/>Imprimeix</button></div><ReportLogo/>
 
   <div className="reportHead"><Repeat/><div><small>ACTA DE CONVOCATÒRIA EXTRAORDINÀRIA</small><h1>Grup {group.code}</h1><p>{course.configuration.moduleName} · {course.configuration.level} · {course.academicYear}</p></div><div className="bigScore"><span>APROVATS FINALS</span><strong>{summary.passedFinalPct.toFixed(0)}%</strong><em>{summary.passedFinalCount} de {activeCount} alumnes actius</em></div></div>
 

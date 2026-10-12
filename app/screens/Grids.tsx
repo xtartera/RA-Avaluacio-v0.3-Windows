@@ -1,3 +1,4 @@
+import {ReportLogo} from "../components/shared";
 import {useState} from "react";
 import {createPortal} from "react-dom";
 import {Printer, Repeat, Search, Table2, Target, Users, CheckCircle2, AlertTriangle, ChevronDown, X} from "lucide-react";
@@ -33,7 +34,7 @@ export function RaGrid({course,group,report}:{course:AcademicCourse;group:Group;
 }
 function RaPrintReport({course,group,ras,weights,raStats,rows,close}:{course:AcademicCourse;group:Group;ras:AcademicCourse["configuration"]["learningResults"];weights:Map<string,number>;raStats:{ra:AcademicCourse["configuration"]["learningResults"][number];evaluated:unknown[];passed:number}[];rows:{student:{name:string};enrollment:{id:string};calc:ReturnType<typeof calculateStudent>}[];close:()=>void}) {
  return createPortal(<div className="modal"><div className="report raPrintReport">
-  <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={()=>window.print()}><Printer/>Imprimeix</button></div>
+  <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={()=>window.print()}><Printer/>Imprimeix</button></div><ReportLogo/>
 
   <div className="reportHead"><Target/><div><small>INFORME DE RESULTATS D’APRENENTATGE</small><h1>Mapa d’assoliment dels RA</h1><p>{course.configuration.level} · {course.configuration.moduleName} · Grup {group.code} · {course.academicYear}</p></div><div className="bigScore"><span>ALUMNES ACTIUS</span><strong>{rows.length}</strong><em>{ras.length} RA actius</em></div></div>
 

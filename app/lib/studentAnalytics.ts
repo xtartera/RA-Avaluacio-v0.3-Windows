@@ -1,7 +1,7 @@
 import type {ElementType} from "react";
 import {AlertTriangle, Info, ThumbsUp, TrendingDown, TrendingUp} from "lucide-react";
 import {calculateFinalStudent, calculateStudent, convocatoriaConsumida, convocatoriaExhaurida, groupAsOfTerm, raIsAchieved, raIsFailing, totalGrade, type StudentCalculation} from "../../src/model/calculation";
-import type {AcademicCourse, Activity, ActivityType, Grade, Group, LearningResult, WorkUnit} from "../../src/model/domain";
+import {countsForGrade, type AcademicCourse, type Activity, type ActivityType, type Grade, type Group, type LearningResult, type WorkUnit} from "../../src/model/domain";
 import type {Tone} from "../components/analysis";
 import {termOrdinal} from "./helpers";
 
@@ -88,7 +88,8 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
   {label: "Actual", value: groupAverage},
  ];
 
- const hasStudentEvidence = group.grades.some(g => g.enrollmentId === enrollmentId && g.status !== "pending");
+ const scoredActivityIds = new Set(course.configuration.activities.filter(countsForGrade).map(a => a.id));
+ const hasStudentEvidence = group.grades.some(g => g.enrollmentId === enrollmentId && g.status !== "pending" && scoredActivityIds.has(g.activityId));
  const trendDelta = hasStudentEvidence ? calc.globalScore - calcT1.globalScore : 0;
 
  const ras = course.configuration.learningResults.filter(r => r.status === "active");
@@ -110,7 +111,7 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
  const achievedCount = withEvidence.filter(r => r.status === "assolit").length;
  const riskRas = withEvidence.filter(r => r.status === "risc");
 
- const activitiesAll = course.configuration.activities.filter(a => a.status === "active");
+ const activitiesAll = course.configuration.activities.filter(a => a.status === "active" && countsForGrade(a));
  const delivered = activitiesAll.filter(a => {const g = group.grades.find(x => x.enrollmentId === enrollmentId && x.activityId === a.id); return g && g.status !== "pending"}).length;
  const deliveryPct = activitiesAll.length ? delivered / activitiesAll.length * 100 : 0;
 

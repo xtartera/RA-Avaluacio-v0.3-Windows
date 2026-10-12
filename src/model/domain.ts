@@ -27,7 +27,8 @@ export interface ActivityType {
   status: EntityStatus;
 }
 
-export type Session = "ordinaria" | "extraordinaria";
+// «diagnostica»: avaluació inicial. Mai no compta per a la nota, els RA, la cobertura ni els lliuraments.
+export type Session = "ordinaria" | "extraordinaria" | "diagnostica";
 
 export interface Activity {
   id: Id;
@@ -143,6 +144,70 @@ export interface StudentReportComment {
   updatedAt: string;
 }
 
+export interface DiagnosticQuestion {
+  number: number;
+  block: number;
+  code: string;
+  text: string;
+  kind: "choice" | "text";
+  options: string[];
+  answer: string[];
+  unknown: boolean;
+  correct: boolean;
+}
+
+export interface DiagnosticBlock {
+  number: number;
+  title: string;
+  correct: number;
+  wrong: number;
+  unknown: number;
+  total: number;
+  pct: number;
+  minutes: number | null;
+}
+
+/** Resultat d'un qüestionari diagnòstic (importat d'un PDF) per a una matrícula. */
+export interface DiagnosticResult {
+  id: Id;
+  activityId: Id;
+  enrollmentId: Id;
+  title: string;
+  unit: number | null;
+  submittedAt: string | null;
+  deliveryNumber: number | null;
+  score: number;
+  correct: number;
+  total: number;
+  blocks: DiagnosticBlock[];
+  questions: DiagnosticQuestion[];
+  activeMinutes: number | null;
+  estimatedMinutes: number | null;
+  sessions: number | null;
+  integrity: string | null;
+  fingerprint: string | null;
+  warnings: string[];
+  fileName: string;
+  attachmentId: Id | null;
+  importedAt: string;
+  /** Comentari del professorat a l'informe d'avaluació inicial (independent del comentari de l'informe del curs). */
+  comment?: string;
+}
+
+export type ObservationKey = "autonomia" | "entorn" | "errors" | "organitzacio" | "implicacio" | "comunicacio";
+export type ObservationLevel = 1 | 2 | 3 | 4;
+/** Context que ajuda a interpretar l'observació; mai no la modifica ni s'imprimeix. No és un diagnòstic. */
+export type ObservationFactor = "llengua" | "oral" | "ritme" | "altres";
+
+/** Observació a l'aula a l'inici del curs (una per matrícula). No compta mai per a la nota. */
+export interface InitialObservation {
+  enrollmentId: Id;
+  levels: Partial<Record<ObservationKey, ObservationLevel>>;
+  factors: ObservationFactor[];
+  note?: string;
+  updatedAt: string;
+}
+
 export interface Group {
   id: Id;
   code: GroupCode;
@@ -153,6 +218,8 @@ export interface Group {
   grades: Grade[];
   activityStates: GroupActivityState[];
   comments: StudentReportComment[];
+  diagnostics: DiagnosticResult[];
+  observations: InitialObservation[];
 }
 
 export interface ImportBatch {
@@ -181,6 +248,9 @@ export interface AppDatabase {
   gradeHistory: GradeHistoryEntry[];
 }
 
+/** Una activitat de l'avaluació inicial no entra mai en cap càlcul de nota. */
+export const countsForGrade = (activity: Pick<Activity, "session">) => activity.session !== "diagnostica";
+
 export const nowIso = () => new Date().toISOString();
 export const newId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
@@ -197,7 +267,7 @@ export function conflictingRecoveryActivity(activities: Activity[], raId: Id, ex
 export function emptyGroup(code: GroupCode): Group {
   return {
     id: newId("group"), code, name: `Grup ${code}`, capacity: 25,
-    enrollments: [], students: [], grades: [], activityStates: [], comments: [],
+    enrollments: [], students: [], grades: [], activityStates: [], comments: [], diagnostics: [], observations: [],
   };
 }
 
@@ -228,6 +298,8 @@ export function migrateDatabase(data: AppDatabase): AppDatabase {
       for (const enrollment of group.enrollments) {
         if (!enrollment.convocatoria) enrollment.convocatoria = emptyConvocatoria();
       }
+      if (!group.diagnostics) group.diagnostics = [];
+      if (!group.observations) group.observations = [];
       for (const state of group.activityStates) {
         if (state.locked === undefined) state.locked = false;
       }

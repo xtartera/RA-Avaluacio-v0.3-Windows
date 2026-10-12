@@ -6,3 +6,9 @@ export function Card({l,v,n,children}:{l:string;v:string;n:string;children?:Reac
 export function Histogram({bands}:{bands:{label:string;range:string;cls:string;count:number}[]}){const max=Math.max(1,...bands.map(b=>b.count));return <div className="histogram">{bands.map(b=><div key={b.label}><b>{b.count}</b><i className={b.cls} style={{height:`${b.count/max*100}%`}}/><span>{b.label}<br/>{b.range}</span></div>)}</div>}
 export function PassBar({passed,failed}:{passed:number;failed:number}){return <div className="statBar"><i className="pass" style={{flexGrow:passed||.0001}}/><i className="fail" style={{flexGrow:failed||.0001}}/></div>}
 export function Toggle({on,click,title}:{on:boolean;click:()=>void;title?:string}){return <button type="button" role="switch" aria-checked={on} title={title} className={"toggle"+(on?" on":"")} onClick={click}><i/></button>}
+
+/** Logo de l'institut. S'imprimeix a la capçalera de tots els informes. */
+export const LOGO_SRC = "/logo-institut.png";
+export function ReportLogo() {
+  return <div className="reportLogoRow"><img className="reportLogo" src={LOGO_SRC} alt="Institut Cirvianum · Cicles" width={150} height={54}/></div>;
+}

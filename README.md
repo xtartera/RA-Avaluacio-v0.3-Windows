@@ -27,3 +27,7 @@ npm run dev
 L'aplicació s'obre al navegador però s'executa íntegrament a l'ordinador local. La finestra del servidor ha de romandre oberta mentre es fa servir. Aquesta versió utilitza Vite estàndard i no necessita Cloudflare, Miniflare ni Microsoft Visual C++ Redistributable.
 
 En una versió posterior s'hi connectarà la importació completa de l'Excel i la persistència local definitiva.
+
+## Avaluació inicial
+
+Menú Avaluació › Avaluació inicial: importa el dossier PDF del qüestionari diagnòstic del quadern digital (un per alumne). Els resultats no compten per a la nota i generen conclusions a l'informe individual. Els PDF es guarden només en aquest navegador (no van a la còpia JSON). Detall a `ESPECIFICACIO-FUNCIONAL.md`.

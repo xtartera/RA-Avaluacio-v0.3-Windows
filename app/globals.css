@@ -233,3 +233,25 @@ tr.raRowAssolit td{border-top-color:#dcf0e6}
 /* Aparença: informes impresos sempre en Blau clàssic, independentment de la paleta activa a pantalla */
 @media print{:root{--primary:#3975e8;--primary-2:#795fd7;--sidebar-bg:#101c35;--sidebar-hover-1:#253b64;--sidebar-hover-2:#1c2e50;--sidebar-active-accent:#67a0ff;--brand-logo-1:#4b89fa;--brand-logo-2:#7156dd;--brand-accent-text:#8fc2ff;--dark-btn:#1d2d4b;--dark-btn-hover:#152040;--switch-active-text:#234d9b;--tint-a:#eef4ff;--tint-b:#edf4ff;--tint-c:#e9f1ff;--tint-d:#f0f5ff;--tint-icon:#f8faff;--accent-border:#99b9ef;--accent-text:#245bbb;--accent-text-2:#2c61b7;--accent-text-3:#2963bf;--accent-text-4:#2d6bd0;--accent-text-5:#3768bd;--accent-text-6:#1d4ed8;--accent-text-7:#3468bb;--focus-ring:#3975e850;--focus-ring-soft:#3975e821;--press-ring:#3975e833;--hover-shadow:#3975e80c;--tint-strong:#3975e81a;--tint-border-soft:#dbe6fb;--tint-border-a:#d3e2fb;--tint-border-b:#dce8fc;--tint-border-c:#dce6f4;--tint-pill-span:#d5e5ff;--tint-bonus-bg:#edf5ff;--tint-icon-e7:#e7efff;--kpi-blue-text:#3f5f9c;--tint-border-d:#cbdcf6;--tint-border-e:#c9d9ef;--tint-e:#eef5ff;--accent-text-8:#335578;--tint-border-f:#b9cbe4;--accent-text-9:#244f9f;--accent-text-10:#29476f;--accent-text-11:#3f5471;--accent-text-12:#344d70;--accent-text-13:#3c64a4;--accent-text-14:#2d568b;--tint-f:#eef3fa;--tint-border-g:#dce6f3}}
 .raSummaryPanel .raOverviewCard>strong{height:auto;overflow:visible;font-size:12px;line-height:1.5;margin:12px 0}
+.initialPage{margin:0 0 28px;padding-bottom:22px;border-bottom:2px dashed var(--line)}
+.initialPage:last-of-type{border-bottom:0;margin-bottom:0}
+@media print{.initialPage{break-after:page;border-bottom:0;margin:0;padding:0}.initialPage:last-of-type{break-after:auto}}
+@media print{
+ .report.initialReport{zoom:.62}
+ .report.initialReport .reportStats{grid-template-columns:repeat(4,1fr)!important;margin:10px 0 12px;gap:8px}
+ .report.initialReport .reportStat{padding:8px 10px}
+ .report.initialReport .reportHead{padding-bottom:12px}
+ .report.initialReport .reportBlock{padding:10px}
+ .report.initialReport .reportRow3{margin:8px 0 10px;gap:8px}
+ .report.initialReport .initialPage>*{margin-top:0}
+ .report.initialReport td,.report.initialReport th{padding:5px 7px;font-size:11px;white-space:nowrap}
+ .report.initialReport td:first-child{white-space:normal}
+}
+@media print{.report.initialReport .tightPrint{margin:8px 0!important}.report.initialReport footer{margin-top:8px}}
+.sidebarLogo{background:white;border-radius:14px;padding:10px 14px;margin:0 0 18px;display:flex;justify-content:center}
+.sidebarLogo img{display:block;width:100%;max-width:168px;height:auto}
+.reportLogoRow{margin:0 0 14px}
+.reportLogo{display:block;height:54px;width:auto}
+@media print{.reportLogoRow{margin:0 0 10px}.reportLogo{height:48px}}
+/* Imprimeix sempre els colors de fons (barres de progrés, etiquetes, targetes) encara que el diàleg tingui «Gràfics de fons» desactivat. */
+@media print{*,*::before,*::after{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
