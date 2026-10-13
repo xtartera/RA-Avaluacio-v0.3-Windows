@@ -17,6 +17,7 @@ interface Draft {
   parsed: ParsedDiagnostic | null;
   error: string | null;
   enrollmentId: string;
+  fuzzy: boolean;
   include: boolean;
 }
 
@@ -58,12 +59,12 @@ export function InitialAssessment({course, group, mutate, msg}: {course: Academi
     const next: Draft[] = [];
     const {extractPdfItems} = await import("../../src/controllers/pdfText");
     for (const file of Array.from(files)) {
-      const draft: Draft = {key: newId("draft"), fileName: file.name, buffer: null, parsed: null, error: null, enrollmentId: "", include: false};
+      const draft: Draft = {key: newId("draft"), fileName: file.name, buffer: null, parsed: null, error: null, enrollmentId: "", fuzzy: false, include: false};
       try {
         draft.buffer = await file.arrayBuffer();
         draft.parsed = parseDiagnosticPdf(await extractPdfItems(draft.buffer));
         const match = matchStudent(candidates, draft.parsed.firstName, draft.parsed.lastName);
-        draft.enrollmentId = match?.enrollmentId ?? "";
+        draft.enrollmentId = match?.enrollmentId ?? ""; draft.fuzzy = !!match?.fuzzy;
         draft.include = !!match;
       } catch (e) { draft.error = e instanceof Error ? e.message : String(e); }
       next.push(draft);
@@ -147,12 +148,12 @@ export function InitialAssessment({course, group, mutate, msg}: {course: Academi
           <div className="managementTableScroll"><table className="managementTable"><thead><tr><th>Importa</th><th>Fitxer</th><th>Nom al PDF</th><th>Alumne de l'aplicació</th><th>Nota</th><th>Avisos</th></tr></thead><tbody>{drafts.map(d => {
             const unit = d.parsed?.unit ?? null, mismatch = unit !== null && !new RegExp(`\\bUT\\s*${unit}\\b`, "i").test(activity.name);
             const existing = d.enrollmentId && byEnrollment.has(d.enrollmentId);
-            const warnings = [...(d.parsed?.warnings ?? []), ...(mismatch ? [`Aquest PDF és de la UT${unit} i l'activitat és «${activity.name}».`] : []), ...(existing ? ["Ja té un resultat en aquesta activitat; es substituirà."] : [])];
+            const warnings = [...(d.parsed?.warnings ?? []), ...(mismatch ? [`Aquest PDF és de la UT${unit} i l'activitat és «${activity.name}».`] : []), ...(d.fuzzy ? [`El nom del PDF («${d.parsed?.firstName} ${d.parsed?.lastName}») s'assembla però no coincideix exactament amb l'alumne assignat: comprova-ho.`] : []), ...(existing ? ["Ja té un resultat en aquesta activitat; es substituirà."] : [])];
             return <tr key={d.key}>
               <td><input type="checkbox" aria-label={`Importa ${d.fileName}`} checked={d.include} disabled={!d.parsed || !d.enrollmentId} onChange={e => setDrafts(list => list.map(x => x.key === d.key ? {...x, include: e.target.checked} : x))}/></td>
               <td title={d.fileName} style={{maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>{d.fileName}</td>
               <td>{d.parsed ? `${d.parsed.firstName} ${d.parsed.lastName}`.trim() || "—" : <span className="risk">—</span>}</td>
-              <td>{d.parsed ? <select aria-label={`Alumne per a ${d.fileName}`} value={d.enrollmentId} onChange={e => setDrafts(list => list.map(x => x.key === d.key ? {...x, enrollmentId: e.target.value, include: !!e.target.value} : x))}><option value="">— Tria l'alumne —</option>{people.map(p => <option key={p.enrollment.id} value={p.enrollment.id}>{p.student.name}</option>)}</select> : "—"}</td>
+              <td>{d.parsed ? <select aria-label={`Alumne per a ${d.fileName}`} value={d.enrollmentId} onChange={e => setDrafts(list => list.map(x => x.key === d.key ? {...x, enrollmentId: e.target.value, fuzzy: false, include: !!e.target.value} : x))}><option value="">— Tria l'alumne —</option>{people.map(p => <option key={p.enrollment.id} value={p.enrollment.id}>{p.student.name}</option>)}</select> : "—"}</td>
               <td><b>{d.parsed ? fmt(d.parsed.score) : "—"}</b></td>
               <td style={{fontSize: 11.5}}>{d.error ? <span className="risk"><AlertTriangle size={13}/> {d.error}</span> : warnings.length ? <span style={{color: "#7a5c0c"}}>{warnings.join(" ")}</span> : <span className="ok">Correcte</span>}</td>
             </tr>; })}</tbody></table></div>

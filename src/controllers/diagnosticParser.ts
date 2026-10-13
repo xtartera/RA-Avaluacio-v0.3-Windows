@@ -112,11 +112,20 @@ export function parseDiagnosticPdf(pages: PdfItem[][]): ParsedDiagnostic {
   const warnings: string[] = [];
   const all = pages.flat();
 
+  if (!all.some(item => item.s.trim())) throw new Error("Aquest PDF no té text: és una imatge (per exemple, imprès amb «Microsoft Print to PDF» o fet amb una captura). Cal tornar-lo a desar des del navegador amb «Imprimeix › Desa com a PDF».");
+  // El títol surt a la capçalera d'impressió, però si l'alumne ha desat el PDF amb un altre nom, la capçalera
+  // porta el nom del fitxer: llavors el llegim del títol gran de la portada (els elements anteriors a «Qüestionari de correcció automàtica…»).
   const prefix = /^Qüestionari de correcció automàtica\s+·\s+/;
   const footer = all.find(item => prefix.test(clean(item.s)));
-  if (!footer) throw new Error("Aquest PDF no sembla un qüestionari de correcció automàtica del quadern digital.");
-  const title = clean(footer.s).replace(prefix, "");
-  const unit = title.match(/\bUT\s*(\d+)/i)?.[1];
+  const hasResultPage = pages.some(page => page.some(item => clean(item.s) === "Resultat del qüestionari"));
+  if (!footer && !hasResultPage) throw new Error("Aquest PDF no sembla un qüestionari de correcció automàtica del quadern digital.");
+  const coverTitle = () => {
+    const cover = pages[0] ?? [];
+    const lead = cover.findIndex(item => /^Qüestionari de correcció automàtica/.test(clean(item.s)));
+    return clean(cover.slice(0, lead < 0 ? 0 : lead).map(item => item.s).join(" "));
+  };
+  const title = footer ? clean(footer.s).replace(prefix, "") : coverTitle();
+  if (!title) throw new Error("No s'ha pogut llegir el títol del qüestionari al PDF.");
 
   const first = pages[0] ?? [];
   const firstName = valueAfter(first, "Nom", ["Cognoms"]) ?? "";
@@ -171,6 +180,7 @@ export function parseDiagnosticPdf(pages: PdfItem[][]): ParsedDiagnostic {
     if (block) block.minutes = parseMinutes(timePage[i + 1]?.s);
   }
 
+  const unit = title.match(/\bUT\s*(\d+)/i)?.[1] ?? fingerprint?.match(/-UT(\d+)-/i)?.[1];
   return {
     title, unit: unit ? Number(unit) : null, firstName, lastName, submittedAt,
     deliveryNumber: deliveryText && /^\d+$/.test(deliveryText) ? Number(deliveryText) : null,
@@ -184,15 +194,41 @@ export function parseDiagnosticPdf(pages: PdfItem[][]): ParsedDiagnostic {
 
 const tokens = (name: string) => name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("ca").split(/[^a-z0-9ñç·]+/).filter(Boolean);
 
-/** Proposa la matrícula que correspon al nom del PDF (nom + cognoms) entre els alumnes del grup. */
-export function matchStudent(people: {enrollmentId: string; name: string}[], firstName: string, lastName: string): {enrollmentId: string; exact: boolean} | null {
-  const wanted = new Set(tokens(`${firstName} ${lastName}`));
-  if (!wanted.size) return null;
+function levenshtein(a: string, b: string): number {
+  const row = Array.from({length: b.length + 1}, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0]; row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return row[b.length];
+}
+
+/** Dues paraules són la mateixa si són iguals o, en paraules llargues, difereixen en una sola lletra («Akrikez» ≈ «Akrikiz»). */
+const sameWord = (a: string, b: string) => a === b || (a.length >= 5 && b.length >= 5 && Math.abs(a.length - b.length) <= 1 && levenshtein(a, b) <= 1);
+
+/**
+ * Proposa la matrícula que correspon al nom del PDF (nom + cognoms) entre els alumnes del grup.
+ * Tolera que l'alumne hagi escrit només un cognom i petites errades d'escriptura (`fuzzy`).
+ */
+export function matchStudent(people: {enrollmentId: string; name: string}[], firstName: string, lastName: string): {enrollmentId: string; exact: boolean; fuzzy: boolean} | null {
+  const wanted = [...new Set(tokens(`${firstName} ${lastName}`))];
+  if (!wanted.length) return null;
   const scored = people.map(p => {
-    const have = new Set(tokens(p.name));
-    const shared = [...wanted].filter(t => have.has(t)).length;
-    return {enrollmentId: p.enrollmentId, shared, exact: shared === wanted.size && shared === have.size, contained: shared === wanted.size || shared === have.size, score: shared / new Set([...wanted, ...have]).size};
+    const have = [...new Set(tokens(p.name))];
+    const hitWanted = wanted.filter(t => have.some(h => sameWord(t, h)));
+    const hitHave = have.filter(h => wanted.some(t => sameWord(t, h)));
+    const fuzzy = hitWanted.some(t => !have.includes(t));
+    return {
+      enrollmentId: p.enrollmentId, shared: hitWanted.length, fuzzy,
+      exact: !fuzzy && hitWanted.length === wanted.length && wanted.length === have.length,
+      contained: hitWanted.length === wanted.length || hitHave.length === have.length,
+      score: (hitWanted.length + hitHave.length) / (wanted.length + have.length) - (fuzzy ? 0.01 : 0),
+    };
   }).filter(c => c.contained && c.shared > 0).sort((a, b) => b.score - a.score);
   if (!scored.length || (scored.length > 1 && scored[0].score === scored[1].score)) return null;
-  return {enrollmentId: scored[0].enrollmentId, exact: scored[0].exact};
+  return {enrollmentId: scored[0].enrollmentId, exact: scored[0].exact, fuzzy: scored[0].fuzzy};
 }

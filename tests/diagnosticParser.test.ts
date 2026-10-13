@@ -63,8 +63,8 @@ test("detecta el «No ho sé» marcat", () => {
 
 test("relaciona el nom del PDF amb el llistat", () => {
   const people = [{enrollmentId: "a", name: "Agramunt Pujol, Xavier"}, {enrollmentId: "b", name: "Aquino, Mateo Emiliano"}, {enrollmentId: "c", name: "Abii , Kelvin Marfo"}];
-  assert.deepEqual(matchStudent(people, "XAVIER", "AGRAMUNT"), {enrollmentId: "a", exact: false});
-  assert.deepEqual(matchStudent(people, "Kelvin Marfo", "Abii"), {enrollmentId: "c", exact: true});
+  assert.deepEqual(matchStudent(people, "XAVIER", "AGRAMUNT"), {enrollmentId: "a", exact: false, fuzzy: false});
+  assert.deepEqual(matchStudent(people, "Kelvin Marfo", "Abii"), {enrollmentId: "c", exact: true, fuzzy: false});
   assert.equal(matchStudent(people, "Laura", "Soler"), null);
 });
 
@@ -94,4 +94,35 @@ test("UT2: «No ho sé» sense ✔/✖ (línia «— No ho sé») no embruta la 
   assert.deepEqual([q16.kind, q16.unknown, q16.correct, q16.answer, q16.options.length], ["choice", true, false, [], 4]);
   assert.equal(ut2.questions.filter(q => q.unknown).length, 2);
   assert.ok(ut2.questions.every(q => q.options.every(o => !/Qüestionari de correcció|https:/.test(o))));
+});
+
+test("PDF desat amb un altre nom: la capçalera porta el nom del fitxer i el títol i la UT es llegeixen de la portada", () => {
+  const renamed = structuredClone(pages);
+  for (const page of renamed) for (const item of page) if (item.s.startsWith("Qüestionari de correcció automàtica ·")) item.s = "AV_Inicial_UT1_Alumne_Prova";
+  const p = parseDiagnosticPdf(renamed);
+  assert.equal(p.title, "Avaluació inicial UT1 – Windows Server i Active Directory");
+  assert.equal(p.unit, 1);
+  assert.equal(p.score, 8);
+  assert.deepEqual(p.warnings, []);
+});
+
+test("la UT també es pot treure de l'empremta del dossier", () => {
+  const renamed = structuredClone(pages);
+  for (const page of renamed) for (const item of page) {
+    if (item.s.startsWith("Qüestionari de correcció automàtica ·")) item.s = "fitxer";
+    if (item.s === "Avaluació inicial UT1 – Windows Server i") item.s = "Dossier d'entrada –";
+  }
+  assert.equal(parseDiagnosticPdf(renamed).unit, 1);
+});
+
+test("un PDF sense text (imatge) dona un missatge clar", () => {
+  assert.throws(() => parseDiagnosticPdf([[], [], []]), /no té text: és una imatge/);
+});
+
+test("el nom amb una errada d'escriptura es proposa però es marca com a aproximat", () => {
+  const people = [{enrollmentId: "a", name: "Akrikiz, Nasreddine"}, {enrollmentId: "b", name: "Amjahed, Adam"}, {enrollmentId: "c", name: "Singh Kaur, Tarunjot"}];
+  assert.deepEqual(matchStudent(people, "Nasreddine", "Akrikez"), {enrollmentId: "a", exact: false, fuzzy: true});
+  assert.deepEqual(matchStudent(people, "Tarunjot", "Singh"), {enrollmentId: "c", exact: false, fuzzy: false});
+  assert.equal(matchStudent(people, "Adam", "Amj"), null); // massa curt per assumir-ho
+  assert.deepEqual(matchStudent(people, "adam", "AMJAHED"), {enrollmentId: "b", exact: true, fuzzy: false});
 });
