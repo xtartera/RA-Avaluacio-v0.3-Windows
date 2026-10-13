@@ -80,6 +80,8 @@ export interface ModuleConfiguration {
   roundingThreshold: number;
   requiredActivityMinGrade: number;
   riskThreshold: number;
+  /** Cobertura mínima (%) d'un RA perquè es valori com a assolit o no assolit; per sota és «provisional». */
+  minRaCoverage: number;
 }
 
 export interface Student {
@@ -275,7 +277,7 @@ export function emptyConfiguration(): ModuleConfiguration {
   return {
     moduleName: "Sistemes Operatius en Xarxa", abbreviation: "SOX", level: "2n SMX",
     cicle: "SMX", cicleNivell: "Grau mitjà", curs: "2n", termCount: 2,
-    learningResults: [], criteria: [], activityTypes: [], activities: [], links: [], workUnits: [], raAveraging: "simple", roundingThreshold: .75, requiredActivityMinGrade: 5, riskThreshold: 4,
+    learningResults: [], criteria: [], activityTypes: [], activities: [], links: [], workUnits: [], raAveraging: "simple", roundingThreshold: .75, requiredActivityMinGrade: 5, riskThreshold: 4, minRaCoverage: 25,
   };
 }
 
@@ -286,6 +288,7 @@ export function migrateDatabase(data: AppDatabase): AppDatabase {
     if (course.configuration.roundingThreshold === undefined) course.configuration.roundingThreshold = .75;
     if (course.configuration.requiredActivityMinGrade === undefined) course.configuration.requiredActivityMinGrade = 5;
     if (course.configuration.riskThreshold === undefined) course.configuration.riskThreshold = 4;
+    if (course.configuration.minRaCoverage === undefined) course.configuration.minRaCoverage = 25;
     if (!course.configuration.cicle) course.configuration.cicle = "SMX";
     if (!course.configuration.cicleNivell) course.configuration.cicleNivell = "Grau mitjà";
     if (!course.configuration.curs) course.configuration.curs = "2n";

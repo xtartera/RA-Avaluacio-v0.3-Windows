@@ -994,6 +994,15 @@ Amplia la idea de la secció “Regles obligatòries per assolir RA” (línia 6
 
 - El logo (`public/logo-institut.png`) surt a la barra lateral de l’aplicació (sobre una targeta blanca, perquè el logo té text fosc) i a la capçalera de tots els informes imprimibles: individual, de grup, d’activitat, graelles, extraordinària, full de qualificacions de l’alumne, informes i extraccions i informe d’avaluació inicial (aquest, a cada pàgina). Component `ReportLogo` a `app/components/shared.tsx`. Per canviar-lo n’hi ha prou de substituir el fitxer de `public/` mantenint el nom.
 
+### RA provisionals (cobertura mínima) · **Fet**
+
+- Motiu: un projecte suspès que pesa l’1,2 % de la nota global feia que l’RA1 sortís «3,4 / no assolit» amb només un 6 % avaluat (la nota d’un CA es normalitza sobre les activitats ja avaluades). Cas real: Dan Alvarez i Nasreddine Akrikiz de la còpia del 27/09.
+- Nou paràmetre `ModuleConfiguration.minRaCoverage` (25 % per defecte, 0 el desactiva; editable a Configuració). Cada resultat d’RA porta `provisional` (cobertura > 0 i < mínim, sense examen obligatori suspès). `raIsAchieved` i `raIsFailing` el respecten, de manera que informe, anàlisi d’alumne i de grup, graelles, Notes (alumnes a recuperar) i extraordinària coincideixen. Un RA amb 0 % es mostra «Pendent» a l’informe (abans «No assolit»).
+- A l’informe individual, a la graella de RA i a l’informe imprimible d’RA, un RA provisional mostra «Provisional» i, en clicar-lo («Mostra nota»), la nota estimada amb «≈»; es pot mostrar o amagar per RA abans d’imprimir. Per a un RA amb 0 % d’evidència no hi ha nota estimada («Pendent»). El Mapa d’assoliment dels RA (i el seu informe imprimible) té un interruptor «Mostra totes les notes» que mostra la nota estimada de tots els RA amb evidència (provisionals i no assolits inclosos): és la nota aproximada per RA «si el curs acabés avui», amb les activitats no corregides excloses del càlcul.
+- La nota global també mostra un avís de «Nota provisional» i «Situació provisional» sota la cobertura mínima.
+- Lliuraments: `isDelivered` exclou els «No presentat» (abans comptaven com a lliurats).
+- Tests: `tests/provisional.test.ts`.
+
 ### Registre de decisions durant la implementació
 
 Si durant una fase cal desviar-se d’una decisió d’aquest document, cal anotar-ho aquí amb la data i el motiu abans de continuar, en lloc de modificar silenciosament les seccions anteriors.

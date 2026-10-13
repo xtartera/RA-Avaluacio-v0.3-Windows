@@ -34,7 +34,8 @@ export function summarizeGroup(course: AcademicCourse, group: Group): GroupSumma
   let evaluated = 0, failed = 0;
   for (const ra of ras) {
    const entry = c.learningResults.get(ra.id);
-   if (!entry || entry.coverage <= 0) continue;
+   // Un RA amb poca evidència (provisional) no compta com a aprovat ni com a suspès.
+   if (!entry || entry.coverage <= 0 || entry.provisional) continue;
    evaluated++;
    if (!(entry.score >= 5 && entry.failingActivities === 0)) failed++;
   }
@@ -217,7 +218,7 @@ export function analyzeGroup(course: AcademicCourse, group: Group, compareGroupI
   const scores = own.calc.map(c => c.learningResults.get(ra.id)?.score ?? 0);
   const failing = own.calc.map(c => c.learningResults.get(ra.id)?.failingActivities ?? 0);
   const coverage = own.calc[0]?.learningResults.get(ra.id)?.coverage ?? 0;
-  const hasEvidence = coverage > 0 && own.count > 0;
+  const hasEvidence = coverage > 0 && coverage >= (course.configuration.minRaCoverage ?? 25) && own.count > 0;
   const average = hasEvidence ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
   const total = hasEvidence ? scores.length : 0;
   const passed = hasEvidence ? scores.filter((s, i) => s >= 5 && failing[i] === 0).length : 0;

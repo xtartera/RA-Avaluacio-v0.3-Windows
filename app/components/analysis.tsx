@@ -67,11 +67,11 @@ export function DiagList({items}: {items: {tone: Tone; icon: ElementType; text: 
  return <div className="diagList">{items.map((d, i) => {const Icon = d.icon; return <div className={"diagItem d" + d.tone.charAt(0).toUpperCase() + d.tone.slice(1)} key={i}><Icon size={16}/><span>{d.text}</span></div>})}</div>;
 }
 
-export function GradeBand({score, riskThreshold}: {score: number; riskThreshold: number}) {
+export function GradeBand({score, riskThreshold, provisional = false}: {score: number; riskThreshold: number; provisional?: boolean}) {
  const segments = [{to: 5, color: DONUT_COLORS[0]}, {to: 6, color: DONUT_COLORS[1]}, {to: 7, color: DONUT_COLORS[2]}, {to: 9, color: DONUT_COLORS[3]}, {to: 10, color: DONUT_COLORS[4]}];
  let from = 0;
  const pct = Math.min(100, Math.max(0, score / 10 * 100));
- const situation = score < riskThreshold ? "Situació crítica" : score < 5 ? "Zona límit" : score < 7 ? "Assoliment satisfactori" : score < 9 ? "Bon assoliment" : "Assoliment excel·lent";
+ const situation = provisional ? "Provisional: encara no hi ha prou evidència" : score < riskThreshold ? "Situació crítica" : score < 5 ? "Zona límit" : score < 7 ? "Assoliment satisfactori" : score < 9 ? "Bon assoliment" : "Assoliment excel·lent";
  return <div>
   <div style={{position: "relative", marginTop: 22}}>
    <div style={{display: "flex", height: 14, borderRadius: 8, overflow: "hidden"}}>{segments.map(s => {const width = (s.to - from) / 10 * 100; from = s.to; return <div key={s.to} style={{width: `${width}%`, background: s.color}}/>})}</div>

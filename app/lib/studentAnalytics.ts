@@ -1,6 +1,6 @@
 import type {ElementType} from "react";
 import {AlertTriangle, Info, ThumbsUp, TrendingDown, TrendingUp} from "lucide-react";
-import {calculateFinalStudent, calculateStudent, convocatoriaConsumida, convocatoriaExhaurida, groupAsOfTerm, raIsAchieved, raIsFailing, totalGrade, type StudentCalculation} from "../../src/model/calculation";
+import {calculateFinalStudent, calculateStudent, convocatoriaConsumida, convocatoriaExhaurida, groupAsOfTerm, isDelivered, raIsAchieved, raIsFailing, totalGrade, type StudentCalculation} from "../../src/model/calculation";
 import {countsForGrade, type AcademicCourse, type Activity, type ActivityType, type Grade, type Group, type LearningResult, type WorkUnit} from "../../src/model/domain";
 import type {Tone} from "../components/analysis";
 import {termOrdinal} from "./helpers";
@@ -10,7 +10,7 @@ export interface RaAnalysisRow {
  score: number | null;
  groupAvg: number | null;
  coverage: number;
- status: "assolit" | "risc" | "pendent";
+ status: "assolit" | "risc" | "pendent" | "provisional";
  failing: number;
  trend: "up" | "down" | "flat" | null;
 }
@@ -46,6 +46,7 @@ export interface StudentAnalytics {
  groupTrendPoints: {label: string; value: number}[];
  raRows: RaAnalysisRow[];
  withEvidence: RaAnalysisRow[];
+ provisionalRas: RaAnalysisRow[];
  achievedCount: number;
  riskRas: RaAnalysisRow[];
  activitiesTotal: number;
@@ -104,15 +105,17 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
   const t1Entry = calcT1.learningResults.get(ra.id);
   const t1Score = t1Entry && t1Entry.coverage > 0 ? t1Entry.score : null;
   const trend: RaAnalysisRow["trend"] = hasEvidence && t1Score !== null ? (score! - t1Score > .1 ? "up" : score! - t1Score < -.1 ? "down" : "flat") : null;
-  const status: RaAnalysisRow["status"] = !hasEvidence ? "pendent" : score! >= 5 && failing === 0 ? "assolit" : "risc";
+  const status: RaAnalysisRow["status"] = !hasEvidence ? "pendent" : entry?.provisional ? "provisional" : score! >= 5 && failing === 0 ? "assolit" : "risc";
   return {ra, score, groupAvg, coverage, status, failing, trend};
  });
- const withEvidence = raRows.filter(r => r.status !== "pendent");
+ // «Valorables»: amb prou evidència per dir si estan assolits o no. Els provisionals es mostren a part.
+ const withEvidence = raRows.filter(r => r.status === "assolit" || r.status === "risc");
+ const provisionalRas = raRows.filter(r => r.status === "provisional");
  const achievedCount = withEvidence.filter(r => r.status === "assolit").length;
  const riskRas = withEvidence.filter(r => r.status === "risc");
 
  const activitiesAll = course.configuration.activities.filter(a => a.status === "active" && countsForGrade(a));
- const delivered = activitiesAll.filter(a => {const g = group.grades.find(x => x.enrollmentId === enrollmentId && x.activityId === a.id); return g && g.status !== "pending"}).length;
+ const delivered = activitiesAll.filter(a => isDelivered(group.grades.find(x => x.enrollmentId === enrollmentId && x.activityId === a.id))).length;
  const deliveryPct = activitiesAll.length ? delivered / activitiesAll.length * 100 : 0;
 
  const typeRows: ActivityTypeRow[] = course.configuration.activityTypes.filter(t => t.status === "active").map(type => {
@@ -154,6 +157,7 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
   const blockedPositive = riskRas.filter(r => r.score! >= 5);
   if (belowFive.length) diagnosis.push({tone: belowFive.length > 1 ? "red" : "amber", icon: AlertTriangle, text: `${belowFive.map(r => r.ra.code).join(", ")}: nota provisional per sota de 5.`});
   if (blockedPositive.length) diagnosis.push({tone: "amber", icon: AlertTriangle, text: `${blockedPositive.map(r => r.ra.code).join(", ")}: nota positiva però no assolit, per activitat obligatòria suspesa.`});
+  if (provisionalRas.length) diagnosis.push({tone: "blue", icon: Info, text: `${provisionalRas.map(r => `${r.ra.code} (${r.coverage.toFixed(0)}% avaluat)`).join(", ")}: encara és provisional (menys del ${course.configuration.minRaCoverage ?? 25}% avaluat) i no es valora com a assolit ni no assolit.`});
   if (!riskRas.length && withEvidence.length) diagnosis.push({tone: "green", icon: ThumbsUp, text: "Cap RA no assolit amb les dades actuals."});
   if (deliveryPct < 80) diagnosis.push({tone: "amber", icon: AlertTriangle, text: `El percentatge de lliuraments és del ${deliveryPct.toFixed(0)}%; hi ha activitats pendents de lliurar.`});
   else diagnosis.push({tone: "green", icon: ThumbsUp, text: `El percentatge de lliuraments és del ${deliveryPct.toFixed(0)}%.`});
@@ -176,7 +180,7 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
  if (!strengths.length) strengths.push("Encara no hi ha prou evidències per destacar fortaleses.");
  if (!improve.length) improve.push("Cap aspecte prioritari detectat amb les dades actuals.");
 
- return {calc, calcT1, hasStudentEvidence, trendDelta, groupAverage, groupT1Average, trendPoints, groupTrendPoints, raRows, withEvidence, achievedCount, riskRas, activitiesTotal: activitiesAll.length, delivered, deliveryPct, typeRows, workUnitRows, diagnosis, strengths, improve, actions};
+ return {calc, calcT1, hasStudentEvidence, trendDelta, groupAverage, groupT1Average, trendPoints, groupTrendPoints, raRows, withEvidence, provisionalRas, achievedCount, riskRas, activitiesTotal: activitiesAll.length, delivered, deliveryPct, typeRows, workUnitRows, diagnosis, strengths, improve, actions};
 }
 
 export interface RaConvocatoriaRow {

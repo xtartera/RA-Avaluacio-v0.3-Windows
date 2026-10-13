@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import {History, X, Search, ClipboardCheck, Plus, Undo2, ArrowDown, Lock, Unlock} from "lucide-react";
-import {activityIsEvaluated, calculateStudent, totalGrade} from "../../src/model/calculation";
+import {activityIsEvaluated, calculateStudent, raIsFailing, totalGrade} from "../../src/model/calculation";
 import {newId, nowIso, type AcademicCourse, type AppDatabase, type Grade, type Group, type GradeStatus} from "../../src/model/domain";
 import {recordGradeChange} from "../../src/controllers/database";
 import {findGroup, activePeople, raShares, syncState, normalize, termOrdinal, type Mutate} from "../lib/helpers";
@@ -24,7 +24,7 @@ export function Grades({course,group,db,mutate,msg,focusActivity,clearFocus}:{co
  const allPeople=activePeople(group);
  const locked=group.activityStates.find(s=>s.activityId===activityId)?.locked??false;
  const toggleLock=()=>{setUndo(null);mutate(d=>{const g=findGroup(d,course.id,group.id);let s=g.activityStates.find(s=>s.activityId===activityId);if(!s){s={activityId,automaticEvaluatedAt:null,manualOverride:null,locked:false};g.activityStates.push(s);}s.locked=!s.locked;});};
- const needsRecovery=(enrollmentId:string)=>activity.session==="extraordinaria"&&activity.recoversRaIds.some(raId=>{const entry=calculateStudent(course,group,enrollmentId).learningResults.get(raId);return !entry||entry.score<5||entry.failingActivities>0;});
+ const needsRecovery=(enrollmentId:string)=>activity.session==="extraordinaria"&&activity.recoversRaIds.some(raId=>{const entry=calculateStudent(course,group,enrollmentId).learningResults.get(raId);return !entry||raIsFailing(entry);});
  const relevantFilterActive=activity.session==="extraordinaria"&&!showAllStudents;
  const people=relevantFilterActive?allPeople.filter(p=>needsRecovery(p.enrollment.id)):allPeople;
  const getGrade=(eid:string)=>group.grades.find(g=>g.enrollmentId===eid&&g.activityId===activityId);

@@ -125,6 +125,21 @@ La **cobertura** d'un RA és quin percentatge del seu pes ja s'ha avaluat. Un RA
 
 La **cobertura global** del mòdul es calcula igual, però amb el pes de totes les activitats del curs en lloc de només les d'un RA.
 
+### RA provisionals: poca evidència no és «no assolit»
+
+La nota d'un RA es calcula **només amb les activitats ja avaluades**. Per això, amb poques activitats avaluades, una sola nota (per exemple, un projecte suspès que pesa un 1,2 % de la nota global) pot decidir gairebé tot el valor de l'RA: un 0 en un projecte pot fer un RA «3,4» amb només un 6 % avaluat.
+
+Per evitar conclusions precipitades, un RA amb menys de la **cobertura mínima** (per defecte un **25 %**, configurable a Configuració) es mostra com a **«Provisional»**:
+
+- no es considera assolit ni no assolit;
+- no bloqueja el mòdul ni passa a l'extraordinària, i no compta com a RA en risc;
+- l'informe, la graella de RA i l'informe imprimible mostren «Provisional · x % avaluat» i **amaguen la nota estimada per defecte**: clicant «Mostra nota» (informe) o la paraula «Provisional» (graelles) apareix la nota estimada, marcada amb «≈», i es torna a amagar clicant de nou. El que hi hagi visible en aquell moment és el que s'imprimeix; a l'anàlisi de l'alumne la nota ja es veu sempre. Al **Mapa d'assoliment dels RA** (Graelles › Resultats d'aprenentatge) i al seu informe imprimible, el botó **«Mostra totes les notes»** mostra d'un cop la nota estimada de tots els RA amb evidència (provisionals amb «≈», no assolits amb el número i «no assolit»); els RA sense cap evidència continuen sense nota. Quan es mostren les notes (global o RA a RA), els recomptes de dalt (RA assolits / no assolits i el resum per RA) es **recalculen** comptant aquests RA provisionals amb la seva nota estimada i marcant-los com a «estimats»; amagades, es compten a part com a «provisionals». Si s'acabés el curs avui, aquesta és la nota aproximada per RA, calculada només amb el que hi ha corregit;
+- la nota global també s'avisa com a provisional quan la cobertura global és inferior a aquest mínim.
+
+Excepció: si l'RA té un **examen obligatori suspès** (vegeu l'apartat 6), es marca com a no assolit encara que tingui poca cobertura. Amb tot avaluat (100 %) la regla no canvia res, i amb el valor 0 es desactiva.
+
+També s'ha corregit el recompte de **lliuraments**: un «No presentat» ja no compta com a lliurat.
+
 ## 4. Quan es considera una activitat "avaluada"
 
 Una activitat passa de "Pendent" a "Avaluada" automàticament quan arriba a **5 qualificacions** (comptant notes numèriques i "No presentat" — una bonificació sense nota base no compta). A partir d'aquell moment, els alumnes actius que encara no tinguin nota hi compten com un 0.

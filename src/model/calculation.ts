@@ -87,7 +87,7 @@ export function failingRequiredActivities(course: AcademicCourse, group: Group, 
 export interface StudentCalculation {
   criteria: Map<string, number>;
   criteriaCoverage: Map<string, number>;
-  learningResults: Map<string, {score: number; coverage: number; failingActivities: number}>;
+  learningResults: Map<string, {score: number; coverage: number; failingActivities: number; provisional: boolean}>;
   globalScore: number;
   globalCoverage: number;
 }
@@ -117,7 +117,8 @@ export function calculateStudent(course: AcademicCourse, group: Group, enrollmen
     criterionScores.set(criterion.id, score);
   }
 
-  const raResults = new Map<string, {score: number; coverage: number; failingActivities: number}>();
+  const raResults = new Map<string, {score: number; coverage: number; failingActivities: number; provisional: boolean}>();
+  const minCoverage = course.configuration.minRaCoverage ?? 25;
   let globalScore = 0; let globalCoverage = 0; let totalRaWeight = 0;
   for (const ra of course.configuration.learningResults.filter(item => item.status === "active")) {
     const criteria = activeCriteria(course, ra);
@@ -128,7 +129,9 @@ export function calculateStudent(course: AcademicCourse, group: Group, enrollmen
     const possible = [...relatedActivityIds].reduce((sum, id) => sum + (weights.get(id) ?? 0), 0);
     const done = [...relatedActivityIds].filter(id => evaluated.has(id)).reduce((sum, id) => sum + (weights.get(id) ?? 0), 0);
     const coverage = possible ? Math.min(100, done / possible * 100) : 0;
-    raResults.set(ra.id, {score, coverage, failingActivities: failingRequiredActivities(course, group, enrollmentId, ra.id)});
+    const failingActivities = failingRequiredActivities(course, group, enrollmentId, ra.id);
+    // Provisional: hi ha evidència però és massa poca per valorar l'RA (tret que un examen obligatori ja estigui suspès).
+    raResults.set(ra.id, {score, coverage, failingActivities, provisional: coverage > 0 && coverage < minCoverage && failingActivities === 0});
     const effectiveWeight = raWeight * coverage / 100;
     globalScore += score * effectiveWeight; totalRaWeight += effectiveWeight;
   }
@@ -152,7 +155,7 @@ export function deliveryRate(course: AcademicCourse, group: Group): number {
   let delivered = 0;
   for (const activity of activities) for (const enrollment of enrollments) {
     const grade = group.grades.find(g => g.enrollmentId === enrollment.id && g.activityId === activity.id);
-    if (grade && grade.status !== "pending") delivered++;
+    if (isDelivered(grade)) delivered++;
   }
   return delivered / (activities.length * enrollments.length) * 100;
 }
@@ -201,6 +204,8 @@ interface RaEvidenceEntry {
   score: number;
   coverage: number;
   failingActivities: number;
+  /** Evidència insuficient (per sota de la cobertura mínima): ni assolit ni no assolit. */
+  provisional?: boolean;
 }
 
 /**
@@ -212,11 +217,15 @@ interface RaEvidenceEntry {
  * aquell RA.
  */
 export function raIsAchieved(entry?: RaEvidenceEntry): boolean {
-  return !!entry && entry.coverage > 0 && entry.score >= 5 && entry.failingActivities === 0;
+  return !!entry && entry.coverage > 0 && !entry.provisional && entry.score >= 5 && entry.failingActivities === 0;
 }
 export function raIsFailing(entry?: RaEvidenceEntry): boolean {
-  return !!entry && entry.coverage > 0 && !(entry.score >= 5 && entry.failingActivities === 0);
+  return !!entry && entry.coverage > 0 && !entry.provisional && !(entry.score >= 5 && entry.failingActivities === 0);
 }
+export const raIsProvisional = (entry?: RaEvidenceEntry): boolean => !!entry && entry.coverage > 0 && !!entry.provisional;
+
+/** Lliurat = hi ha nota o «no presentat» no compta: un no presentat no s'ha lliurat. */
+export const isDelivered = (grade?: Pick<Grade, "status">): boolean => !!grade && grade.status !== "pending" && grade.status !== "not_presented";
 
 export interface StudentFinalCalculation {
   ordinaria: StudentCalculation;
