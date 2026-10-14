@@ -136,7 +136,7 @@ A mitjan curs l'aplicació dona dues notes per RA i per al mòdul, que **no són
 
 L'acumulada és com ho fa el full d'Excel d'origen (`APRENDIZAJE`): comprovat amb un alumne real, els 6 RA i la nota global coincideixen exactament. Quan tot està corregit (100 %) les dues notes són iguals. L'acumulada mai no supera l'estimada.
 
-On es veuen: al **Mapa d'assoliment dels RA** (Graelles) i al seu informe imprimible, amb el selector **Estimada / Acumulada**; a l'informe individual (a cada RA i a la nota global, com «acumulada») i a l'Anàlisi de l'alumne (columna «Acumulada»). Amb la mitjana de RA en mode *ponderat* (Configuració › Motor de càlcul) els CA pesen pel seu pes global; l'Excel d'origen fa la mitjana *simple*.
+On es veuen: al **Mapa d'assoliment dels RA** (Graelles) i al seu informe imprimible, amb el selector **Acumulada / Estimada** (per defecte **Acumulada**, pintada en **verd si és ≥5 i en vermell si és <5**; a mitjan curs, amb poc avaluat, és normal que surti en vermell); a l'informe individual (a cada RA i a la nota global, com «acumulada») i a l'Anàlisi de l'alumne (columna «Acumulada»). Amb la mitjana de RA en mode *ponderat* (Configuració › Motor de càlcul) els CA pesen pel seu pes global; l'Excel d'origen fa la mitjana *simple*.
 
 ### RA provisionals: poca evidència no és «no assolit»
 
