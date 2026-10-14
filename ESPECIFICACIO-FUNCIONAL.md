@@ -1004,6 +1004,14 @@ Amplia la idea de la secció “Regles obligatòries per assolir RA” (línia 6
 - Lliuraments: `isDelivered` exclou els «No presentat» (abans comptaven com a lliurats).
 - Tests: `tests/provisional.test.ts`.
 
+### Nota estimada i nota acumulada · **Fet**
+
+- Comparació amb l’Excel d’origen (`2-SMX-B-26-27-Avaluacio per RA.xlsx`, alumne Akrikiz): els pesos d’activitat coincidien, però les notes d’RA no, perquè l’Excel calcula cada CA amb totes les activitats vinculades (pendents = 0) i fa la mitjana de l’RA entre **tots** els CA (sense evidència = 0), mentre que l’aplicació només comptava els CA amb evidència.
+- Es manté el càlcul de l’aplicació com a **nota estimada** (projecció) i s’afegeix la **nota acumulada** (`ra.accumulated`, `globalAccumulated`): mínim garantit, tot el que no té nota compta 0, mitjana de l’RA entre tots els CA i nota global = Σ RA acumulada × pes de l’RA («punts sobre 10»). Reprodueix exactament els RA i la nota global de l’Excel. En mode de mitjana ponderada els CA pesen pel seu pes global.
+- Interfície: selector «Estimada / Acumulada» al Mapa d’assoliment dels RA i a l’informe imprimible; «acumulada» a l’informe individual i columna «Acumulada» a l’Anàlisi de l’alumne.
+- No es canvia la importació de notes superiors a 10 (secció 15: es trunquen a 10, deliberadament); una bonificació s’ha d’introduir a l’aplicació.
+- Tests: `tests/accumulated.test.ts`.
+
 ### Registre de decisions durant la implementació
 
 Si durant una fase cal desviar-se d’una decisió d’aquest document, cal anotar-ho aquí amb la data i el motiu abans de continuar, en lloc de modificar silenciosament les seccions anteriors.

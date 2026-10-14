@@ -87,9 +87,12 @@ export function failingRequiredActivities(course: AcademicCourse, group: Group, 
 export interface StudentCalculation {
   criteria: Map<string, number>;
   criteriaCoverage: Map<string, number>;
-  learningResults: Map<string, {score: number; coverage: number; failingActivities: number; provisional: boolean}>;
+  /** `score`: nota estimada (projecció sobre el que ja està avaluat). `accumulated`: nota acumulada (mínim garantit, el que no té nota compta 0). */
+  learningResults: Map<string, {score: number; coverage: number; failingActivities: number; provisional: boolean; accumulated: number}>;
   globalScore: number;
   globalCoverage: number;
+  /** Nota global acumulada: punts ja guanyats sobre 10 (Σ nota acumulada de cada RA × el seu pes al mòdul). Tot el que no té nota compta 0; no és una projecció. */
+  globalAccumulated: number;
 }
 
 export function calculateStudent(course: AcademicCourse, group: Group, enrollmentId: string): StudentCalculation {
@@ -117,7 +120,21 @@ export function calculateStudent(course: AcademicCourse, group: Group, enrollmen
     criterionScores.set(criterion.id, score);
   }
 
-  const raResults = new Map<string, {score: number; coverage: number; failingActivities: number; provisional: boolean}>();
+  // Nota acumulada: cada activitat sense nota (o no presentada) compta 0 i cada CA, encara que no tingui cap evidència, compta a la mitjana de l'RA.
+  // És un mínim garantit: només pot pujar a mesura que es corregeix. No és una projecció.
+  const accumulatedCriteria = new Map<string, number>();
+  for (const criterion of activeCriteria(course)) {
+    let total = 0, earned = 0;
+    for (const link of course.configuration.links.filter(l => l.criterionId === criterion.id)) {
+      const weight = link.allocation * (weights.get(link.activityId) ?? 0);
+      if (!weight) continue;
+      total += weight;
+      earned += weight * (totalGrade(group.grades.find(g => g.enrollmentId === enrollmentId && g.activityId === link.activityId)) ?? 0);
+    }
+    accumulatedCriteria.set(criterion.id, total ? earned / total : 0);
+  }
+  let accNumerator = 0;
+  const raResults = new Map<string, {score: number; coverage: number; failingActivities: number; provisional: boolean; accumulated: number}>();
   const minCoverage = course.configuration.minRaCoverage ?? 25;
   let globalScore = 0; let globalCoverage = 0; let totalRaWeight = 0;
   for (const ra of course.configuration.learningResults.filter(item => item.status === "active")) {
@@ -131,14 +148,18 @@ export function calculateStudent(course: AcademicCourse, group: Group, enrollmen
     const coverage = possible ? Math.min(100, done / possible * 100) : 0;
     const failingActivities = failingRequiredActivities(course, group, enrollmentId, ra.id);
     // Provisional: hi ha evidència però és massa poca per valorar l'RA (tret que un examen obligatori ja estigui suspès).
-    raResults.set(ra.id, {score, coverage, failingActivities, provisional: coverage > 0 && coverage < minCoverage && failingActivities === 0});
+    const accumulated = criteria.length === 0 ? 0 : course.configuration.raAveraging === "weighted"
+      ? (raWeight ? criteria.reduce((sum, c) => sum + (accumulatedCriteria.get(c.id) ?? 0) * (criterionGlobalWeights.get(c.id) ?? 0), 0) / raWeight : 0)
+      : criteria.reduce((sum, c) => sum + (accumulatedCriteria.get(c.id) ?? 0), 0) / criteria.length;
+    accNumerator += accumulated * raWeight;
+    raResults.set(ra.id, {score, coverage, failingActivities, provisional: coverage > 0 && coverage < minCoverage && failingActivities === 0, accumulated});
     const effectiveWeight = raWeight * coverage / 100;
     globalScore += score * effectiveWeight; totalRaWeight += effectiveWeight;
   }
   const allWeight = [...weights.values()].reduce((a, b) => a + b, 0);
   const evaluatedWeight = [...weights].filter(([id]) => evaluated.has(id)).reduce((sum, [, weight]) => sum + weight, 0);
   globalCoverage = allWeight ? evaluatedWeight / allWeight * 100 : 0;
-  return {criteria: criterionScores, criteriaCoverage: criterionCoverage, learningResults: raResults, globalScore: totalRaWeight ? globalScore / totalRaWeight : 0, globalCoverage};
+  return {criteria: criterionScores, criteriaCoverage: criterionCoverage, learningResults: raResults, globalScore: totalRaWeight ? globalScore / totalRaWeight : 0, globalCoverage, globalAccumulated: accNumerator};
 }
 
 export function groupStdDev(course: AcademicCourse, group: Group): number {

@@ -125,6 +125,19 @@ La **cobertura** d'un RA és quin percentatge del seu pes ja s'ha avaluat. Un RA
 
 La **cobertura global** del mòdul es calcula igual, però amb el pes de totes les activitats del curs en lloc de només les d'un RA.
 
+### Nota estimada i nota acumulada
+
+A mitjan curs l'aplicació dona dues notes per RA i per al mòdul, que **no són el mateix**:
+
+| | Què és | Com es calcula | Pot pujar i baixar? |
+|---|---|---|---|
+| **Estimada** (projectada) | Una **projecció**: com acabaria si el que falta anés com el que ja està corregit. | Només compta les activitats ja avaluades; els CA sense cap evidència es deixen fora de la mitjana de l'RA. | Sí, en qualsevol direcció. |
+| **Acumulada** | El que l'alumne **ja ha guanyat**. **No és una projecció**: és un **mínim garantit**. | Tot el que no té nota (pendent o no presentat) compta **0**, i tot CA sense evidència compta 0 a la mitjana de l'RA. La nota global és «punts guanyats sobre 10» (cada RA acumulada × el seu pes al mòdul). | Només pot **pujar** a mesura que es corregeix. |
+
+L'acumulada és com ho fa el full d'Excel d'origen (`APRENDIZAJE`): comprovat amb un alumne real, els 6 RA i la nota global coincideixen exactament. Quan tot està corregit (100 %) les dues notes són iguals. L'acumulada mai no supera l'estimada.
+
+On es veuen: al **Mapa d'assoliment dels RA** (Graelles) i al seu informe imprimible, amb el selector **Estimada / Acumulada**; a l'informe individual (a cada RA i a la nota global, com «acumulada») i a l'Anàlisi de l'alumne (columna «Acumulada»). Amb la mitjana de RA en mode *ponderat* (Configuració › Motor de càlcul) els CA pesen pel seu pes global; l'Excel d'origen fa la mitjana *simple*.
+
 ### RA provisionals: poca evidència no és «no assolit»
 
 La nota d'un RA es calcula **només amb les activitats ja avaluades**. Per això, amb poques activitats avaluades, una sola nota (per exemple, un projecte suspès que pesa un 1,2 % de la nota global) pot decidir gairebé tot el valor de l'RA: un 0 en un projecte pot fer un RA «3,4» amb només un 6 % avaluat.
