@@ -1,5 +1,5 @@
 import {useState} from "react";
-import {Download, Eye, Info, ShieldCheck, Upload} from "lucide-react";
+import {Download, Eye, FileText, Info, ShieldCheck, Upload} from "lucide-react";
 import {applyObservationRows, buildObservationCsv, parseObservationCsv} from "../../src/controllers/observationCsv";
 import {nowIso, type AcademicCourse, type Group, type ObservationFactor, type ObservationKey, type ObservationLevel} from "../../src/model/domain";
 import {hasObservation, observationAverage, OBSERVATION_FACTORS, OBSERVATION_ITEMS, OBSERVATION_LEVEL_HINT} from "../../src/model/observation";
@@ -18,7 +18,7 @@ const LEVEL_TONE: Record<ObservationLevel, {background: string; color: string}> 
  * Graella ràpida de l'observació a l'aula: una fila per alumne, sis ítems d'1 a 4, factors de context i una nota.
  * Es desa en cada clic. No compta per a la nota i els factors i la nota no s'imprimeixen mai.
  */
-export function InitialObservation({course, group, mutate, msg}: {course: AcademicCourse; group: Group; mutate: Mutate; msg: (s: string) => void}) {
+export function InitialObservation({course, group, mutate, msg, openReport}: {course: AcademicCourse; group: Group; mutate: Mutate; msg: (s: string) => void; openReport?: (enrollmentId: string) => void}) {
   const people = activePeople(group);
   const [query, setQuery] = useState("");
   const byEnrollment = new Map(group.observations.map(o => [o.enrollmentId, o]));
@@ -71,18 +71,18 @@ Continuar?`)) return;
         <button onClick={exportCsv} title="Descarrega les observacions actuals en un CSV (inclou factors i notes: és només per a tu)"><Download/>Exporta CSV</button>
       </div>
     </div>
-    <div className="managementTableScroll"><table className="managementTable"><thead><tr><th style={{position: "sticky", left: 0, zIndex: 2, background: "#fafbfd"}}>Alumne</th>{OBSERVATION_ITEMS.map(i => <th key={i.key} title={`${i.hint}\n1: ${i.low}\n4: ${i.high}`}>{i.label}</th>)}<th>Mitjana</th><th title="Context per interpretar l'observació. No s'imprimeix.">Context</th><th>Nota breu</th></tr></thead>
+    <div className="managementTableScroll"><table className="managementTable obsTable"><thead><tr><th style={{position: "sticky", left: 0, zIndex: 2, background: "#fafbfd"}}>Alumne</th>{OBSERVATION_ITEMS.map(i => <th key={i.key} title={`${i.hint}\n1: ${i.low}\n4: ${i.high}`}>{i.label}</th>)}<th>Mitjana</th><th title="Context per interpretar l'observació. No s'imprimeix.">Context</th><th>Nota breu</th></tr></thead>
       <tbody>{visible.map(({student, enrollment}) => {
         const o = byEnrollment.get(enrollment.id), avg = observationAverage(o);
         return <tr key={enrollment.id}>
-          <td style={{position: "sticky", left: 0, zIndex: 1, background: "white"}}><strong>{student.name}</strong></td>
+          <td style={{position: "sticky", left: 0, zIndex: 1, background: "white"}}><div style={{display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between"}}><strong>{student.name}</strong>{openReport && <div className="actionRow"><button onClick={() => openReport(enrollment.id)} aria-label={`Informe de ${student.name}`} title="Informe amb l'observació i els resultats acumulats de la UT"><FileText/></button></div>}</div></td>
           {OBSERVATION_ITEMS.map(item => <td key={item.key}><div role="radiogroup" aria-label={`${item.label} de ${student.name}`} style={{display: "inline-flex", gap: 3}}>{LEVELS.map(l => {
             const on = o?.levels[item.key] === l;
             return <button key={l} role="radio" aria-checked={on} title={`${item.label}: ${OBSERVATION_LEVEL_HINT[l]}`} onClick={() => update(enrollment.id, x => { if (x.levels[item.key] === l) delete x.levels[item.key]; else x.levels[item.key] = l; })}
               style={{width: 26, height: 26, borderRadius: 8, border: on ? "1px solid transparent" : "1px solid var(--line)", background: on ? LEVEL_TONE[l].background : "white", color: on ? LEVEL_TONE[l].color : "#8a96a8", fontWeight: 800, fontSize: 12, cursor: "pointer", padding: 0, outlineOffset: 2}}>{l}</button>;
           })}</div></td>)}
           <td><b>{avg === null ? "—" : avg.toLocaleString("ca", {minimumFractionDigits: 1, maximumFractionDigits: 1})}</b></td>
-          <td><div style={{display: "flex", gap: 4, flexWrap: "wrap", minWidth: 150}}>{OBSERVATION_FACTORS.map(f => { const on = !!o?.factors.includes(f.key); return <button key={f.key} aria-pressed={on} title={f.hint} onClick={() => update(enrollment.id, x => { x.factors = on ? x.factors.filter(k => k !== f.key) : [...x.factors, f.key]; })} style={{borderRadius: 14, border: on ? "1px solid #b7c8ee" : "1px solid var(--line)", background: on ? "#e6eefc" : "white", color: on ? "#2f5fb3" : "#8a96a8", fontSize: 10.5, fontWeight: 700, padding: "3px 8px", cursor: "pointer"}}>{f.label}</button>; })}</div></td>
+          <td><div style={{display: "flex", gap: 4, flexWrap: "wrap", minWidth: 0}}>{OBSERVATION_FACTORS.map(f => { const on = !!o?.factors.includes(f.key); return <button key={f.key} aria-pressed={on} title={f.hint} onClick={() => update(enrollment.id, x => { x.factors = on ? x.factors.filter(k => k !== f.key) : [...x.factors, f.key]; })} style={{borderRadius: 14, border: on ? "1px solid #b7c8ee" : "1px solid var(--line)", background: on ? "#e6eefc" : "white", color: on ? "#2f5fb3" : "#8a96a8", fontSize: 10.5, fontWeight: 700, padding: "3px 8px", cursor: "pointer"}}>{f.label}</button>; })}</div></td>
           <td><NoteField key={`${enrollment.id}:${o?.note ?? ""}`} value={o?.note ?? ""} label={`Nota breu de ${student.name}`} save={text => update(enrollment.id, x => { x.note = text.trim() || undefined; })}/></td>
         </tr>;
       })}</tbody></table>{!visible.length && <div className="tableEmpty"><strong>Cap alumne coincideix amb la cerca</strong></div>}</div>
@@ -91,5 +91,5 @@ Continuar?`)) return;
 
 function NoteField({value, label, save}: {value: string; label: string; save: (text: string) => void}) {
   const [draft, setDraft] = useState(value);
-  return <input aria-label={label} placeholder="—" value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => { if (draft !== value) save(draft); }} onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{border: "1px solid var(--line)", borderRadius: 9, padding: "6px 9px", minWidth: 170, font: "inherit", fontSize: 12}}/>;
+  return <input aria-label={label} placeholder="—" value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => { if (draft !== value) save(draft); }} onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{border: "1px solid var(--line)", borderRadius: 9, padding: "6px 9px", minWidth: 0, width: "100%", font: "inherit", fontSize: 12}}/>;
 }

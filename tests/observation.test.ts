@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {concludeObservation, hasObservation, levelToTen, observationAverage, summarizeGroupObservation, OBSERVATION_ITEMS} from "../src/model/observation.ts";
+import {concludeObservation, hasObservation, levelToTen, observationAverage, summarizeGroupObservation, supportActions, OBSERVATION_ITEMS} from "../src/model/observation.ts";
 import {createCourse, migrateDatabase, type AppDatabase, type InitialObservation} from "../src/model/domain.ts";
 
 const obs = (levels: InitialObservation["levels"], factors: InitialObservation["factors"] = [], id = "e1"): InitialObservation => ({enrollmentId: id, levels, factors, updatedAt: "2026-10-12T10:00:00.000Z"});
@@ -57,4 +57,13 @@ test("una base de dades antiga es migra amb la llista d'observacions buida", () 
   const db: AppDatabase = {schemaVersion: 1, courses: [course], gradeHistory: []};
   migrateDatabase(db);
   assert.ok(course.groups.every(g => Array.isArray(g.observations) && g.observations.length === 0));
+});
+
+test("orientacions d'acompanyament: segons els factors, sense anomenar-los ni repetir-se", () => {
+  assert.deepEqual(supportActions(undefined), []);
+  assert.deepEqual(supportActions(obs({autonomia: 3}, [])), []);
+  const actions = supportActions(obs({autonomia: 3}, ["llengua", "oral", "ritme", "llengua"]));
+  assert.equal(actions.length, new Set(actions).size);
+  assert.ok(actions.length >= 6);
+  assert.ok(actions.every(a => !/llengua|nouvingut|TDAH|inhibit/i.test(a)));
 });

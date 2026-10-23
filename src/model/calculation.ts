@@ -246,7 +246,12 @@ export function raIsFailing(entry?: RaEvidenceEntry): boolean {
 export const raIsProvisional = (entry?: RaEvidenceEntry): boolean => !!entry && entry.coverage > 0 && !!entry.provisional;
 
 /** Lliurat = hi ha nota o «no presentat» no compta: un no presentat no s'ha lliurat. */
-export const isDelivered = (grade?: Pick<Grade, "status">): boolean => !!grade && grade.status !== "pending" && grade.status !== "not_presented";
+/** Lliurada: amb nota i sense ser «No presentat». Una nota de 0 vol dir que no s'ha lliurat (en blanc o fora de termini). */
+export const isDelivered = (grade?: Pick<Grade, "status"> & Partial<Pick<Grade, "baseValue" | "bonuses">>): boolean => {
+  if (!grade || grade.status !== "graded") return false;
+  if (typeof grade.baseValue !== "number") return true;
+  return totalGrade(grade as Grade) !== 0;
+};
 
 export interface StudentFinalCalculation {
   ordinaria: StudentCalculation;

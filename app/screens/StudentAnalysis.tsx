@@ -9,6 +9,8 @@ import {BlockBars, InitialEvolution, LevelPill, ObservationBlock} from "../compo
 import {hasObservation} from "../../src/model/observation";
 import {compareDiagnostics, concludeDiagnostic, orderByUnit, unitLabel} from "../../src/model/diagnostic";
 import {InitialReport} from "./InitialReport";
+import {QUESTIONNAIRES_ENABLED} from "../../src/model/features";
+import {analyzeCurrentEvidence} from "../../src/model/currentEvidence";
 import type {Mutate} from "../lib/helpers";
 
 type SubTab = "resum" | "evolucio" | "raca" | "activitats" | "informe";
@@ -78,7 +80,7 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report, mutat
     <KpiCard tone={trendDelta > .05 ? "green" : trendDelta < -.05 ? "red" : "slate"} icon={trendDelta > .05 ? <TrendingUp size={14}/> : trendDelta < -.05 ? <TrendingDown size={14}/> : <Minus size={14}/>} label="Evolució" value={`${trendDelta > 0 ? "+" : ""}${trendDelta.toFixed(2)}`} sub="punts respecte al 1r trimestre"/>
     <KpiCard tone="green" icon={<Target size={14}/>} label="RA assolits" value={`${achievedCount} de ${withEvidence.length}`} sub={`${withEvidence.length ? (achievedCount / withEvidence.length * 100).toFixed(0) : 0}% dels RA valorables${provisionalRas.length ? ` · ${provisionalRas.length} provisional${provisionalRas.length > 1 ? "s" : ""}` : ""}`}/>
     <KpiCard tone={riskRas.length ? "red" : "slate"} icon={<AlertTriangle size={14}/>} label="RA no assolits" value={`${riskRas.length}`} sub={riskRas.length ? riskRas.map(r => r.ra.code).join(", ") : "Cap RA no assolit"}/>
-    <KpiCard tone="amber" icon={<ClipboardList size={14}/>} label="Lliuraments" value={`${deliveryPct.toFixed(0)}%`} sub={`${delivered} de ${activitiesTotal} activitats`}/>
+    <KpiCard tone="amber" icon={<ClipboardList size={14}/>} label="Lliuraments" value={`${deliveryPct.toFixed(0)}%`} sub={`${delivered} de ${activitiesTotal} activitats corregides`}/>
     <KpiCard tone="slate" icon={<PieChartIcon size={14}/>} label="Cobertura avaluada" value={`${calc.globalCoverage.toFixed(0)}%`} sub="del pes total del mòdul"/>
    </div>}
 
@@ -128,9 +130,10 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report, mutat
 /** Pestanya «Informe inicial»: resultat dels qüestionaris diagnòstics de l'alumne (UT1, UT2…), separat de l'avaluació del curs. */
 function InitialTab({course, group, enrollmentId, name, open}: {course: AcademicCourse; group: Group; enrollmentId: string; name: string; open: () => void}) {
  const activities = course.configuration.activities.filter(a => a.session === "diagnostica" && a.status === "active");
- const results = orderByUnit(group.diagnostics.filter(r => r.enrollmentId === enrollmentId && activities.some(a => a.id === r.activityId)));
+ const results = QUESTIONNAIRES_ENABLED ? orderByUnit(group.diagnostics.filter(r => r.enrollmentId === enrollmentId && activities.some(a => a.id === r.activityId))) : [];
  const observation = group.observations.find(o => o.enrollmentId === enrollmentId), hasObs = hasObservation(observation);
- if (!results.length && !hasObs) return <article className="panel"><div className="placeholderPanel"><ClipboardList/><strong>Cap avaluació inicial importada</strong><span>Aquest alumne encara no té cap qüestionari diagnòstic ni observació. Importa’l o introdueix-la des d’Avaluació › Avaluació inicial.</span></div></article>;
+ const hasEvidence = !!analyzeCurrentEvidence(course, group, enrollmentId, name);
+ if (!results.length && !hasObs) return <article className="panel"><div className="placeholderPanel"><ClipboardList/><strong>Cap avaluació inicial importada</strong><span>Aquest alumne encara no té observació a l’aula (introdueix-la des d’Avaluació › Avaluació inicial).{hasEvidence ? " Pots obrir igualment l’informe amb els resultats acumulats de la UT." : ""}</span>{hasEvidence && <button className="dark" onClick={open}><Printer/>Obre l’informe amb els resultats acumulats</button>}</div></article>;
  const pending = activities.filter(a => !results.some(r => r.activityId === a.id)).map(a => a.name);
  const evolution = compareDiagnostics(results, name, pending);
  return <>

@@ -1,6 +1,7 @@
 import type {ElementType} from "react";
 import {AlertTriangle, Info, ThumbsUp, TrendingDown, TrendingUp} from "lucide-react";
-import {calculateFinalStudent, calculateStudent, convocatoriaConsumida, convocatoriaExhaurida, groupAsOfTerm, isDelivered, raIsAchieved, raIsFailing, totalGrade, type StudentCalculation} from "../../src/model/calculation";
+import {analyzeCurrentEvidence} from "../../src/model/currentEvidence";
+import {activityIsEvaluated, calculateFinalStudent, calculateStudent, convocatoriaConsumida, convocatoriaExhaurida, groupAsOfTerm, isDelivered, raIsAchieved, raIsFailing, totalGrade, type StudentCalculation} from "../../src/model/calculation";
 import {countsForGrade, type AcademicCourse, type Activity, type ActivityType, type Grade, type Group, type LearningResult, type WorkUnit} from "../../src/model/domain";
 import type {Tone} from "../components/analysis";
 import {termOrdinal} from "./helpers";
@@ -115,8 +116,10 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
  const riskRas = withEvidence.filter(r => r.status === "risc");
 
  const activitiesAll = course.configuration.activities.filter(a => a.status === "active" && countsForGrade(a));
- const delivered = activitiesAll.filter(a => isDelivered(group.grades.find(x => x.enrollmentId === enrollmentId && x.activityId === a.id))).length;
- const deliveryPct = activitiesAll.length ? delivered / activitiesAll.length * 100 : 0;
+ // Lliuraments sobre les activitats ja corregides (avaluades al grup), no sobre tot el curs; un 0 compta com a no lliurat.
+ const corrected = activitiesAll.filter(a => a.session === "ordinaria" && activityIsEvaluated(group, a.id));
+ const delivered = corrected.filter(a => isDelivered(group.grades.find(x => x.enrollmentId === enrollmentId && x.activityId === a.id))).length;
+ const deliveryPct = corrected.length ? delivered / corrected.length * 100 : 0;
 
  const typeRows: ActivityTypeRow[] = course.configuration.activityTypes.filter(t => t.status === "active").map(type => {
   const acts = activitiesAll.filter(a => a.activityTypeId === type.id);
@@ -168,7 +171,7 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
   if (typeRows[0]?.average !== null && typeRows[0]?.average !== undefined && typeRows[0].average >= 7 && strengths.length < 5) strengths.push(`Bon rendiment en ${typeRows[0].type.name} (${typeRows[0].average.toFixed(2)}).`);
 
   for (const r of riskRas.slice(0, 3)) if (improve.length < 5) improve.push(`${r.ra.code} no assolit.`);
-  if (deliveryPct < 80 && improve.length < 5) improve.push(`Percentatge de lliuraments per sota del desitjable (${deliveryPct.toFixed(0)}%).`);
+  if (deliveryPct < 80 && improve.length < 5) improve.push(`Lliuraments per sota del desitjable (${deliveryPct.toFixed(0)}% de les activitats corregides).`);
   if (calc.globalCoverage < 50 && improve.length < 5) improve.push(`Cobertura encara parcial (${calc.globalCoverage.toFixed(0)}%); la projecció és provisional.`);
   if (trendDelta < -.1 && improve.length < 5) improve.push(`Tendència negativa des del 1r trimestre (${trendDelta.toFixed(2)}).`);
 
@@ -177,10 +180,14 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
   if (calc.globalCoverage < 50) actions.push("Recollir més evidències abans de treure conclusions fermes.");
   if (!actions.length) actions.push("Mantenir el seguiment habitual; no hi ha cap actuació prioritària detectada.");
  }
+ // Mateixes regles que l'informe d'avaluació inicial: punts forts a partir de les activitats corregides.
+ const studentName = group.students.find(s => s.id === group.enrollments.find(e => e.id === enrollmentId)?.studentId)?.name ?? "";
+ const evidence = analyzeCurrentEvidence(course, group, enrollmentId, studentName, {unitId: null});
+ for (const text of evidence?.strengths ?? []) if (strengths.length < 5 && !strengths.includes(text)) strengths.push(text);
  if (!strengths.length) strengths.push("Encara no hi ha prou evidències per destacar fortaleses.");
  if (!improve.length) improve.push("Cap aspecte prioritari detectat amb les dades actuals.");
 
- return {calc, calcT1, hasStudentEvidence, trendDelta, groupAverage, groupT1Average, trendPoints, groupTrendPoints, raRows, withEvidence, provisionalRas, achievedCount, riskRas, activitiesTotal: activitiesAll.length, delivered, deliveryPct, typeRows, workUnitRows, diagnosis, strengths, improve, actions};
+ return {calc, calcT1, hasStudentEvidence, trendDelta, groupAverage, groupT1Average, trendPoints, groupTrendPoints, raRows, withEvidence, provisionalRas, achievedCount, riskRas, activitiesTotal: corrected.length, delivered, deliveryPct, typeRows, workUnitRows, diagnosis, strengths, improve, actions};
 }
 
 export interface RaConvocatoriaRow {

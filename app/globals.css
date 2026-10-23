@@ -255,3 +255,19 @@ tr.raRowAssolit td{border-top-color:#dcf0e6}
 @media print{.reportLogoRow{margin:0 0 10px}.reportLogo{height:48px}}
 /* Imprimeix sempre els colors de fons (barres de progrés, etiquetes, targetes) encara que el diàleg tingui «Gràfics de fons» desactivat. */
 @media print{*,*::before,*::after{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+.obsTable{min-width:0;width:100%;table-layout:auto}.obsTable th,.obsTable td{padding:7px 5px;height:auto}.obsTable td:first-child{min-width:170px;max-width:210px}.obsTable td:last-child{min-width:110px}
+.obsTable .actionRow{flex-wrap:nowrap;justify-self:auto}.obsTable .actionRow button{padding:7px 9px}
+.initialReport .wrapCells td{white-space:normal}.activityChips{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 4px}.activityChips span{border:1px solid var(--line);border-radius:7px;padding:3px 8px;font-size:11px;background:#fff}.activityChips .missed{background:#f9dcdc;border-color:#efc3c3}
+@media print{.initialReport{zoom:.56}.initialReport .reportBlock h3{margin:0 0 6px}}
+/* Capçalera de l'informe inicial en una sola línia: logo · icona · títol · nota */
+.initialReport .initialPage{position:relative}
+.initialReport .reportLogoRow{position:absolute;top:0;left:0;margin:0}
+.initialReport .reportLogo{height:40px}
+.initialReport .reportHead{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;min-height:44px;padding:0 0 10px 135px}
+.initialReport .reportHead>svg{width:38px;height:38px;padding:9px;border-radius:12px}
+.initialReport .reportHead h1{font-size:19px;margin:2px 0}
+.initialReport .bigScore{text-align:right}
+.initialReport .bigScore strong{font-size:26px;line-height:1}
+.initialReport .bigScore span,.initialReport .bigScore em{font-size:9px;margin:0}
+.signRow{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin:34px 0 6px;font-size:11px;color:#52647c}.signRow span{display:block;border-bottom:1px solid #8a96a8;height:44px;margin-bottom:5px}

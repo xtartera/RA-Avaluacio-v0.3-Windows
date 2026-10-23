@@ -8,6 +8,7 @@ import {deleteAttachment, putAttachment} from "../../src/model/repository";
 import {activePeople, findCourse, findGroup, type Mutate} from "../lib/helpers";
 import {BlockBars, downloadAttachment, LevelPill, QuestionList} from "../components/diagnosticViews";
 import {InitialReport} from "./InitialReport";
+import {QUESTIONNAIRES_ENABLED} from "../../src/model/features";
 import {InitialObservation} from "./InitialObservation";
 
 interface Draft {
@@ -32,7 +33,7 @@ export function InitialAssessment({course, group, mutate, msg}: {course: Academi
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<string | null>(null);
-  const [view, setView] = useState<"qüestionaris" | "observacio">("qüestionaris");
+  const [view, setView] = useState<"qüestionaris" | "observacio">(QUESTIONNAIRES_ENABLED ? "qüestionaris" : "observacio");
   const [reportFor, setReportFor] = useState<{enrollmentId: string | null} | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const people = activePeople(group);
@@ -122,16 +123,16 @@ export function InitialAssessment({course, group, mutate, msg}: {course: Academi
   return <div className="managementScreen">
     <article className="panel managementPanel">
       <div className="managementHeader">
-        <div className="managementTitle"><span className="sectionIcon"><ClipboardList/></span><div><h2>Avaluació inicial</h2><p>Qüestionaris diagnòstics del quadern digital. <b>No compten per a la nota</b>, els RA ni els lliuraments: només serveixen per generar conclusions.</p></div></div>
+        <div className="managementTitle"><span className="sectionIcon"><ClipboardList/></span><div><h2>Avaluació inicial</h2><p>{QUESTIONNAIRES_ENABLED ? "Qüestionaris diagnòstics del quadern digital. " : "Observació a l’aula i resultats acumulats de la UT. "}<b>No compten per a la nota</b>, els RA ni els lliuraments: només serveixen per generar conclusions.</p></div></div>
         <div className="actionRow">
-          <div className="switch" role="group" aria-label="Vista"><button className={view === "qüestionaris" ? "active" : ""} aria-pressed={view === "qüestionaris"} onClick={() => setView("qüestionaris")}>Qüestionaris</button><button className={view === "observacio" ? "active" : ""} aria-pressed={view === "observacio"} onClick={() => setView("observacio")}>Observació</button></div>
+          {QUESTIONNAIRES_ENABLED && <div className="switch" role="group" aria-label="Vista"><button className={view === "qüestionaris" ? "active" : ""} aria-pressed={view === "qüestionaris"} onClick={() => setView("qüestionaris")}>Qüestionaris</button><button className={view === "observacio" ? "active" : ""} aria-pressed={view === "observacio"} onClick={() => setView("observacio")}>Observació</button></div>}
           {view === "qüestionaris" && <>
           <input aria-label="Nom de la nova avaluació inicial" value={newName} onChange={e => setNewName(e.target.value)} style={{border: "1px solid var(--line)", borderRadius: 9, padding: "8px 10px", minWidth: 220}}/>
           <button className="dark" onClick={create} disabled={!newName.trim()}><Plus/>Nova avaluació inicial</button>
           </>}
         </div>
       </div>
-      {view === "observacio" ? <InitialObservation course={course} group={group} mutate={mutate} msg={msg}/> : !activity ? <div className="tableEmpty"><ClipboardList/><strong>Encara no hi ha cap avaluació inicial</strong><span>Crea-ne una (per exemple «Avaluació inicial UT1» i «Avaluació inicial UT2») i després importa-hi els PDF dels alumnes.</span></div> : <>
+      {view === "observacio" ? <InitialObservation course={course} group={group} mutate={mutate} msg={msg} openReport={id => setReportFor({enrollmentId: id})}/> : !activity ? <div className="tableEmpty"><ClipboardList/><strong>Encara no hi ha cap avaluació inicial</strong><span>Crea-ne una (per exemple «Avaluació inicial UT1» i «Avaluació inicial UT2») i després importa-hi els PDF dels alumnes.</span></div> : <>
         <div className="managementToolbar" style={{alignItems: "end", gap: 14, flexWrap: "wrap"}}>
           <label style={{display: "flex", flexDirection: "column", gap: 4, fontSize: 11, fontWeight: 700, color: "var(--muted)"}}>Avaluació<select value={activity.id} onChange={e => { setActivityId(e.target.value); setDrafts([]); setDetail(null); }}>{activities.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
           <div className="actionRow" style={{marginLeft: "auto"}}>
@@ -173,7 +174,7 @@ export function InitialAssessment({course, group, mutate, msg}: {course: Academi
 
         <div className="managementTableScroll"><table className="managementTable"><thead><tr><th>Alumne</th><th>Nota</th><th>Nivell</th>{blockHeaders.map(b => <th key={b.number} title={b.title}>B{b.number}</th>)}<th>Temps</th><th>Accions</th></tr></thead><tbody>{people.map(({student, enrollment}) => {
           const r = byEnrollment.get(enrollment.id);
-          if (!r) return <tr key={enrollment.id}><td><strong>{student.name}</strong></td><td colSpan={3 + blockHeaders.length} className="muted">Sense qüestionari importat</td><td/></tr>;
+          if (!r) return <tr key={enrollment.id}><td><strong>{student.name}</strong></td><td colSpan={3 + blockHeaders.length} className="muted">Sense qüestionari importat</td><td><div className="actionRow"><button onClick={() => setReportFor({enrollmentId: enrollment.id})} aria-label={`Informe de ${student.name}`} title="Informe amb els resultats acumulats de la UT i l'observació (sense qüestionari)"><FileText/></button></div></td></tr>;
           return <tr key={enrollment.id}>
             <td><strong>{student.name}</strong>{r.warnings.length > 0 && <span title={r.warnings.join("\n")} style={{marginLeft: 6, color: "#c99a1c"}}><AlertTriangle size={13} aria-label="Té avisos"/></span>}</td>
             <td><b>{fmt(r.score)}</b></td>
@@ -185,7 +186,7 @@ export function InitialAssessment({course, group, mutate, msg}: {course: Academi
       </>}
     </article>
 
-    {reportFor && activity && <InitialReport course={course} group={group} activityId={reportFor.enrollmentId ? null : activity.id} enrollmentId={reportFor.enrollmentId} mutate={mutate} close={() => setReportFor(null)}/>}
+    {reportFor && (activity || reportFor.enrollmentId) && <InitialReport course={course} group={group} activityId={reportFor.enrollmentId ? null : activity!.id} enrollmentId={reportFor.enrollmentId} mutate={mutate} close={() => setReportFor(null)}/>}
 
     {detailResult && <div className="modal" onKeyDown={e => { if (e.key === "Escape") setDetail(null); }}><div className="dialog" role="dialog" aria-modal="true" aria-labelledby="diag-detail-title" style={{width: "min(820px,100%)", maxHeight: "88vh", overflowY: "auto"}}>
       <div className="panelHeader"><h2 id="diag-detail-title">{nameOf(detailResult.enrollmentId)} · {unitLabel(detailResult)}</h2><button aria-label="Tanca" autoFocus onClick={() => setDetail(null)}><X/></button></div>

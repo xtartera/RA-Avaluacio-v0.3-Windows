@@ -210,6 +210,14 @@ export interface InitialObservation {
   updatedAt: string;
 }
 
+/** Comentari del professor i acords amb la família de l'informe inicial (un per alumne). */
+export interface FamilyNote {
+  enrollmentId: Id;
+  comment: string;
+  agreements: string;
+  updatedAt: string;
+}
+
 export interface Group {
   id: Id;
   code: GroupCode;
@@ -222,6 +230,7 @@ export interface Group {
   comments: StudentReportComment[];
   diagnostics: DiagnosticResult[];
   observations: InitialObservation[];
+  familyNotes: FamilyNote[];
 }
 
 export interface ImportBatch {
@@ -269,7 +278,7 @@ export function conflictingRecoveryActivity(activities: Activity[], raId: Id, ex
 export function emptyGroup(code: GroupCode): Group {
   return {
     id: newId("group"), code, name: `Grup ${code}`, capacity: 25,
-    enrollments: [], students: [], grades: [], activityStates: [], comments: [], diagnostics: [], observations: [],
+    enrollments: [], students: [], grades: [], activityStates: [], comments: [], diagnostics: [], observations: [], familyNotes: [],
   };
 }
 
@@ -303,6 +312,7 @@ export function migrateDatabase(data: AppDatabase): AppDatabase {
       }
       if (!group.diagnostics) group.diagnostics = [];
       if (!group.observations) group.observations = [];
+      if (!group.familyNotes) group.familyNotes = [];
       for (const state of group.activityStates) {
         if (state.locked === undefined) state.locked = false;
       }

@@ -99,3 +99,20 @@ export function summarizeGroupObservation(observations: InitialObservation[], to
     }),
   };
 }
+
+const SUPPORT_ACTIONS: Record<ObservationFactor, string[]> = {
+  llengua: ["Donar les instruccions per escrit, en frases curtes i amb exemples.", "Facilitar un glossari dels termes tècnics de la unitat.", "Comprovar que entén l'enunciat abans de valorar la resposta."],
+  oral: ["Oferir alternatives a l'exposició davant la classe (per escrit o en petit grup).", "Valorar la participació per altres vies que no siguin la intervenció oral."],
+  ritme: ["Fragmentar les activitats en passos i fixar lliuraments intermedis.", "Donar més temps o una seqüència de tasques adaptada, sense abaixar els objectius."],
+  altres: ["Concretar amb el tutor o tutora quines adaptacions calen i anotar-les als acords."],
+};
+
+/**
+ * Orientacions d'acompanyament a partir dels factors de context marcats. Són genèriques i no anomenen el factor:
+ * el context no s'ha d'imprimir mai com a etiqueta de l'alumne.
+ */
+export function supportActions(observation: InitialObservation | undefined): string[] {
+  const seen = new Set<string>(), out: string[] = [];
+  for (const factor of observation?.factors ?? []) for (const action of SUPPORT_ACTIONS[factor] ?? []) if (!seen.has(action)) { seen.add(action); out.push(action); }
+  return out;
+}
