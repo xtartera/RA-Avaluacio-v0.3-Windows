@@ -94,3 +94,19 @@ export function GroupObservationBars({summary}: {summary: GroupObservationSummar
     <div className="barTrack" role="img" aria-label={`${item.label}: ${item.average === null ? "sense dades" : `${item.average.toFixed(1)} de 4`}`}><i style={{width: `${item.average === null ? 0 : item.average / 4 * 100}%`, background: "var(--blue)"}}/></div>
   </div>)}</div>;
 }
+
+const TRAFFIC_STYLE: Record<string, {bg: string; fg: string; dot: string}> = {
+  verd: {bg: "#dff3e4", fg: "#1d6b48", dot: "#2f9e6a"},
+  groc: {bg: "#fdf0cf", fg: "#7a5a0e", dot: "#e0a31a"},
+  vermell: {bg: "#f9dcdc", fg: "#a12f40", dot: "#d64558"},
+  gris: {bg: "#eceff3", fg: "#52647c", dot: "#98a4b5"},
+};
+
+/** Semàfor de l'alumne: color i etiqueta, amb els motius com a títol. */
+export function TrafficChip({traffic, withReasons = false}: {traffic: {color: string; label: string; reasons: string[]; warnings: string[]; provisional: boolean}; withReasons?: boolean}) {
+  const st = TRAFFIC_STYLE[traffic.color];
+  return <span style={{display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap"}}>
+    <span className="trafficChip" title={[...traffic.reasons, ...traffic.warnings].join("; ")} style={{display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 11px", borderRadius: 14, background: st.bg, color: st.fg, fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap"}}><i style={{width: 10, height: 10, borderRadius: "50%", background: st.dot, display: "inline-block"}}/>Semàfor: {traffic.label}{traffic.provisional ? " · provisional" : ""}</span>
+    {withReasons && <span style={{fontSize: 11, color: "#52647c"}}>{traffic.reasons.join(" · ")}{traffic.warnings.length > 0 && <> · <b>Avís:</b> {traffic.warnings.join("; ")}</>}</span>}
+  </span>;
+}

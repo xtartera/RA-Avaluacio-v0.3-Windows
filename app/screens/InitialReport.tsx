@@ -5,10 +5,10 @@ import {AlertTriangle, ClipboardList, MessageSquarePlus, Printer, Save, X} from 
 import {compareDiagnostics, concludeDiagnostic, diagnosticLevel, orderByUnit, summarizeGroupDiagnostic, unitLabel, unitTopic, LEVEL_LABEL} from "../../src/model/diagnostic";
 import {nowIso, type AcademicCourse, type DiagnosticResult, type Group} from "../../src/model/domain";
 import {findGroup, type Mutate} from "../lib/helpers";
-import {BlockBars, GroupObservationBars, InitialEvolution, LevelPill, ObservationBlock, QuestionList} from "../components/diagnosticViews";
+import {BlockBars, GroupObservationBars, InitialEvolution, LevelPill, ObservationBlock, QuestionList, TrafficChip} from "../components/diagnosticViews";
 import {QUESTIONNAIRES_ENABLED} from "../../src/model/features";
 import {analyzeUnits} from "../../src/model/currentEvidence";
-import {hasObservation, summarizeGroupObservation, supportActions} from "../../src/model/observation";
+import {hasObservation, OBSERVATION_ITEMS, summarizeGroupObservation, supportActions} from "../../src/model/observation";
 
 const fmt = (n: number) => n.toLocaleString("ca", {minimumFractionDigits: 1, maximumFractionDigits: 1});
 const nameOf = (group: Group, enrollmentId: string) => group.students.find(s => s.id === group.enrollments.find(e => e.id === enrollmentId)?.studentId)?.name ?? "Alumne";
@@ -17,7 +17,8 @@ const nameOf = (group: Group, enrollmentId: string) => group.students.find(s => 
  * Informe d'avaluació inicial: document propi, independent de l'informe individual del curs
  * (no barreja notes ordinàries, RA ni projeccions). Ho pot mostrar per a un alumne o per a tot el grup.
  */
-export function InitialReport({course, group, activityId, enrollmentId, mutate, close}: {course: AcademicCourse; group: Group; activityId: string | null; enrollmentId: string | null; mutate: Mutate; close: () => void}) {
+/** `embedded`: només les pàgines de l'alumne, sense la finestra (s'usa per imprimir tot el grup); no es pot editar. */
+export function InitialReport({course, group, activityId, enrollmentId, mutate, close, embedded = false}: {course: AcademicCourse; group: Group; activityId: string | null; enrollmentId: string | null; mutate: Mutate; close: () => void; embedded?: boolean}) {
   const activities = course.configuration.activities.filter(a => a.session === "diagnostica");
   const activity = activities.find(a => a.id === activityId);
   // Per a un alumne sense activitat concreta: totes les seves avaluacions inicials (UT1, UT2…), una pàgina per UT.
@@ -49,9 +50,7 @@ export function InitialReport({course, group, activityId, enrollmentId, mutate, 
   const save = () => { mutate(d => { const g = findGroup(d, course.id, group.id); for (const [id, text] of Object.entries(drafts)) { const r = g.diagnostics.find(x => x.id === id); if (r) r.comment = text.trim() || undefined; } }); if (enrollmentId && (family.comment !== undefined || family.agreements !== undefined)) { const merged = {comment: family.comment ?? note?.comment ?? "", agreements: family.agreements ?? note?.agreements ?? ""}; mutate(d => { const g = findGroup(d, course.id, group.id); const n = g.familyNotes.find(x => x.enrollmentId === enrollmentId); if (n) Object.assign(n, merged, {updatedAt: nowIso()}); else g.familyNotes.push({enrollmentId, ...merged, updatedAt: nowIso()}); }); setFamily({}); } setDrafts({}); setDirty(false); };
   const summary = summarizeGroupDiagnostic(all);
 
-  // Portal al <body>: fora de <main>, que s'amaga en imprimir.
-  return createPortal(<div className="modal"><div className="report initialReport" role="dialog" aria-modal="true" aria-labelledby="initial-report-title">
-    <div className="noPrint reportActions"><button onClick={close} autoFocus><X/>Tanca</button>{single && <button onClick={save} disabled={!dirty}><Save/>Desa</button>}<button className="dark" onClick={() => window.print()}><Printer/>Imprimeix</button></div>
+  const sections = <>
     {showSummary && evolution && <section className="initialPage"><ReportLogo/>
       <div className="reportHead"><ClipboardList/><div><small>INFORME D’AVALUACIÓ INICIAL · RESUM</small><h1 id="initial-report-title">{nameOf(group, enrollmentId!)}</h1><p>{course.configuration.level} · Grup {group.code} · {course.academicYear}</p></div></div>
       <div className="reportBlock tightPrint" style={{margin: "18px 0"}}><h3>Comparació de les avaluacions inicials</h3><InitialEvolution evolution={evolution}/></div>
@@ -113,6 +112,7 @@ export function InitialReport({course, group, activityId, enrollmentId, mutate, 
 
     {unitsEv?.units.map((evidence, ui) => <section key={evidence.unitId ?? ui} className="initialPage"><ReportLogo/>
       <div className="reportHead"><ClipboardList/><div><small>{results.length || hasObs ? "INFORME D’AVALUACIÓ INICIAL · CONTRAST AMB LES ACTIVITATS CORREGIDES" : "INFORME · RESULTATS ACUMULATS DE LA UT FINS ARA"}</small><h1 id={!results.length && !hasObs ? "initial-report-title" : undefined}>{nameOf(group, enrollmentId!)}</h1><p>{course.configuration.level} · Grup {group.code} · {course.academicYear} · {evidence.unitName} · Dades a {today}</p></div>{evidence.average !== null && <div className="bigScore"><span>MITJANA ACTIVITATS</span><strong>{fmt(evidence.average)}</strong><em>{evidence.activities.length} corregides de {evidence.totalInUnit}</em></div>}</div>
+      <div style={{margin: "0 0 8px"}}><TrafficChip traffic={evidence.traffic} withReasons/></div>
       <div className="reportStats">
         <div className="reportStat"><span>Lliuraments</span><strong>{evidence.delivered} de {evidence.activities.length}</strong><em>{Math.round(evidence.deliveryPct)} % de les corregides</em></div>
         <div className="reportStat"><span>Mitjana del grup</span><strong>{evidence.groupAverage === null ? "—" : fmt(evidence.groupAverage)}</strong><em>en les mateixes activitats</em></div>
@@ -134,6 +134,7 @@ export function InitialReport({course, group, activityId, enrollmentId, mutate, 
 
     {unitsEv && unitsEv.units.length > 1 && unitsEv.cumulative && <section className="initialPage"><ReportLogo/>
       <div className="reportHead"><ClipboardList/><div><small>INFORME D’AVALUACIÓ INICIAL · EVOLUCIÓ ENTRE UT</small><h1>{nameOf(group, enrollmentId!)}</h1><p>{course.configuration.level} · Grup {group.code} · {course.academicYear} · Dades a {today}</p></div><div className="bigScore"><span>MITJANA ACUMULADA</span><strong>{unitsEv.cumulative.average === null ? "—" : fmt(unitsEv.cumulative.average)}</strong><em>{unitsEv.cumulative.activities.length} activitats corregides</em></div></div>
+      <div style={{margin: "0 0 8px"}}><TrafficChip traffic={unitsEv.cumulative.traffic} withReasons/></div>
       <div className="reportBlock tightPrint" style={{margin: "14px 0"}}><h3>Comparació entre unitats</h3><table className="wrapCells"><thead><tr><th>Unitat</th><th>Corregides</th><th>Lliuraments</th><th>Mitjana</th><th>Grup</th><th>Obligatòries</th><th>Avaluat</th></tr></thead><tbody>{[...unitsEv.units, unitsEv.cumulative].map((u, i, all) => <tr key={u.unitId ?? "total"} style={i === all.length - 1 ? {fontWeight: 800} : undefined}><td>{i === all.length - 1 ? "Acumulat" : u.unitName}</td><td>{u.activities.length} de {u.totalInUnit}</td><td>{u.delivered} de {u.activities.length} ({Math.round(u.deliveryPct)} %)</td><td><b>{u.average === null ? "—" : fmt(u.average)}</b></td><td>{u.groupAverage === null ? "—" : fmt(u.groupAverage)}</td><td>{u.required.total ? `${u.required.passed} de ${u.required.total}` : "—"}</td><td>{Math.round(u.coveragePct)} %</td></tr>)}</tbody></table></div>
       <div className="reportRow3" style={{gridTemplateColumns: "1fr 1fr"}}>
         <div className="reportBlock diagCard"><h3>Evolució</h3><ul className="reportList" style={{marginTop: 0}}>{unitsEv.comparison.map((t, i) => <li key={i}>{t}</li>)}</ul></div>
@@ -145,23 +146,47 @@ export function InitialReport({course, group, activityId, enrollmentId, mutate, 
     </section>}
 
 
-    {single && (famEv || hasObs) && <section className="initialPage"><ReportLogo/>
-      <div className="reportHead"><ClipboardList/><div><small>INFORME D’AVALUACIÓ INICIAL · PER A LA FAMÍLIA</small><h1>{nameOf(group, enrollmentId!)}</h1><p>{course.configuration.level} · Grup {group.code} · {course.academicYear} · {course.configuration.moduleName} · Dades a {today}</p></div></div>
-      <div className="reportBlock tightPrint" style={{margin: "12px 0"}}><h3>Què és aquest informe</h3><p style={{fontSize: 12, margin: 0}}>Recull com ha començat el curs l’alumne/a a partir de l’observació a l’aula{famEv ? ` i de les activitats ja corregides ${famEv.unitId ? `de ${famEv.unitName}` : "de totes les UT"}` : ""}. <b>No és la nota del mòdul</b> ni la modifica: és una fotografia del moment per poder-lo acompanyar. Una activitat no lliurada es corregeix amb un 0 i compta a la mitjana. Colors de la taula d’indicadors: <b style={{color: "#24745a"}}>verd</b> correcte, <b style={{color: "#8a6410"}}>groc</b> a vigilar, <b style={{color: "#b23a4b"}}>vermell</b> a millorar.</p></div>
+    {single && famEv && <section className="initialPage"><ReportLogo/>
+      <div className="reportHead"><ClipboardList/><div><small>INFORME D’AVALUACIÓ INICIAL · RESUM PER A LA FAMÍLIA</small><h1>{nameOf(group, enrollmentId!)}</h1><p>{course.configuration.level} · Grup {group.code} · {course.academicYear} · {course.configuration.moduleName} · Dades a {today}</p></div></div>
+      <div style={{margin: "0 0 10px"}}><TrafficChip traffic={famEv.traffic} withReasons/></div>
+      <div className="reportBlock tightPrint" style={{margin: "12px 0"}}><h3>Què és aquest informe</h3><p style={{fontSize: 12, margin: 0}}>Recull com ha començat el curs l’alumne/a a partir de l’observació a l’aula{famEv ? ` i de les activitats ja corregides ${famEv.unitId ? `de ${famEv.unitName}` : "de totes les UT"}` : ""}. <b>No és la nota del mòdul</b> ni la modifica: és una fotografia del moment per poder-lo acompanyar. Una activitat no lliurada es corregeix amb un 0 i compta a la mitjana. El <b>semàfor</b> resumeix la situació actual (<b style={{color: "#24745a"}}>verd</b> mitjana de 7 o més, <b style={{color: "#8a6410"}}>groc</b> de 5 a 7, <b style={{color: "#b23a4b"}}>vermell</b> menys de 5 o un examen obligatori per recuperar; la mitjana compta les activitats no lliurades com a 0). Colors de la taula d’indicadors: <b style={{color: "#24745a"}}>verd</b> correcte, <b style={{color: "#8a6410"}}>groc</b> a vigilar, <b style={{color: "#b23a4b"}}>vermell</b> a millorar.</p></div>
       <div className="reportRow3" style={{gridTemplateColumns: "1fr 1fr"}}>
         <div className="reportBlock diagCard"><h3>Què fa bé</h3>{famEv && famEv.strengths.length ? <ul className="reportList" style={{marginTop: 0}}>{famEv.strengths.map((t, i) => <li key={i}>{t}</li>)}</ul> : <p className="muted" style={{fontSize: 12, margin: 0}}>Encara no hi ha prou dades per destacar-ne punts forts; es poden afegir al comentari del professorat.</p>}</div>
         <div className="reportBlock reinforceCard"><h3>Què es pot millorar</h3>{famEv ? <ol className="reportList" style={{marginTop: 0}}>{famEv.recommendations.slice(0, 3).map((t, i) => <li key={i}>{t}</li>)}</ol> : <p className="muted" style={{fontSize: 12, margin: 0}}>Encara no hi ha activitats corregides.</p>}</div>
       </div>
-      {support.length > 0 && <div className={`reportBlock tightPrint${showSupport ? "" : " noPrint"}`} style={{margin: "10px 0"}}><h3>Com acompanyar-lo a l’aula</h3><ul className="reportList" style={{marginTop: 0}}>{support.map((t, i) => <li key={i}>{t}</li>)}</ul><label className="noPrint" style={{display: "flex", gap: 6, alignItems: "center", fontSize: 11}}><input type="checkbox" checked={showSupport} onChange={e => setShowSupport(e.target.checked)}/>Inclou-ho a la impressió (no s’hi indica el motiu; surt només si el marques)</label></div>}
+      <div className="reportStats cols5">
+        <div className="reportStat"><span>Mitjana activitats</span><strong>{famEv.average === null ? "—" : fmt(famEv.average)}</strong><em>{famEv.activities.length} corregides · 0 = no lliurada</em></div>
+        <div className="reportStat"><span>Lliuraments</span><strong>{famEv.delivered} de {famEv.activities.length}</strong><em>{Math.round(famEv.deliveryPct)} % de les corregides</em></div>
+        <div className="reportStat"><span>Mitjana del grup</span><strong>{famEv.groupAverage === null ? "—" : fmt(famEv.groupAverage)}</strong><em>en les mateixes activitats</em></div>
+        <div className="reportStat"><span>Obligatòries</span><strong>{famEv.required.total ? `${famEv.required.passed} de ${famEv.required.total}` : "—"}</strong><em>{famEv.required.failed ? `${famEv.required.failed} per recuperar` : famEv.required.total ? "superades" : "cap a la unitat"}</em></div>
+        <div className="reportStat"><span>Avaluat</span><strong>{Math.round(famEv.coveragePct)} %</strong><em>del pes de les activitats</em></div>
+      </div>
+      {unitsEv && unitsEv.units.length > 0 && <div className="reportBlock tightPrint" style={{margin: "12px 0"}}><h3>Per unitat de treball</h3><table className="wrapCells"><thead><tr><th>Unitat</th><th>Corregides</th><th>Lliuraments</th><th>Mitjana</th><th>Grup</th><th>Semàfor</th></tr></thead><tbody>{unitsEv.units.map(u => <tr key={u.unitId ?? u.unitName}><td>{u.unitName}</td><td>{u.activities.length} de {u.totalInUnit}</td><td>{u.delivered} de {u.activities.length}</td><td><b>{u.average === null ? "—" : fmt(u.average)}</b></td><td>{u.groupAverage === null ? "—" : fmt(u.groupAverage)}</td><td><TrafficChip traffic={u.traffic}/></td></tr>)}</tbody></table></div>}
+      {hasObs && <div className="reportBlock tightPrint" style={{margin: "12px 0"}}><h3>Observació a l’aula (1 a 4)</h3><div style={{display: "flex", flexWrap: "wrap", gap: 6}}>{OBSERVATION_ITEMS.map(i => <span key={i.key} className="bonus" style={{background: "#eef2f8", color: "#40536f"}}>{i.label}: <b>{obs?.levels[i.key] ?? "—"}</b>/4</span>)}</div></div>}
+      {famEv.traffic.warnings.length > 0 && <div className="reportBlock tightPrint" style={{margin: "12px 0"}}><h3>Dades a tenir en compte</h3><ul className="reportList" style={{marginTop: 0}}>{famEv.traffic.warnings.map((t, i) => <li key={i}>{t[0].toUpperCase() + t.slice(1)}.</li>)}</ul></div>}
+      <p className="muted" style={{fontSize: 10.5, margin: "10px 0 0"}}>Informe generat per regles a partir de les dades de l’alumne; descriu dades i no substitueix el criteri docent. El color és la mitjana de les activitats corregides (un 0 compta com a 0): verd 7 o més, groc de 5 a 7, vermell menys de 5 o un examen obligatori per recuperar. No modifica cap nota.</p>
+      <footer>{course.configuration.moduleName} · Informe per a la família · No compta per a la nota · Dades locals</footer>
+    </section>}
+    {single && (famEv || hasObs) && <section className="initialPage"><ReportLogo/>
+      <div className="reportHead"><ClipboardList/><div><small>INFORME D’AVALUACIÓ INICIAL · COMENTARIS I ACORDS</small><h1>{nameOf(group, enrollmentId!)}</h1><p>{course.configuration.level} · Grup {group.code} · {course.academicYear} · {course.configuration.moduleName} · Dades a {today}</p></div></div>
+      {famEv && <div style={{margin: "0 0 4px"}}><TrafficChip traffic={famEv.traffic} withReasons/></div>}
+      {!embedded && support.length > 0 && <div className={`reportBlock tightPrint${showSupport ? "" : " noPrint"}`} style={{margin: "10px 0"}}><h3>Com acompanyar-lo a l’aula</h3><ul className="reportList" style={{marginTop: 0}}>{support.map((t, i) => <li key={i}>{t}</li>)}</ul><label className="noPrint" style={{display: "flex", gap: 6, alignItems: "center", fontSize: 11}}><input type="checkbox" checked={showSupport} onChange={e => setShowSupport(e.target.checked)}/>Inclou-ho a la impressió (no s’hi indica el motiu; surt només si el marques)</label></div>}
       <div className="comment"><small>COMENTARI DEL PROFESSORAT</small>
-        <textarea aria-label="Comentari del professorat" value={family.comment ?? note?.comment ?? ""} onChange={e => { setFamily(f => ({...f, comment: e.target.value})); setDirty(true); }} style={{minHeight: 90}}/>
+        {embedded ? <p style={{whiteSpace: "pre-wrap", minHeight: 70, margin: "6px 0 0"}}>{note?.comment ?? ""}</p> : <textarea aria-label="Comentari del professorat" value={family.comment ?? note?.comment ?? ""} onChange={e => { setFamily(f => ({...f, comment: e.target.value})); setDirty(true); }} style={{minHeight: 90}}/>}
       </div>
       <div className="comment" style={{marginTop: 10}}><small>ACORDS AMB L’ALUMNE I LA FAMÍLIA</small>
-        <textarea aria-label="Acords amb l’alumne i la família" value={family.agreements ?? note?.agreements ?? ""} onChange={e => { setFamily(f => ({...f, agreements: e.target.value})); setDirty(true); }} style={{minHeight: 90}}/>
+        {embedded ? <p style={{whiteSpace: "pre-wrap", minHeight: 70, margin: "6px 0 0"}}>{note?.agreements ?? ""}</p> : <textarea aria-label="Acords amb l’alumne i la família" value={family.agreements ?? note?.agreements ?? ""} onChange={e => { setFamily(f => ({...f, agreements: e.target.value})); setDirty(true); }} style={{minHeight: 90}}/>}
       </div>
       <div className="signRow"><div><span/>Professorat · data</div><div><span/>Alumne/a · data</div><div><span/>Família · data</div></div>
       <footer>{course.configuration.moduleName} · Informe per a la família · No compta per a la nota · Dades locals</footer>
     </section>}
+  </>;
+  if (embedded) return sections;
+
+  // Portal al <body>: fora de <main>, que s'amaga en imprimir.
+  return createPortal(<div className="modal"><div className="report initialReport" role="dialog" aria-modal="true" aria-labelledby="initial-report-title">
+    <div className="noPrint reportActions"><button onClick={close} autoFocus><X/>Tanca</button>{single && <button onClick={save} disabled={!dirty}><Save/>Desa</button>}<button className="dark" onClick={() => window.print()}><Printer/>Imprimeix</button></div>
+    {sections}
   </div></div>, document.body);
 }
 

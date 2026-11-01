@@ -5,8 +5,10 @@ import type {AcademicCourse, Activity, Grade, Group} from "../../src/model/domai
 import {activePeople, raStatusReason} from "../lib/helpers";
 import {analyzeStudent, analyzeStudentConvocatoria} from "../lib/studentAnalytics";
 import {DiagList, GradeBand, KpiCard, TrendLine} from "../components/analysis";
-import {BlockBars, InitialEvolution, LevelPill, ObservationBlock} from "../components/diagnosticViews";
-import {hasObservation} from "../../src/model/observation";
+import {UnitMarks} from "../components/UnitMarks";
+import {UnitResults} from "../components/UnitResults";
+import {BlockBars, InitialEvolution, LevelPill, ObservationBlock, TrafficChip} from "../components/diagnosticViews";
+import {hasObservation, OBSERVATION_ITEMS, supportActions} from "../../src/model/observation";
 import {compareDiagnostics, concludeDiagnostic, orderByUnit, unitLabel} from "../../src/model/diagnostic";
 import {InitialReport} from "./InitialReport";
 import {QUESTIONNAIRES_ENABLED} from "../../src/model/features";
@@ -29,6 +31,9 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report, mutat
  if (!current) return <article className="panel"><p className="muted">Aquest grup no té alumnat.</p></article>;
  const {enrollment, student} = current;
 
+ const observation = group.observations.find(o => o.enrollmentId === enrollment.id);
+ const ev = analyzeCurrentEvidence(course, group, enrollment.id, student.name, {unitId: null, observation});
+ const support = supportActions(observation);
  const a = analyzeStudent(course, group, enrollment.id);
  const {calc, hasStudentEvidence, trendDelta, trendPoints, groupTrendPoints, raRows, withEvidence, provisionalRas, achievedCount, riskRas, activitiesTotal, delivered, deliveryPct, typeRows, diagnosis, strengths, improve, actions} = a;
  const conv = analyzeStudentConvocatoria(course, group, enrollment.id);
@@ -50,7 +55,7 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report, mutat
   <div className="panelHeader" style={{marginBottom: 16}}>
    <div style={{display: "flex", alignItems: "center", gap: 14}}>
     <div style={{width: 46, height: 46, borderRadius: 13, background: "linear-gradient(145deg,var(--primary),var(--primary-2))", display: "grid", placeItems: "center", color: "white", fontWeight: 800, fontSize: 17, flexShrink: 0}}>{student.name.charAt(0).toUpperCase()}</div>
-    <div><strong style={{fontSize: 16, display: "block"}}>{student.name}</strong><span className="muted" style={{fontSize: 12}}>Grup {group.code} · {course.configuration.abbreviation}</span></div>
+    <div><strong style={{fontSize: 16, display: "block"}}>{student.name}</strong><span className="muted" style={{fontSize: 12}}>Grup {group.code} · {course.configuration.abbreviation}</span>{ev && <div style={{marginTop: 4}}><TrafficChip traffic={ev.traffic} withReasons/></div>}</div>
    </div>
    <div className="actionRow">
     <select value={enrollment.id} onChange={e => setSelected(e.target.value)}>{people.map(p => <option key={p.enrollment.id} value={p.enrollment.id}>{p.student.name}</option>)}</select>
@@ -75,8 +80,9 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report, mutat
    {hasConvocatoria && <div className="sectionActions" style={{justifyContent: "flex-start", marginBottom: 14}}><div className="switch"><button className={effectivePerspective === "ordinaria" ? "active" : ""} onClick={() => setPerspective("ordinaria")}>Ordinària</button><button className={effectivePerspective === "extraordinaria" ? "active" : ""} onClick={() => setPerspective("extraordinaria")}>Extraordinària</button><button className={effectivePerspective === "total" ? "active" : ""} onClick={() => setPerspective("total")}>Total</button></div></div>}
    {hasConvocatoria && effectivePerspective !== "ordinaria" && <p className="muted" style={{margin: "-8px 0 14px", fontSize: 11}}>El gràfic d’evolució, el rendiment per tipologia, les últimes activitats i la diagnosi més avall segueixen corresponent a la <b>convocatòria ordinària</b>.</p>}
 
-   {effectivePerspective === "ordinaria" && <div className="kpiRow">
-    <KpiCard tone="blue" icon={<Gauge size={14}/>} label="Nota projectada" value={`${calc.globalScore.toFixed(2)} / 10`} sub={`amb les evidències disponibles · acumulada ${calc.globalAccumulated.toFixed(2)}`} trend={Math.abs(trendDelta) >= .01 ? {icon: trendDelta > 0 ? TrendingUp : TrendingDown, tone: trendDelta > 0 ? "green" : "red", text: `${trendDelta > 0 ? "+" : ""}${trendDelta.toFixed(2)} respecte al 1r trimestre`} : undefined}/>
+   {effectivePerspective === "ordinaria" && <div className="kpiRow kpiAnalysis">
+    {ev && ev.average !== null && <KpiCard tone={({verd: "green", groc: "amber", vermell: "red", gris: "slate"} as const)[ev.traffic.color]} icon={<Gauge size={14}/>} label="Mitjana de les activitats corregides" value={`${ev.average.toFixed(1)} / 10`} sub={`${ev.activities.length} activitats · ${ev.traffic.label.toLowerCase()} · un 0 compta com a 0`}/>}
+    <KpiCard tone="slate" icon={<Gauge size={14}/>} label={calc.globalCoverage < (course.configuration.minRaCoverage ?? 25) ? "Nota projectada del mòdul (provisional)" : "Nota projectada del mòdul"} value={`${calc.globalScore.toFixed(2)} / 10`} sub={`pondera RA i pesos · només ${calc.globalCoverage.toFixed(0)}% avaluat · acumulada ${calc.globalAccumulated.toFixed(2)}`} trend={Math.abs(trendDelta) >= .01 ? {icon: trendDelta > 0 ? TrendingUp : TrendingDown, tone: trendDelta > 0 ? "green" : "red", text: `${trendDelta > 0 ? "+" : ""}${trendDelta.toFixed(2)} respecte al 1r trimestre`} : undefined}/>
     <KpiCard tone={trendDelta > .05 ? "green" : trendDelta < -.05 ? "red" : "slate"} icon={trendDelta > .05 ? <TrendingUp size={14}/> : trendDelta < -.05 ? <TrendingDown size={14}/> : <Minus size={14}/>} label="Evolució" value={`${trendDelta > 0 ? "+" : ""}${trendDelta.toFixed(2)}`} sub="punts respecte al 1r trimestre"/>
     <KpiCard tone="green" icon={<Target size={14}/>} label="RA assolits" value={`${achievedCount} de ${withEvidence.length}`} sub={`${withEvidence.length ? (achievedCount / withEvidence.length * 100).toFixed(0) : 0}% dels RA valorables${provisionalRas.length ? ` · ${provisionalRas.length} provisional${provisionalRas.length > 1 ? "s" : ""}` : ""}`}/>
     <KpiCard tone={riskRas.length ? "red" : "slate"} icon={<AlertTriangle size={14}/>} label="RA no assolits" value={`${riskRas.length}`} sub={riskRas.length ? riskRas.map(r => r.ra.code).join(", ") : "Cap RA no assolit"}/>
@@ -98,6 +104,27 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report, mutat
     <KpiCard tone="green" icon={<Target size={14}/>} label="RA assolits (final)" value={`${conv.raRows.filter(r => r.finalAchieved).length} de ${conv.raRows.length}`} sub="ordinària + extraordinària"/>
     <KpiCard tone={conv.exhaurida ? "red" : "amber"} icon={<AlertTriangle size={14}/>} label="Convocatòria consumida" value={`${conv.consumed}/4`} sub={conv.exhaurida ? "Exhaurida" : "encara en disposa"}/>
    </div>}
+
+   {effectivePerspective === "ordinaria" && <UnitResults course={course} group={group} enrollmentId={enrollment.id} name={student.name}/>}
+   {effectivePerspective === "ordinaria" && <UnitMarks course={course} group={group} enrollmentId={enrollment.id} name={student.name}/>}
+
+   {effectivePerspective === "ordinaria" && ev && <div className="analysisRow two">
+    <article className="panel"><div className="panelHeader"><h2>Potencial i constància</h2></div>
+     <div style={{display: "flex", gap: 22, margin: "6px 0 10px"}}>
+      <div><span className="muted" style={{fontSize: 11}}>Quan lliura</span><strong style={{display: "block", fontSize: 24}}>{ev.averageDelivered === null ? "—" : ev.averageDelivered.toFixed(1)}</strong><span className="muted" style={{fontSize: 11}}>mitjana de les lliurades</span></div>
+      <div><span className="muted" style={{fontSize: 11}}>En conjunt</span><strong style={{display: "block", fontSize: 24}}>{ev.average === null ? "—" : ev.average.toFixed(1)}</strong><span className="muted" style={{fontSize: 11}}>mitjana de les corregides (0 = no lliurada)</span></div>
+      <div><span className="muted" style={{fontSize: 11}}>Constància</span><strong style={{display: "block", fontSize: 24}}>{ev.delivered} de {ev.activities.length}</strong><span className="muted" style={{fontSize: 11}}>activitats lliurades</span></div>
+     </div>
+     <p style={{margin: 0, fontSize: 13}}>{ev.potential?.text ?? "Encara no hi ha prou diferència entre les dues mitjanes per extreure’n cap conclusió."}</p>
+    </article>
+    <article className="panel"><div className="panelHeader"><h2>Context d’entrada</h2><span className="muted" style={{fontSize: 11}}>No compta per a la nota</span></div>
+     {hasObservation(observation) ? <>
+      <div style={{display: "flex", flexWrap: "wrap", gap: 6, margin: "4px 0 10px"}}>{OBSERVATION_ITEMS.map(i => <span key={i.key} className="bonus" title={i.hint} style={{background: "#eef2f8", color: "#40536f"}}>{i.label}: <b>{observation?.levels[i.key] ?? "—"}</b>/4</span>)}</div>
+      {ev.contrast.length ? <ul className="reportList" style={{marginTop: 0}}>{ev.contrast.map((t, i) => <li key={i}>{t}</li>)}</ul> : <p className="muted" style={{margin: 0, fontSize: 12}}>L’observació a l’aula és coherent amb el rendiment actual.</p>}
+     </> : <p className="muted" style={{margin: 0, fontSize: 12}}>Sense observació a l’aula. Es pot introduir a Avaluació › Avaluació inicial.</p>}
+    </article>
+   </div>}
+   {effectivePerspective === "ordinaria" && support.length > 0 && <article className="panel" style={{marginBottom: 16}}><div className="panelHeader"><h2>Orientacions d’acompanyament</h2><span className="muted" style={{fontSize: 11}}>Segons el context marcat a l’observació · només en pantalla, no s’imprimeixen</span></div><ul className="reportList" style={{marginTop: 0}}>{support.map((t, i) => <li key={i}>{t}</li>)}</ul></article>}
 
    <div className="analysisRow">
     <article className="panel"><div className="panelHeader"><h2>Evolució de la nota projectada{hasConvocatoria ? " (ordinària)" : ""}</h2></div><TrendLine series={[{label: "Alumne", color: "var(--blue)", points: trendPoints}, {label: "Grup", color: "#aab4c4", dashed: true, showValues: false, points: groupTrendPoints}]}/></article>

@@ -103,3 +103,90 @@ test("un 0 no compta com a lliurat (isDelivered)", async () => {
   assert.equal(isDelivered({status: "graded", baseValue: 7, bonuses: []}), true);
   assert.equal(isDelivered({status: "graded"}), true);
 });
+
+test("semàfor: el color és la mitjana; l'obligatòria suspesa fa vermell; la resta són avisos", () => {
+  const traffic = (marks: (number | null)[]) => { const f = fixture(marks); return analyzeCurrentEvidence(f.course, f.group, f.id, "Laura Soler")!.traffic; };
+  assert.equal(traffic([9, 9, 9, 9]).color, "verd");
+  assert.equal(traffic([7, 7, 7, 7]).color, "verd");
+  assert.equal(traffic([6, 6, 6, 6]).color, "groc");
+  assert.equal(traffic([5, 5, 5, 5]).color, "groc");
+  assert.equal(traffic([4, 4, 4, 4]).color, "vermell");
+  assert.equal(traffic([9, 9, 9, 3]).color, "vermell"); // obligatòria suspesa, malgrat la mitjana de 7,5
+  // 3 lliurades amb 10 i una en blanc: mitjana 7,5 → verd, però amb avís de constància (75 %)
+  const t = traffic([10, 10, 10, 0]);
+  assert.equal(t.color, "vermell"); // la 4a és l'obligatòria i té 0
+  const f = fixture([9, 9, 9, 9]);
+  f.group.grades = f.group.grades.filter(g => g.activityId === f.course.configuration.activities[0].id);
+  assert.equal(analyzeCurrentEvidence(f.course, f.group, f.id, "Laura Soler")!.traffic.color, "gris"); // una sola activitat corregida
+});
+
+test("semàfor: un alumne amb més nota mai no té un color pitjor que un amb menys nota (sense obligatòries)", () => {
+  const order = {verd: 0, groc: 1, vermell: 2};
+  let previous = -1;
+  for (const m of [10, 8, 7, 6.9, 6, 5, 4.9, 2, 0]) {
+    const f = fixture([m, m, m, 5]); // la 4a, obligatòria, aprovada
+    const c = order[analyzeCurrentEvidence(f.course, f.group, f.id, "X")!.traffic.color as "verd" | "groc" | "vermell"];
+    assert.ok(c >= previous, `nota ${m}`);
+    previous = c;
+  }
+});
+
+test("resultat per UT: obligatòries aprovades i mitjana ≥ 5, o cal recuperar", async () => {
+  const {analyzeUnitResults} = await import("../src/model/unitResults.ts");
+  const make = (marks: (number | null)[]) => {
+    const f = fixture(marks), cfg = f.course.configuration;
+    // Les 4 activitats corregides són tota la UT (la 5a queda fora): la UT pot estar acabada.
+    cfg.workUnits[0].activityIds = cfg.activities.slice(0, 4).map(a => a.id);
+    return analyzeUnitResults(f.course, f.group, f.id, "Laura Soler")[0];
+  };
+  assert.equal(make([8, 8, 8, 8]).status, "superada");
+  const noObl = make([9, 9, 9, 3]);
+  assert.equal(noObl.status, "no-superada");
+  assert.match(noObl.reason, /cal recuperar A4/);
+  const lowAvg = make([3, 3, 3, 6]);
+  assert.equal(lowAvg.status, "no-superada");
+  assert.match(lowAvg.reason, /nota de l'RA/);
+  assert.equal(make([9, 9, 9, 9]).ras[0].code, "RA1");
+});
+
+test("RA segons les UT que el tanquen", async () => {
+  const {raOutcome} = await import("../src/model/unitResults.ts");
+  assert.equal(raOutcome([]), "sense-ut");
+  assert.equal(raOutcome(["superat"]), "superat");
+  assert.equal(raOutcome(["superat", "suspes"]), "suspes");
+  assert.equal(raOutcome(["superat", "en-curs"]), "en-curs");
+  assert.equal(raOutcome(["sense-dades"]), "sense-dades");
+});
+
+test("la nota de l'RA s'arrodoneix amb el llindar abans de comparar amb 5", async () => {
+  const {analyzeUnitResults} = await import("../src/model/unitResults.ts");
+  const status = (marks: number[]) => {
+    const f = fixture(marks), cfg = f.course.configuration;
+    cfg.workUnits[0].activityIds = cfg.activities.slice(0, 4).map(a => a.id);
+    cfg.roundingThreshold = .75;
+    return analyzeUnitResults(f.course, f.group, f.id, "Laura Soler")[0].status;
+  };
+  assert.equal(status([5, 5, 4.95, 5]), "superada"); // 4,9875 → 5
+  assert.equal(status([5, 4.5, 4.5, 5]), "superada"); // 4,75 → just el llindar → 5
+  assert.equal(status([5, 4.4, 4.4, 5]), "no-superada"); // 4,7 → 4
+});
+
+test("una UT que tanca dos RA: cada RA se supera o se suspèn per separat", async () => {
+  const {analyzeUnitResults} = await import("../src/model/unitResults.ts");
+  const f = fixture([9, 9, 9, 9]), cfg = f.course.configuration;
+  cfg.workUnits[0].activityIds = cfg.activities.slice(0, 4).map(a => a.id);
+  cfg.workUnits[0].requiredActivityIds = [];
+  // Segon RA vinculat només a A1, que l'alumne té bé (9) o malament segons el cas: el posem malament.
+  const ra2 = {id: newId("ra"), code: "RA2", description: "RA2", order: 2, status: "active" as const};
+  const ca2 = {id: newId("ca"), learningResultId: ra2.id, code: "2.A", description: "B", order: 1, status: "active" as const};
+  cfg.learningResults.push(ra2); cfg.criteria.push(ca2);
+  cfg.links = cfg.links.filter(l => l.activityId === cfg.activities[3].id || true);
+  cfg.links.push({id: newId("l"), activityId: cfg.activities[0].id, criterionId: ca2.id, allocation: 1});
+  cfg.workUnits[0].learningResultIds = [cfg.learningResults[0].id, ra2.id];
+  f.group.grades.find(g => g.enrollmentId === f.id && g.activityId === cfg.activities[0].id)!.baseValue = 2;
+  const u = analyzeUnitResults(f.course, f.group, f.id, "Laura Soler")[0];
+  const by = Object.fromEntries(u.ras.map(a => [a.code, a.outcome]));
+  assert.equal(by.RA2, "suspes"); // només depèn d'A1 (2)
+  assert.equal(by.RA1, "superat"); // la resta d'activitats són bones
+  assert.equal(u.status, "no-superada");
+});

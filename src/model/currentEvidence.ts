@@ -22,6 +22,30 @@ export interface EvidenceRa {
   provisional: boolean;
 }
 
+export type TrafficColor = "verd" | "groc" | "vermell" | "gris";
+
+export interface Traffic {
+  color: TrafficColor;
+  label: string;
+  /** Motius del color. */
+  reasons: string[];
+  /** Avisos que no canvien el color (constància, evolució, distància al grup). */
+  warnings: string[];
+  /** Hi ha poques dades avaluades: el color és orientatiu. */
+  provisional: boolean;
+}
+
+export const TRAFFIC_LABEL: Record<TrafficColor, string> = {verd: "Va bé", groc: "A vigilar", vermell: "Cal actuar", gris: "Sense dades"};
+/** Ordre de gravetat per ordenar: primer els vermells. */
+export const TRAFFIC_ORDER: Record<TrafficColor, number> = {vermell: 0, groc: 1, verd: 2, gris: 3};
+
+/** Llindars del semàfor (mitjana sobre 10, percentatge de lliuraments, evolució i diferència amb el grup). */
+/**
+ * El color és la mitjana de les activitats corregides (un 0 hi compta): verd ≥ 7, groc ≥ 5, vermell < 5.
+ * Un examen obligatori per recuperar fa vermell. La resta de senyals són avisos que no canvien el color.
+ */
+export const TRAFFIC_RULES = {greenAverage: 7, redAverage: 5, minActivities: 2, warnDelivery: 80, warnTrend: -2.5, warnGroupGap: -2};
+
 export interface EvidenceIndicator {
   name: string;
   value: string;
@@ -62,8 +86,12 @@ export interface CurrentEvidence {
   cautions: string[];
   /** Accions suggerides per millorar els resultats. */
   recommendations: string[];
+  /** Lectura capacitat (nota quan lliura) enfront de constància (efecte de no lliurar). */
+  potential: {text: string; tone: "ok" | "warn" | "bad" | "neutral"} | null;
   /** Aspectes positius (en positiu, per a la família). */
   strengths: string[];
+  /** Semàfor segons els resultats actuals. */
+  traffic: Traffic;
   /** Taula resum d'indicadors: valor, càlcul i lectura. */
   indicators: EvidenceIndicator[];
 }
@@ -220,15 +248,17 @@ export function analyzeCurrentEvidence(course: AcademicCourse, group: Group, enr
   const recommendations: string[] = [];
   const missing = activities.filter(a => !a.delivered).map(a => a.name), quote = (items: string[]) => listJoin(items.slice(0, 3).map(n => `«${n}»`)) + (items.length > 3 ? ` i ${items.length - 3} més` : "");
   const failedRequired = activities.filter(a => a.required && (a.status !== "graded" || a.grade! < cfg.requiredActivityMinGrade)).map(a => a.name);
+  let potential: CurrentEvidence["potential"] = null;
   // Anàlisi capacitat (nota quan lliura) vs. constància (efecte dels 0).
   if (average !== null && averageDelivered !== null && delivered < activities.length) {
     const gap = averageDelivered - average;
     if (averageDelivered >= 7 && gap >= 1) {
       const text = `Potencial clar: quan lliura, ho fa bé (${fmt(averageDelivered)}), però ${missing.length === 1 ? "la que no ha lliurat el porta" : `les ${missing.length} sense lliurar el porten`} a ${fmt(average)}. El problema no és de capacitat sinó de constància i compromís amb els terminis: comentar-ho amb ${who}, fixar-li lliuraments intermedis i fer-ne un seguiment setmanal.`;
+      potential = {text: `Quan lliura ho fa bé (${fmt(averageDelivered)}), però no lliurar part de les activitats el deixa a ${fmt(average)}: el repte és la constància, no la capacitat.`, tone: "warn"};
       recommendations.push(text); sentences.push(`Quan lliura, treu bones notes (${fmt(averageDelivered)}); el que li baixa la mitjana és el que no lliura (${fmt(average)}).`);
-    } else if (averageDelivered >= 5 && gap >= 1) recommendations.push(`Quan lliura, aprova (${fmt(averageDelivered)}), però ${missing.length === 1 ? "la que no ha lliurat redueix" : `les ${missing.length} sense lliurar redueixen`} la mitjana a ${fmt(average)}: millorar el compliment dels terminis és la palanca més directa per pujar la nota.`);
-    else if (averageDelivered < 5) recommendations.push(`Té tant problemes de constància com de comprensió (lliurades ${fmt(averageDelivered)}, corregides ${fmt(average)}): combinar un pla de lliuraments amb sessions de reforç del contingut.`);
-  } else if (average !== null && average >= 7 && delivered === activities.length) recommendations.push(`Treballa amb constància i amb bons resultats: reforçar-ho positivament i, si cal, proposar-li reptes d'ampliació.`);
+    } else if (averageDelivered >= 5 && gap >= 1) { potential = {text: `Quan lliura aprova (${fmt(averageDelivered)}), però les activitats sense lliurar redueixen la mitjana a ${fmt(average)}.`, tone: "warn"}; recommendations.push(`Quan lliura, aprova (${fmt(averageDelivered)}), però ${missing.length === 1 ? "la que no ha lliurat redueix" : `les ${missing.length} sense lliurar redueixen`} la mitjana a ${fmt(average)}: millorar el compliment dels terminis és la palanca més directa per pujar la nota.`); }
+    else if (averageDelivered < 5) { potential = {text: `Les notes són baixes fins i tot quan lliura (${fmt(averageDelivered)}): cal reforçar la comprensió, a més de la constància.`, tone: "bad"}; recommendations.push(`Té tant problemes de constància com de comprensió (lliurades ${fmt(averageDelivered)}, corregides ${fmt(average)}): combinar un pla de lliuraments amb sessions de reforç del contingut.`); }
+  } else if (average !== null && average >= 7 && delivered === activities.length) { potential = {text: `Ho lliura tot i amb bons resultats (${fmt(average)}).`, tone: "ok"}; recommendations.push(`Treballa amb constància i amb bons resultats: reforçar-ho positivament i, si cal, proposar-li reptes d'ampliació.`); }
   if (failedRequired.length) recommendations.push(`Prioritzar la recuperació de ${quote(failedRequired)}: és obligatòria i decideix els RA de la unitat.`);
   if (missing.length) recommendations.push(`Acordar amb ${who} un calendari per lliurar o refer ${quote(missing.filter(n => !failedRequired.includes(n)).length ? missing.filter(n => !failedRequired.includes(n)) : missing)}; cada activitat pendent baixa la mitjana.`);
   if (delivered > 0 && average !== null && average < 5 && missing.length < activities.length / 2) recommendations.push(`Lliura les activitats però amb resultats baixos: revisar els errors de les correccions i oferir una sessió de reforç o exercicis guiats.`);
@@ -266,7 +296,19 @@ export function analyzeCurrentEvidence(course: AcademicCourse, group: Group, enr
   if (initial && level) { const il = diagnosticLevel(initial.score), d = LEVEL_INDEX[level] - LEVEL_INDEX[il]; add("Contrast amb l'entrada", `${fmt(initial.score)} → ${fmt(average!)}`, "Nota de l'avaluació inicial comparada amb la mitjana actual (per nivell).", d === 0 ? "Coherent amb el nivell d'entrada." : d > 0 ? "Per sobre del nivell d'entrada." : "Per sota del nivell d'entrada.", d >= 0 ? "ok" : "warn"); }
   if (obs && implication !== undefined) add("Implicació observada", `${implication} de 4`, "Valoració de l'observació a l'aula.", implication >= 3 && deliveryPct < 60 ? "Bona a l'aula, però no es reflecteix en els lliuraments." : implication <= 2 && deliveryPct >= 90 ? "Baixa a l'aula, però lliura amb constància." : "Coherent amb els lliuraments.", implication >= 3 && deliveryPct < 60 ? "warn" : "neutral");
 
-  return {unitId: unit?.id ?? null, unitName, activities, totalInUnit: unitActivities.length, coveragePct, delivered, notPresented, zeros, deliveryPct, average, averageDelivered, median: grades.length ? median(grades) : null, stdev, groupAverage, deltaGroup, trend, byType, required, ras, level, sentences, contrast, cautions, recommendations, strengths, indicators: ind};
+  const T = TRAFFIC_RULES, reasons: string[] = [], warnings: string[] = [];
+  let color: TrafficColor = "gris";
+  if (activities.length >= T.minActivities && average !== null) {
+    color = average >= T.greenAverage ? "verd" : average >= T.redAverage ? "groc" : "vermell";
+    reasons.push(`mitjana de ${fmt(average)}`);
+    if (required.failed) { color = "vermell"; reasons.push(`${required.failed} ${required.failed === 1 ? "examen obligatori" : "exàmens obligatoris"} per recuperar`); }
+    if (deliveryPct < T.warnDelivery) warnings.push(`ha lliurat el ${Math.round(deliveryPct)} % de les activitats corregides`);
+    if (trend && trend.delta <= T.warnTrend) warnings.push(`evolució a la baixa (${fmt(trend.delta)})`);
+    if (deltaGroup !== null && deltaGroup <= T.warnGroupGap) warnings.push(`per sota del grup (${fmt(deltaGroup)})`);
+  } else reasons.push("encara hi ha poques activitats corregides");
+  const traffic: Traffic = {color, label: TRAFFIC_LABEL[color], reasons, warnings, provisional: coveragePct < (cfg.minRaCoverage ?? 25)};
+
+  return {unitId: unit?.id ?? null, unitName, activities, totalInUnit: unitActivities.length, coveragePct, delivered, notPresented, zeros, deliveryPct, average, averageDelivered, median: grades.length ? median(grades) : null, stdev, groupAverage, deltaGroup, trend, byType, required, ras, level, sentences, contrast, cautions, recommendations, potential, strengths, traffic, indicators: ind};
 }
 
 export interface GroupEvidenceSummary {

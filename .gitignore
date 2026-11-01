@@ -4,3 +4,8 @@ dist/
 .tmp-*
 .audit-*
 audit-*.png
+
+# Còpies de dades d'alumnes: no es pugen mai
+ra-avaluacio-*.json
+ra-avaluacio.json
+copies-seguretat/
