@@ -1,7 +1,8 @@
 import type {ElementType} from "react";
 import {AlertTriangle, Info, ThumbsUp, TrendingDown, TrendingUp} from "lucide-react";
 import {analyzeCurrentEvidence} from "../../src/model/currentEvidence";
-import {activityIsEvaluated, calculateFinalStudent, calculateStudent, convocatoriaConsumida, convocatoriaExhaurida, groupAsOfTerm, isDelivered, raIsAchieved, raIsFailing, totalGrade, type StudentCalculation} from "../../src/model/calculation";
+import {activityIsEvaluated, requiredGroupStatus, calculateFinalStudent, calculateStudent, convocatoriaConsumida, convocatoriaExhaurida, groupAsOfTerm, isDelivered, raIsAchieved, raIsFailing, totalGrade, type StudentCalculation} from "../../src/model/calculation";
+import {summarizeStudent} from "../../src/model/studentSummary";
 import {countsForGrade, type AcademicCourse, type Activity, type ActivityType, type Grade, type Group, type LearningResult, type WorkUnit} from "../../src/model/domain";
 import type {Tone} from "../components/analysis";
 import {termOrdinal} from "./helpers";
@@ -12,6 +13,11 @@ export interface RaAnalysisRow {
  groupAvg: number | null;
  coverage: number;
  status: "assolit" | "risc" | "pendent" | "provisional";
+ /** Nota de l'RA a la graella (acumulada: el que encara no té nota compta 0). */
+ nota: number;
+ groupNota: number | null;
+ /** Causes del «no assolit», sense notes. */
+ causes: string[];
  failing: number;
  trend: "up" | "down" | "flat" | null;
 }
@@ -95,7 +101,8 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
  const trendDelta = hasStudentEvidence ? calc.globalScore - calcT1.globalScore : 0;
 
  const ras = course.configuration.learningResults.filter(r => r.status === "active");
- const raRows: RaAnalysisRow[] = ras.map(ra => {
+ const summary = summarizeStudent(course, group, enrollmentId);
+const raRows: RaAnalysisRow[] = ras.map(ra => {
   const entry = calc.learningResults.get(ra.id);
   const coverage = entry?.coverage ?? 0;
   const hasEvidence = coverage > 0;
@@ -106,8 +113,11 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
   const t1Entry = calcT1.learningResults.get(ra.id);
   const t1Score = t1Entry && t1Entry.coverage > 0 ? t1Entry.score : null;
   const trend: RaAnalysisRow["trend"] = hasEvidence && t1Score !== null ? (score! - t1Score > .1 ? "up" : score! - t1Score < -.1 ? "down" : "flat") : null;
-  const status: RaAnalysisRow["status"] = !hasEvidence ? "pendent" : entry?.provisional ? "provisional" : score! >= 5 && failing === 0 ? "assolit" : "risc";
-  return {ra, score, groupAvg, coverage, status, failing, trend};
+  // Mateix criteri que «Resultats per UT» i l'informe de l'alumne: nota de la graella (acumulada) + obligatòries.
+  const sr = summary.ras.find(q => q.code === ra.code);
+  const status: RaAnalysisRow["status"] = !hasEvidence ? "pendent" : sr?.state === "assolit" ? "assolit" : sr?.state === "no-assolit" ? "risc" : "provisional";
+  const groupAcc = groupCalc.map(c => c.learningResults.get(ra.id)?.accumulated ?? 0);
+  return {ra, score, groupAvg, coverage, status, failing, trend, nota: entry?.accumulated ?? 0, groupNota: hasEvidence && groupAcc.length ? groupAcc.reduce((a, b) => a + b, 0) / groupAcc.length : null, causes: sr?.causes ?? []};
  });
  // «Valorables»: amb prou evidència per dir si estan assolits o no. Els provisionals es mostren a part.
  const withEvidence = raRows.filter(r => r.status === "assolit" || r.status === "risc");
@@ -131,16 +141,17 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
  const ordinariaActive = activitiesAll.filter(a => a.session === "ordinaria");
  const minGrade = course.configuration.requiredActivityMinGrade;
  const raByIdForUnits = new Map(course.configuration.learningResults.map(r => [r.id, r]));
- const activityRow = (a: Activity, required: boolean): WorkUnitActivityRow => {
+ const activityRow = (a: Activity, required: boolean, failedIds?: Set<string>): WorkUnitActivityRow => {
   const g = group.grades.find(x => x.enrollmentId === enrollmentId && x.activityId === a.id);
   const grade = totalGrade(g);
-  return {activity: a, grade, status: g?.status === "not_presented" ? "not_presented" : g?.status === "graded" ? "graded" : "pending", required, suspesa: grade !== null && grade < minGrade};
+  return {activity: a, grade, status: g?.status === "not_presented" ? "not_presented" : g?.status === "graded" ? "graded" : "pending", required, suspesa: required && failedIds ? failedIds.has(a.id) : grade !== null && grade < minGrade};
  };
  const activeUnits = course.configuration.workUnits.filter(u => u.status === "active").sort((a, b) => a.order - b.order);
  const workUnitRows: WorkUnitRow[] = activeUnits.map(unit => {
   const acts = ordinariaActive.filter(a => unit.activityIds.includes(a.id)).sort((a, b) => a.order - b.order);
   const raCodes = unit.learningResultIds.map(id => raByIdForUnits.get(id)?.code).filter((x): x is string => !!x);
-  return {unit, raCodes, activities: acts.map(a => activityRow(a, unit.requiredActivityIds.includes(a.id)))};
+  const failedIds = new Set(requiredGroupStatus(course, group, enrollmentId, unit).failedIds);
+  return {unit, raCodes, activities: acts.map(a => activityRow(a, unit.requiredActivityIds.includes(a.id), failedIds))};
  }).filter(row => row.activities.length > 0);
  const assignedIds = new Set(activeUnits.flatMap(u => u.activityIds));
  const unassigned = ordinariaActive.filter(a => !assignedIds.has(a.id)).sort((a, b) => a.order - b.order);

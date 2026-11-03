@@ -1,4 +1,4 @@
-import {activityIsEvaluated, activityWeights, calculateStudent, isDelivered, totalGrade} from "./calculation.ts";
+import {activityIsEvaluated, activityWeights, calculateStudent, isDelivered, requiredGroupStatus, totalGrade} from "./calculation.ts";
 import {countsForGrade, type AcademicCourse, type DiagnosticResult, type Group, type InitialObservation} from "./domain.ts";
 import {diagnosticLevel, givenName, LEVEL_LABEL, type DiagnosticLevel} from "./diagnostic.ts";
 import {observationAverage} from "./observation.ts";
@@ -185,10 +185,15 @@ export function analyzeCurrentEvidence(course: AcademicCourse, group: Group, enr
   const byType = [...types].map(([n, v]) => ({name: n, average: mean(v), n: v.length})).sort((a, b) => b.average - a.average);
 
   const requiredActs = activities.filter(a => a.required);
+  // Valoració de les obligatòries com al càlcul dels RA: cadascuna, o per la mitjana si l'opció està activada.
+  const requiredUnits = unit ? [unit] : listUnits(course);
+  const statuses = requiredUnits.map(u => requiredGroupStatus(course, group, enrollmentId, u));
+  const failedRequiredIds = new Set(statuses.flatMap(s => s.failedIds));
+  const requiredPassedIds = new Set(statuses.flatMap(s => s.passed === true ? s.items.map(i => i.id) : s.items.filter(i => s.mode === "individual" && i.grade !== null && i.grade >= cfg.requiredActivityMinGrade).map(i => i.id)));
   const required = {
     total: requiredActs.length,
-    passed: requiredActs.filter(a => a.status === "graded" && a.grade! >= cfg.requiredActivityMinGrade).length,
-    failed: requiredActs.filter(a => a.status === "not_presented" || (a.status === "graded" && a.grade! < cfg.requiredActivityMinGrade)).length,
+    passed: requiredActs.filter(a => requiredPassedIds.has(a.id)).length,
+    failed: requiredActs.filter(a => failedRequiredIds.has(a.id)).length,
     pending: requiredActs.filter(a => a.status === "pending").length,
   };
 
@@ -247,7 +252,7 @@ export function analyzeCurrentEvidence(course: AcademicCourse, group: Group, enr
 
   const recommendations: string[] = [];
   const missing = activities.filter(a => !a.delivered).map(a => a.name), quote = (items: string[]) => listJoin(items.slice(0, 3).map(n => `«${n}»`)) + (items.length > 3 ? ` i ${items.length - 3} més` : "");
-  const failedRequired = activities.filter(a => a.required && (a.status !== "graded" || a.grade! < cfg.requiredActivityMinGrade)).map(a => a.name);
+  const failedRequired = activities.filter(a => a.required && failedRequiredIds.has(a.id)).map(a => a.name);
   let potential: CurrentEvidence["potential"] = null;
   // Anàlisi capacitat (nota quan lliura) vs. constància (efecte dels 0).
   if (average !== null && averageDelivered !== null && delivered < activities.length) {

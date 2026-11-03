@@ -4,7 +4,7 @@ import {UnitStudentReport} from "./UnitStudentReport";
 import type {AcademicCourse, Group} from "../../src/model/domain";
 import {analyzeGroupUnits, type RaOutcome, type UnitStatus} from "../../src/model/unitResults";
 
-const fmt = (n: number | null) => n === null ? "—" : n.toLocaleString("ca", {minimumFractionDigits: 1, maximumFractionDigits: 1});
+const fmt = (n: number | null) => n === null ? "—" : n.toLocaleString("ca", {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const UNIT: Record<UnitStatus, {bg: string; fg: string; label: string}> = {
   superada: {bg: "#dff3e4", fg: "#1d6b48", label: "Superada"},
   "no-superada": {bg: "#f9dcdc", fg: "#a12f40", label: "No superada"},
@@ -12,8 +12,8 @@ const UNIT: Record<UnitStatus, {bg: string; fg: string; label: string}> = {
   "sense-dades": {bg: "#eceff3", fg: "#7d899d", label: "Sense dades"},
 };
 const RA: Record<RaOutcome, {bg: string; fg: string; label: string}> = {
-  superat: {bg: "#dff3e4", fg: "#1d6b48", label: "Superat"},
-  suspes: {bg: "#f9dcdc", fg: "#a12f40", label: "Suspès"},
+  superat: {bg: "#dff3e4", fg: "#1d6b48", label: "Assolit"},
+  suspes: {bg: "#f9dcdc", fg: "#a12f40", label: "No assolit"},
   "en-curs": {bg: "#e6eefc", fg: "#2f5fb3", label: "En curs"},
   "sense-dades": {bg: "#eceff3", fg: "#7d899d", label: "—"},
   "sense-ut": {bg: "#eceff3", fg: "#7d899d", label: "Sense UT"},
@@ -36,7 +36,7 @@ export function UnitResultsScreen({course, group}: {course: AcademicCourse; grou
   return <div className="managementScreen">
     <article className="panel managementPanel">
       <div className="managementHeader">
-        <div className="managementTitle"><span className="sectionIcon"><Table2/></span><div><h2>Resultats per unitat de treball</h2><p>Grup {group.code} · {all.length} alumnes. Cada UT decideix els RA que tanca, cadascun per separat: un RA se supera amb les obligatòries de la UT ≥ {min} i la nota de l’RA (amb totes les activitats vinculades ja corregides, arrodonida amb el llindar {course.configuration.roundingThreshold}) ≥ {min}. La nota de la UT és la dels seus RA; el RA superat mostra la nota, el suspès no.</p></div></div>
+        <div className="managementTitle"><span className="sectionIcon"><Table2/></span><div><h2>Resultats per unitat de treball</h2><p>Grup {group.code} · {all.length} alumnes. La nota de l’RA és la de la graella de resultats d’aprenentatge (acumulada: el que encara no té nota compta 0). Un RA s’assoleix amb les obligatòries de la UT ≥ {min} i la nota ≥ {min}; no s’assoleix si hi ha una obligatòria suspesa o, quan la UT ja està tota corregida, la nota és inferior a {min}; mentrestant és «en curs». El RA assolit mostra la nota; el no assolit, el motiu.</p></div></div>
         <div className="actionRow"><button className="dark" onClick={() => setReport(rows.map(r => r.enrollmentId))} disabled={!rows.length} title="Un informe breu per alumne de la llista, per imprimir-los tots"><Printer/>Imprimeix els informes</button></div>
       </div>
       <div className="managementToolbar">

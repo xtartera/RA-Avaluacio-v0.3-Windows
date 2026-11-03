@@ -30,6 +30,13 @@ test("la UT en curs és la parcialment corregida", () => {
   assert.equal(currentUnitId(f.course, f.group), f.course.configuration.workUnits[0].id);
 });
 
+
+/** Corregeix la 5a activitat (que també aporta a l'RA) amb la mateixa nota per a tots, perquè l'RA quedi tot avaluat. */
+function gradeFifth(f: ReturnType<typeof fixture>, value: number) {
+  const act = f.course.configuration.activities[4];
+  for (const e of f.group.enrollments) f.group.grades.push({id: newId("g"), enrollmentId: e.id, activityId: act.id, status: "graded", baseValue: value, bonuses: [], updatedAt: nowIso()});
+}
+
 test("resumeix lliuraments, mitjana, tendència i obligatòries", () => {
   const f = fixture([9, 9, 5, 3]);
   const e = analyzeCurrentEvidence(f.course, f.group, f.id, "Laura Soler")!;
@@ -131,22 +138,37 @@ test("semàfor: un alumne amb més nota mai no té un color pitjor que un amb me
   }
 });
 
-test("resultat per UT: obligatòries aprovades i mitjana ≥ 5, o cal recuperar", async () => {
+test("resultat per UT: obligatòries aprovades i nota de l'RA ≥ 5 (acumulada), o cal recuperar", async () => {
   const {analyzeUnitResults} = await import("../src/model/unitResults.ts");
-  const make = (marks: (number | null)[]) => {
+  const make = (marks: (number | null)[], fifth = 8) => {
     const f = fixture(marks), cfg = f.course.configuration;
-    // Les 4 activitats corregides són tota la UT (la 5a queda fora): la UT pot estar acabada.
     cfg.workUnits[0].activityIds = cfg.activities.slice(0, 4).map(a => a.id);
+    gradeFifth(f, fifth);
     return analyzeUnitResults(f.course, f.group, f.id, "Laura Soler")[0];
   };
   assert.equal(make([8, 8, 8, 8]).status, "superada");
   const noObl = make([9, 9, 9, 3]);
   assert.equal(noObl.status, "no-superada");
   assert.match(noObl.reason, /cal recuperar A4/);
-  const lowAvg = make([3, 3, 3, 6]);
-  assert.equal(lowAvg.status, "no-superada");
-  assert.match(lowAvg.reason, /nota de l'RA/);
+  const low = make([3, 3, 3, 6], 3); // tot corregit i la nota de l'RA no arriba a 5
+  assert.equal(low.status, "no-superada");
+  assert.match(low.reason, /nota de l'RA/);
   assert.equal(make([9, 9, 9, 9]).ras[0].code, "RA1");
+});
+
+test("un RA amb nota baixa és «en curs» mentre la UT no està corregida i «no assolit» quan ja ho està", async () => {
+  const {analyzeUnitResults} = await import("../src/model/unitResults.ts");
+  const f = fixture([3, 3, 3, 6]), cfg = f.course.configuration;
+  // La UT inclou la 5a activitat, encara pendent: la UT és en curs.
+  cfg.workUnits[0].activityIds = cfg.activities.map(a => a.id);
+  const open = analyzeUnitResults(f.course, f.group, f.id, "Laura Soler")[0];
+  assert.equal(open.ras[0].outcome, "en-curs");
+  // La UT només té les 4 corregides (la 5a queda d'una altra UT sense corregir): UT corregida i nota < 5 → no assolit.
+  cfg.workUnits[0].activityIds = cfg.activities.slice(0, 4).map(a => a.id);
+  const closed = analyzeUnitResults(f.course, f.group, f.id, "Laura Soler")[0];
+  assert.equal(closed.ras[0].outcome, "suspes");
+  assert.equal(closed.status, "no-superada");
+  assert.match(closed.reason, /la UT està corregida/);
 });
 
 test("RA segons les UT que el tanquen", async () => {
@@ -156,19 +178,6 @@ test("RA segons les UT que el tanquen", async () => {
   assert.equal(raOutcome(["superat", "suspes"]), "suspes");
   assert.equal(raOutcome(["superat", "en-curs"]), "en-curs");
   assert.equal(raOutcome(["sense-dades"]), "sense-dades");
-});
-
-test("la nota de l'RA s'arrodoneix amb el llindar abans de comparar amb 5", async () => {
-  const {analyzeUnitResults} = await import("../src/model/unitResults.ts");
-  const status = (marks: number[]) => {
-    const f = fixture(marks), cfg = f.course.configuration;
-    cfg.workUnits[0].activityIds = cfg.activities.slice(0, 4).map(a => a.id);
-    cfg.roundingThreshold = .75;
-    return analyzeUnitResults(f.course, f.group, f.id, "Laura Soler")[0].status;
-  };
-  assert.equal(status([5, 5, 4.95, 5]), "superada"); // 4,9875 → 5
-  assert.equal(status([5, 4.5, 4.5, 5]), "superada"); // 4,75 → just el llindar → 5
-  assert.equal(status([5, 4.4, 4.4, 5]), "no-superada"); // 4,7 → 4
 });
 
 test("una UT que tanca dos RA: cada RA se supera o se suspèn per separat", async () => {
@@ -189,4 +198,85 @@ test("una UT que tanca dos RA: cada RA se supera o se suspèn per separat", asyn
   assert.equal(by.RA2, "suspes"); // només depèn d'A1 (2)
   assert.equal(by.RA1, "superat"); // la resta d'activitats són bones
   assert.equal(u.status, "no-superada");
+});
+
+test("resum per a l'alumne: només nota projectada, estats i causa", async () => {
+  const {summarizeStudent} = await import("../src/model/studentSummary.ts");
+  const make = (marks: number[], fifth = 8) => { const f = fixture(marks), cfg = f.course.configuration; cfg.workUnits[0].activityIds = cfg.activities.slice(0, 4).map(a => a.id); gradeFifth(f, fifth); return summarizeStudent(f.course, f.group, f.id); };
+  const ok = make([8, 8, 8, 8]);
+  assert.equal(ok.status, "superat");
+  assert.equal(ok.ras[0].state, "assolit");
+  const obl = make([9, 9, 9, 3]); // l'obligatòria (A4) suspesa
+  assert.equal(obl.status, "no-superat");
+  assert.match(obl.causes.join(" "), /obligatòries: A4/);
+  assert.equal(obl.ras[0].state, "no-assolit");
+  assert.ok(!/\d,\d|\d\.\d/.test(obl.causes.join(" ") + obl.ras[0].causes.join(" ")), "les causes no porten cap nota");
+  const low = make([3, 3, 3, 6], 3);
+  assert.equal(low.status, "no-superat");
+  assert.match(low.ras[0].causes[0], /nota de l'RA no arriba al mínim/);
+});
+
+test("obligatòries per mitjana: un alumne pot suspendre'n una i superar el conjunt", async () => {
+  const {requiredGroupStatus, calculateStudent} = await import("../src/model/calculation.ts");
+  const {analyzeUnitResults} = await import("../src/model/unitResults.ts");
+  const make = (marks: number[], byAverage: boolean) => {
+    const f = fixture(marks), cfg = f.course.configuration;
+    cfg.workUnits[0].activityIds = cfg.activities.slice(0, 4).map(a => a.id);
+    cfg.workUnits[0].requiredActivityIds = [cfg.activities[2].id, cfg.activities[3].id]; // A3 i A4 obligatòries
+    cfg.requiredByAverage = byAverage;
+    gradeFifth(f, 8);
+    return f;
+  };
+  // A3 = 3 (suspesa) i A4 = 9: mitjana 6.
+  const strict = make([8, 8, 3, 9], false);
+  assert.equal(requiredGroupStatus(strict.course, strict.group, strict.id, strict.course.configuration.workUnits[0]).passed, false);
+  assert.ok(calculateStudent(strict.course, strict.group, strict.id).learningResults.values().next().value!.failingActivities > 0);
+  const lenient = make([8, 8, 3, 9], true);
+  const st = requiredGroupStatus(lenient.course, lenient.group, lenient.id, lenient.course.configuration.workUnits[0]);
+  assert.equal(st.passed, true);
+  assert.equal(st.average, 6);
+  assert.equal(calculateStudent(lenient.course, lenient.group, lenient.id).learningResults.values().next().value!.failingActivities, 0);
+  const unit = analyzeUnitResults(lenient.course, lenient.group, lenient.id, "Laura Soler")[0];
+  assert.equal(unit.requiredSummary.mode, "average");
+  assert.notEqual(unit.status, "no-superada");
+  // Mitjana per sota del mínim: no superades; un «No presentat» compta 0.
+  const fail = make([8, 8, 3, 6], true);
+  assert.equal(requiredGroupStatus(fail.course, fail.group, fail.id, fail.course.configuration.workUnits[0]).passed, false);
+  // Si una obligatòria encara no té nota, no es pot dir res.
+  const pending = make([8, 8, 3, 9], true);
+  pending.group.grades = pending.group.grades.filter(g => !(g.enrollmentId === pending.id && g.activityId === pending.course.configuration.activities[3].id));
+  assert.equal(requiredGroupStatus(pending.course, pending.group, pending.id, pending.course.configuration.workUnits[0]).passed, null);
+});
+
+test("pes de cada activitat dins d'un RA: suma 100 % i depèn dels vincles", async () => {
+  const {activityShareInRa} = await import("../src/model/calculation.ts");
+  const f = fixture([8, 8, 8, 8]), cfg = f.course.configuration;
+  const ra = cfg.learningResults[0];
+  // Un RA amb un criteri i cinc activitats iguals: 20 % cadascuna.
+  const flat = activityShareInRa(f.course, ra.id);
+  assert.equal(flat.size, 5);
+  for (const v of flat.values()) assert.ok(Math.abs(v - 0.2) < 1e-9);
+  // Un segon criteri només vinculat a A1: A1 passa a pesar el 60 % (la meitat del primer criteri + tot el segon / 2).
+  const ca2 = {id: newId("ca"), learningResultId: ra.id, code: "1.B", description: "B", order: 2, status: "active" as const};
+  cfg.criteria.push(ca2); cfg.links.push({id: newId("l"), activityId: cfg.activities[0].id, criterionId: ca2.id, allocation: 1});
+  const two = activityShareInRa(f.course, ra.id);
+  assert.ok(Math.abs(two.get(cfg.activities[0].id)! - 0.6) < 1e-9);
+  assert.ok(Math.abs([...two.values()].reduce((a, b) => a + b, 0) - 1) < 1e-9);
+});
+
+test("suspens per nota amb obligatòries superades: el motiu esmenta les activitats sense lliurar", async () => {
+  const {analyzeUnitResults} = await import("../src/model/unitResults.ts");
+  const {summarizeStudent} = await import("../src/model/studentSummary.ts");
+  const f = fixture([0, 0, 6, 6]), cfg = f.course.configuration; // A1 i A2 sense lliurar; A3 i A4 (obligatòries) aprovades
+  cfg.workUnits[0].activityIds = cfg.activities.slice(0, 4).map(a => a.id);
+  cfg.workUnits[0].requiredActivityIds = [cfg.activities[2].id, cfg.activities[3].id];
+  cfg.requiredByAverage = true;
+  gradeFifth(f, 3);
+  const ra = analyzeUnitResults(f.course, f.group, f.id, "Laura Soler")[0].ras[0];
+  assert.equal(ra.outcome, "suspes");
+  assert.equal(ra.failedRequired, false);
+  assert.deepEqual(ra.notDelivered, ["A1", "A2"]);
+  assert.match(ra.reason, /sense lliurar que hi compten: A1, A2/);
+  const sum = summarizeStudent(f.course, f.group, f.id);
+  assert.match(sum.ras[0].causes[0], /activitats sense lliurar que hi compten: A1, A2/);
 });

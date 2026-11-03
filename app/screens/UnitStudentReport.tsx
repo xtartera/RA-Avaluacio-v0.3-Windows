@@ -5,6 +5,7 @@ import {analyzeUnitResults, type UnitResult, type UnitStatus} from "../../src/mo
 import {ReportLogo} from "../components/shared";
 
 const fmt = (n: number | null) => n === null ? "—" : n.toLocaleString("ca", {minimumFractionDigits: 1, maximumFractionDigits: 1});
+const fmt2 = (n: number | null) => n === null ? "—" : n.toLocaleString("ca", {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const STATUS: Record<UnitStatus, {bg: string; fg: string; label: string}> = {
   superada: {bg: "#dff3e4", fg: "#1d6b48", label: "Superada"},
   "no-superada": {bg: "#f9dcdc", fg: "#a12f40", label: "No superada"},
@@ -13,16 +14,19 @@ const STATUS: Record<UnitStatus, {bg: string; fg: string; label: string}> = {
 };
 
 /** Motiu d'una UT no superada sense revelar la nota: només les obligatòries no superades o que no s'arriba al mínim. */
-function suspensionReason(unit: UnitResult): string {
+function suspensionReason(unit: UnitResult, ra: UnitResult["ras"][number]): string {
+  if (unit.requiredSummary.mode === "average" && unit.requiredSummary.passed === false) return "la mitjana de les activitats obligatòries no arriba al mínim exigit";
   const failed = unit.required.filter(q => q.passed === false).map(q => q.name);
-  if (failed.length) return `no s'han superat les activitats obligatòries (${failed.join(", ")})`;
-  return "les obligatòries estan superades, però la nota de l'RA no arriba al mínim exigit";
+  if (failed.length && unit.requiredSummary.mode === "individual") return `no s'han superat les activitats obligatòries (${failed.join(", ")})`;
+  const base = unit.requiredSummary.mode === "average" ? "les obligatòries estan superades en conjunt" : "les obligatòries estan superades";
+  // Les obligatòries ja no són la causa: ho és la nota de l'RA, que baixa per les activitats que no s'han lliurat.
+  return ra.notDelivered.length ? `${base}, però la nota de l'RA no arriba al mínim exigit perquè hi ha activitats sense lliurar que hi compten (${ra.notDelivered.join(", ")})` : `${base}, però la nota de l'RA no arriba al mínim exigit`;
 }
 
 /** Què es mostra de l'RA segons l'estat de la UT que el tanca: nota si se supera; motiu si se suspèn; avís si encara és en curs. */
 function raResult(unit: UnitResult, ra: UnitResult["ras"][number]) {
-  if (ra.outcome === "superat") return <><b style={{fontSize: 14, color: "#1d6b48"}}>{ra.estimated === null ? "Superat" : fmt(ra.estimated)}</b><br/><span className="muted" style={{fontSize: 10.5}}>Superat{ra.coverage < 99.5 ? ` · provisional, ${Math.round(ra.coverage)} % avaluat` : ""}</span></>;
-  if (ra.outcome === "suspes") return <><b style={{color: "#a12f40"}}>Suspès</b><br/><span style={{fontSize: 11}}>Motiu: {suspensionReason(unit)}.</span></>;
+  if (ra.outcome === "superat") return <><b style={{fontSize: 14, color: "#1d6b48"}}>{fmt2(ra.accumulated)}</b><br/><span className="muted" style={{fontSize: 10.5}}>Assolit</span></>;
+  if (ra.outcome === "suspes") return <><b style={{color: "#a12f40"}}>No assolit</b><br/><span style={{fontSize: 11}}>Motiu: {suspensionReason(unit, ra)}.</span></>;
   if (ra.outcome === "en-curs") return <><b style={{color: "#2f5fb3"}}>En curs</b><br/><span className="muted" style={{fontSize: 10.5}}>{ra.reason}</span></>;
   return <span className="muted">—</span>;
 }
@@ -43,11 +47,11 @@ export function UnitStudentPage({course, group, enrollmentId}: {course: Academic
           <span className="bonus" style={{background: st.bg, color: st.fg, fontWeight: 800}}>{st.label}</span>
           <span style={{fontSize: 12}}>{u.delivered} lliurades de {u.corrected} corregides ({u.totalActivities} a la UT)</span>
         </div>
-        {u.required.length > 0 && <p style={{fontSize: 11.5, margin: "0 0 6px"}}>Obligatòries: {u.required.map((q, i) => <span key={q.name}>{i ? " · " : ""}{q.name} <b style={{color: q.passed === false ? "#a12f40" : q.passed ? "#1d6b48" : undefined}}>{q.grade === null ? (q.passed === false ? "no presentat" : "pendent") : fmt(q.grade)}{q.passed === true ? " ✔" : q.passed === false ? " ✖" : ""}</b></span>)}</p>}
+        {u.required.length > 0 && <p style={{fontSize: 11.5, margin: "0 0 6px"}}>Obligatòries: {u.required.map((q, i) => <span key={q.name}>{i ? " · " : ""}{q.name} <b style={{color: q.passed === false ? "#a12f40" : q.passed ? "#1d6b48" : undefined}}>{q.grade === null ? (q.passed === false ? "no presentat" : "pendent") : fmt(q.grade)}{u.requiredSummary.mode === "individual" ? (q.passed === true ? " ✔" : q.passed === false ? " ✖" : "") : ""}</b></span>)}{u.requiredSummary.mode === "average" && u.requiredSummary.passed !== null && <b style={{color: u.requiredSummary.passed ? "#1d6b48" : "#a12f40"}}> · En conjunt: {u.requiredSummary.passed ? "superades ✔" : "no superades ✖"}</b>}</p>}
         <table className="wrapCells"><thead><tr><th>RA</th><th>Resultat</th></tr></thead><tbody>{u.ras.map(ra => <tr key={ra.code}><td style={{width: "62%"}}><b>{ra.code}</b> · {ra.description}</td><td>{raResult(u, ra)}</td></tr>)}{!u.ras.length && <tr><td colSpan={2} className="muted">Aquesta unitat no té RA associats.</td></tr>}</tbody></table>
       </div>;
     })}
-    <p className="muted" style={{fontSize: 10.5, margin: "10px 0 0"}}>Cada RA que tanca la UT se supera amb les obligatòries ≥ {min} i la seva nota (amb totes les activitats vinculades ja corregides, arrodonida amb el llindar de {course.configuration.roundingThreshold}) ≥ {min}. Un RA superat mostra la nota calculada amb totes les activitats vinculades ja corregides; si està suspès no té nota i només s'indica el motiu. Descriu dades i no substitueix el criteri docent.</p>
+    <p className="muted" style={{fontSize: 10.5, margin: "10px 0 0"}}>La nota de cada RA és la de la graella de resultats d'aprenentatge. Un RA s'assoleix amb les obligatòries ≥ {min} i la nota ≥ {min}; si no s'assoleix no té nota i només s'indica el motiu. Descriu dades i no substitueix el criteri docent.</p>
     <footer>{course.configuration.moduleName} · Resultats per UT · Dades locals</footer>
   </section>;
 }

@@ -273,11 +273,11 @@ tr.raRowAssolit td{border-top-color:#dcf0e6}
 .signRow{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin:34px 0 6px;font-size:11px;color:#52647c}.signRow span{display:block;border-bottom:1px solid #8a96a8;height:44px;margin-bottom:5px}
 
 /* Anàlisi d'alumne: totes les targetes en una sola fila, amb les dues notes principals més grans */
-.kpiRow.kpiAnalysis{grid-template-columns:1.7fr 1.7fr repeat(5,minmax(0,1fr));gap:10px}
+.kpiRow.kpiAnalysis{grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .kpiAnalysis .kpiCard{padding:14px 13px;min-width:0}
 .kpiAnalysis .kpiCard label{font-size:9.5px;letter-spacing:.05em}
 .kpiAnalysis .kpiCard strong{font-size:22px;margin-top:9px}
-.kpiAnalysis .kpiCard:nth-child(-n+2) strong{font-size:30px}
+.kpiAnalysis .kpiCard strong{font-size:26px}
 .kpiAnalysis .kpiCard span{font-size:10.5px}
 @media(max-width:1250px){.kpiRow.kpiAnalysis{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .report .reportStats.cols5{grid-template-columns:repeat(5,1fr)!important}

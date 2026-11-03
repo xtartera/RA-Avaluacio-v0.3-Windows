@@ -169,6 +169,8 @@ Aquest llindar es pot forçar manualment amb l'interruptor "Estat manual" de la 
 
 Una UT agrupa diverses activitats (projectes, exàmens, speedruns...) i es vincula a un o més RA. D'aquestes activitats, algunes es marquen com **obligatòries**: si l'alumne en suspèn alguna (nota < 5), el RA vinculat queda com **"No assolit"**, independentment de la nota calculada — encara que la mitjana surti per sobre de 5.
 
+**Valoració de les obligatòries per la mitjana (opció a Configuració).** Per defecte cada obligatòria ha de tenir la nota mínima per ella mateixa. Si actives «Valora les obligatòries per la seva mitjana», les obligatòries d'una UT es valoren en conjunt: el conjunt se supera si la seva mitjana és de la nota mínima o més (un «No presentat» compta 0). Així un alumne pot suspendre'n una i superar el conjunt. Mentre alguna obligatòria no tingui nota, no es dona el conjunt per suspès. Aquesta regla s'aplica a tot: RA, resultats per UT i informes.
+
 Exemple real (curs SOX), amb els RA que cada UT té vinculats i quines de les seves activitats són obligatòries:
 
 | UT | RA vinculats | Activitats obligatòries d'aquesta UT |

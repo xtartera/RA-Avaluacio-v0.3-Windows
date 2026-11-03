@@ -50,6 +50,31 @@ function criterionWeights(course: AcademicCourse, weights: Map<string, number>):
   return result;
 }
 
+/**
+ * Pes de cada activitat dins d'un RA (suma 100 % de les activitats vinculades): com compta dins la nota de l'RA, no sobre el mòdul.
+ * Mitjana simple: cada criteri val igual i, dins d'un criteri, cada activitat pesa repartiment × pes de l'activitat.
+ * Mitjana ponderada: cada criteri pesa segons el seu pes global.
+ */
+export function activityShareInRa(course: AcademicCourse, raId: string): Map<string, number> {
+  const cfg = course.configuration, weights = activityWeights(course), out = new Map<string, number>();
+  const ra = cfg.learningResults.find(r => r.id === raId);
+  if (!ra) return out;
+  const criteria = activeCriteria(course, ra);
+  const raws = criteria.map(c => {
+    const m = new Map<string, number>();
+    for (const link of cfg.links.filter(l => l.criterionId === c.id)) m.set(link.activityId, (m.get(link.activityId) ?? 0) + link.allocation * (weights.get(link.activityId) ?? 0));
+    return m;
+  });
+  const totals = raws.map(m => [...m.values()].reduce((sum, v) => sum + v, 0));
+  if (cfg.raAveraging === "weighted") {
+    const all = totals.reduce((sum, v) => sum + v, 0);
+    if (all) for (const m of raws) for (const [id, v] of m) out.set(id, (out.get(id) ?? 0) + v / all);
+  } else if (criteria.length) {
+    raws.forEach((m, i) => { if (totals[i]) for (const [id, v] of m) out.set(id, (out.get(id) ?? 0) + v / totals[i] / criteria.length); });
+  }
+  return out;
+}
+
 export function raWeights(course: AcademicCourse, activityWeightsMap: Map<string, number> = activityWeights(course)): Map<string, number> {
   const criterionGlobalWeights = criterionWeights(course, activityWeightsMap);
   const result = new Map<string, number>();
@@ -73,14 +98,45 @@ function raScore(policy: RaAveraging, assessedCriteria: AssessmentCriterion[], c
   return assessedCriteria.reduce((sum, c) => sum + (criterionScores.get(c.id) ?? 0), 0) / assessedCriteria.length;
 }
 
+export interface RequiredItem {id: string; name: string; /** Nota (un «No presentat» compta 0); null si encara no té nota. */ grade: number | null; status: "graded" | "not_presented" | "pending"}
+export interface RequiredStatus {
+  mode: "individual" | "average";
+  items: RequiredItem[];
+  /** Mitjana de les obligatòries amb nota (només en mode mitjana, quan totes en tenen). */
+  average: number | null;
+  /** Obligatòries que fan que el conjunt no se superi. */
+  failedIds: string[];
+  /** true: superades; false: no superades; null: encara no es pot dir (falten notes). */
+  passed: boolean | null;
+}
+
+/**
+ * Estat de les activitats obligatòries d'una UT per a un alumne. Per defecte cadascuna ha de tenir la nota mínima;
+ * amb `requiredByAverage` es valora la mitjana de les obligatòries (un «No presentat» compta 0) un cop totes tenen nota.
+ */
+export function requiredGroupStatus(course: AcademicCourse, group: Group, enrollmentId: string, unit: {requiredActivityIds: string[]}): RequiredStatus {
+  const min = course.configuration.requiredActivityMinGrade, mode = course.configuration.requiredByAverage ? "average" : "individual";
+  const items: RequiredItem[] = unit.requiredActivityIds.map(id => course.configuration.activities.find(a => a.id === id)).filter((a): a is NonNullable<typeof a> => !!a && a.status === "active").map(a => {
+    const grade = group.grades.find(g => g.enrollmentId === enrollmentId && g.activityId === a.id);
+    if (grade?.status === "not_presented") return {id: a.id, name: a.name, grade: 0, status: "not_presented" as const};
+    const total = grade?.status === "graded" ? totalGrade(grade) : null;
+    return {id: a.id, name: a.name, grade: total, status: total === null ? "pending" as const : "graded" as const};
+  });
+  const pending = items.some(i => i.grade === null);
+  if (mode === "individual") {
+    const failedIds = items.filter(i => i.grade !== null && i.grade < min).map(i => i.id);
+    return {mode, items, average: null, failedIds, passed: failedIds.length ? false : pending ? null : true};
+  }
+  if (pending || !items.length) return {mode, items, average: null, failedIds: [], passed: items.length ? null : true};
+  const average = items.reduce((s, i) => s + (i.grade ?? 0), 0) / items.length;
+  const passed = average >= min;
+  return {mode, items, average, failedIds: passed ? [] : items.filter(i => (i.grade ?? 0) < min).map(i => i.id), passed};
+}
+
 export function failingRequiredActivities(course: AcademicCourse, group: Group, enrollmentId: string, learningResultId: string): number {
   const units = course.configuration.workUnits.filter(u => u.status === "active" && u.learningResultIds.includes(learningResultId));
   const failing = new Set<string>();
-  for (const unit of units) for (const activityId of unit.requiredActivityIds) {
-    const grade = group.grades.find(g => g.enrollmentId === enrollmentId && g.activityId === activityId);
-    const total = totalGrade(grade);
-    if (total !== null && total < course.configuration.requiredActivityMinGrade) failing.add(activityId);
-  }
+  for (const unit of units) for (const id of requiredGroupStatus(course, group, enrollmentId, unit).failedIds) failing.add(id);
   return failing.size;
 }
 
