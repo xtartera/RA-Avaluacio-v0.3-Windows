@@ -2,6 +2,7 @@ import type {ElementType} from "react";
 import {AlertCircle, AlertTriangle, Info, Sparkles, ThumbsUp, TrendingDown, TrendingUp} from "lucide-react";
 import {activityInsights, calculateFinalStudent, calculateStudent, convocatoriaExhaurida, deliveryRate, groupAsOfTerm, groupStdDev, raIsFailing, type StudentCalculation} from "../../src/model/calculation";
 import type {AcademicCourse, Enrollment, Group, LearningResult} from "../../src/model/domain";
+import {summarizeStudent} from "../../src/model/studentSummary";
 import {computeBands, termOrdinal} from "./helpers";
 import type {ActivityRow, Tone} from "../components/analysis";
 
@@ -31,14 +32,9 @@ export function summarizeGroup(course: AcademicCourse, group: Group): GroupSumma
  const perStudent = active.map((enrollment, i) => {
   const c = calc[i];
   const name = group.students.find(s => s.id === enrollment.studentId)?.name ?? "—";
-  let evaluated = 0, failed = 0;
-  for (const ra of ras) {
-   const entry = c.learningResults.get(ra.id);
-   // Un RA amb poca evidència (provisional) no compta com a aprovat ni com a suspès.
-   if (!entry || entry.coverage <= 0 || entry.provisional) continue;
-   evaluated++;
-   if (!(entry.score >= 5 && entry.failingActivities === 0)) failed++;
-  }
+  // Mateix criteri que l'anàlisi de l'alumne: l'estat de cada RA ve de summarizeStudent (assolit, no assolit o en curs).
+  const sum = summarizeStudent(course, group, enrollment.id);
+  const evaluated = sum.ras.filter(r => r.state !== "en-curs").length, failed = sum.ras.filter(r => r.state === "no-assolit").length;
   return {name, evaluated, failed, score: c.globalScore};
  });
  const byName = (a: {name: string}, b: {name: string}) => a.name.localeCompare(b.name, "ca");

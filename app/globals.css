@@ -395,3 +395,8 @@ table.rwxHeat{border-collapse:separate;border-spacing:3px;width:100%}
 .rwxMe>div{min-width:0}
 .rwxMe .rwxScore{white-space:nowrap}
 @media print{.fullReportPage .rwxMe{grid-template-columns:90px minmax(0,1fr) 100px}}
+
+/* Activitat corregida i no lliurada (0): gris pla i més fosc, diferent del ratllat de les pendents */
+.rwxMeBar .seg.nd{background:#b7c0cf}
+.rwxKeys i.nd{background:#b7c0cf}
+@media print{.rwxMeBar .seg.nd,.rwxKeys i.nd{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
