@@ -4,14 +4,15 @@ import {totalGrade} from "../../src/model/calculation";
 import type {AcademicCourse, Activity, Grade, Group} from "../../src/model/domain";
 import {activePeople, raStatusReason} from "../lib/helpers";
 import {analyzeStudent, analyzeStudentConvocatoria} from "../lib/studentAnalytics";
-import {DiagList, GradeBand, KpiCard, TrendLine} from "../components/analysis";
+import {DiagList, KpiCard, TrendLine} from "../components/analysis";
 import {SupportCalculations} from "../components/SupportCalculations";
-import {UnitResults} from "../components/UnitResults";
+import {MyRaBars} from "../components/MyRaBars";
 import {BlockBars, InitialEvolution, LevelPill, ObservationBlock, TrafficChip} from "../components/diagnosticViews";
 import {hasObservation, OBSERVATION_ITEMS, supportActions} from "../../src/model/observation";
 import {compareDiagnostics, concludeDiagnostic, orderByUnit, unitLabel} from "../../src/model/diagnostic";
 import {InitialReport} from "./InitialReport";
 import {StudentSummaryReport} from "./StudentSummaryReport";
+import {reportableEnrollments, StudentReportBatch} from "./StudentReport";
 import {QUESTIONNAIRES_ENABLED} from "../../src/model/features";
 import {analyzeCurrentEvidence} from "../../src/model/currentEvidence";
 import type {Mutate} from "../lib/helpers";
@@ -26,6 +27,9 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report, mutat
  const [perspective, setPerspective] = useState<Perspective>("ordinaria");
  const [initialReport, setInitialReport] = useState(false);
  const [summaryReport, setSummaryReport] = useState(false);
+ const [batch, setBatch] = useState<null | "complet" | "alumne">(null);
+ const [groupMenu, setGroupMenu] = useState(false);
+ const batchIds = reportableEnrollments(course, group);
  useEffect(() => { if (focusEnrollmentId) setSelected(focusEnrollmentId); }, [focusEnrollmentId]);
  useEffect(() => { setPerspective("ordinaria"); }, [selected]);
  const current = people.find(p => p.enrollment.id === selected) ?? people[0] ?? null;
@@ -61,6 +65,14 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report, mutat
    </div>
    <div className="actionRow">
     <select value={enrollment.id} onChange={e => setSelected(e.target.value)}>{people.map(p => <option key={p.enrollment.id} value={p.enrollment.id}>{p.student.name}</option>)}</select>
+    <div style={{position: "relative"}}>
+     <button onClick={() => setGroupMenu(m => !m)} aria-expanded={groupMenu} title="Imprimeix els informes de tots els alumnes del grup d'un sol cop"><Printer/>Tot el grup ▾</button>
+     {groupMenu && <div role="menu" style={{position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 20, background: "white", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 8px 28px #17233c26", padding: 6, minWidth: 290, display: "flex", flexDirection: "column", gap: 2}}>
+      <button role="menuitem" disabled={!batchIds.length} onClick={() => { setGroupMenu(false); setBatch("alumne"); }} style={{textAlign: "left", justifyContent: "flex-start", border: 0}}>Informes per a l’alumne ({batchIds.length})</button>
+      <button role="menuitem" disabled={!batchIds.length} onClick={() => { setGroupMenu(false); setBatch("complet"); }} style={{textAlign: "left", justifyContent: "flex-start", border: 0}}>Informes complets ({batchIds.length})</button>
+      <span className="muted" style={{fontSize: 10.5, padding: "4px 10px"}}>Un informe per pàgina, dels alumnes del grup amb activitats corregides.</span>
+     </div>}
+    </div>
     <button onClick={() => setSummaryReport(true)} title="Informe breu: només la nota projectada, l'estat dels RA i la causa si no se supera"><Printer/>Informe per a l’alumne</button>
     <button className="dark" onClick={() => report(enrollment.id)}><Printer/>Exportar informe</button>
    </div>
@@ -75,7 +87,9 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report, mutat
   </div>
 
   {tab === "informe" && <InitialTab course={course} group={group} enrollmentId={enrollment.id} name={student.name} open={() => setInitialReport(true)}/>}
-  {summaryReport && <StudentSummaryReport course={course} group={group} enrollmentId={enrollment.id} close={() => setSummaryReport(false)}/>}
+  {summaryReport && <StudentSummaryReport course={course} group={group} enrollmentIds={[enrollment.id]} close={() => setSummaryReport(false)}/>}
+  {batch === "alumne" && <StudentSummaryReport course={course} group={group} enrollmentIds={batchIds} close={() => setBatch(null)}/>}
+  {batch === "complet" && <StudentReportBatch course={course} group={group} enrollmentIds={batchIds} mutate={mutate} close={() => setBatch(null)}/>}
   {initialReport && <InitialReport course={course} group={group} activityId={null} enrollmentId={enrollment.id} mutate={mutate} close={() => setInitialReport(false)}/>}
 
   {tab !== "resum" && tab !== "informe" && <article className="panel"><div className="placeholderPanel"><Construction/><strong>En construcció</strong><span>Aquesta vista detallada s’anirà afegint properament.</span></div></article>}
@@ -108,7 +122,7 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report, mutat
    </div>}
 
    {effectivePerspective === "ordinaria" && <SupportCalculations course={course} group={group} enrollmentId={enrollment.id} name={student.name}/>}
-   {effectivePerspective === "ordinaria" && <UnitResults course={course} group={group} enrollmentId={enrollment.id} name={student.name}/>}
+   {effectivePerspective === "ordinaria" && <MyRaBars course={course} group={group} enrollmentId={enrollment.id}/>}
 
    {effectivePerspective === "ordinaria" && ev && <div className="analysisRow">
     <article className="panel"><div className="panelHeader"><h2>Context d’entrada</h2><span className="muted" style={{fontSize: 11}}>No compta per a la nota</span></div>
@@ -120,9 +134,8 @@ export function StudentAnalysis({course, group, focusEnrollmentId, report, mutat
    </div>}
    {effectivePerspective === "ordinaria" && support.length > 0 && <article className="panel" style={{marginBottom: 16}}><div className="panelHeader"><h2>Orientacions d’acompanyament</h2><span className="muted" style={{fontSize: 11}}>Segons el context marcat a l’observació · només en pantalla, no s’imprimeixen</span></div><ul className="reportList" style={{marginTop: 0}}>{support.map((t, i) => <li key={i}>{t}</li>)}</ul></article>}
 
-   <div className="analysisRow">
+   <div className="analysisRow two">
     <article className="panel"><div className="panelHeader"><h2>Evolució de la nota projectada{hasConvocatoria ? " (ordinària)" : ""}</h2></div><TrendLine series={[{label: "Alumne", color: "var(--blue)", points: trendPoints}, {label: "Grup", color: "#aab4c4", dashed: true, showValues: false, points: groupTrendPoints}]}/></article>
-    <article className="panel"><div className="panelHeader"><h2>Situació actual{hasConvocatoria ? " (ordinària)" : ""}</h2></div><GradeBand score={calc.globalScore} riskThreshold={course.configuration.riskThreshold} provisional={calc.globalCoverage < (course.configuration.minRaCoverage ?? 25)}/>{hasConvocatoria && <div style={{marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--line)"}}><h4 style={{margin: "0 0 4px", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".05em", color: "#65738a"}}>Situació final (amb extraordinària)</h4><GradeBand score={conv.finalScore} riskThreshold={course.configuration.riskThreshold}/></div>}</article>
     <article className="panel"><div className="panelHeader"><h2>Rendiment per tipologia d’activitat</h2></div>{typeRows.length ? <div style={{display: "flex", flexDirection: "column", gap: 12, marginTop: 4}}>{typeRows.map(t => <div key={t.type.id}><div style={{display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5}}><span>{t.type.name}</span><b>{t.average !== null ? t.average.toFixed(2) : "—"}</b></div><div className="barTrack"><i style={{width: `${t.average !== null ? t.average / 10 * 100 : 0}%`, background: "var(--blue)"}}/></div></div>)}</div> : <p className="muted">Encara no hi ha activitats qualificades.</p>}</article>
    </div>
 

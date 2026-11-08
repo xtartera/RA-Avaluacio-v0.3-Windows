@@ -17,7 +17,7 @@ export function RaWeightsTable({course}: {course: AcademicCourse}) {
   if (rest.length) blocks.push({title: "Sense UT assignada", acts: rest, required: new Set<string>()});
   if (!ras.length || !blocks.length) return null;
   const col = (raId: string) => [...(shares.get(raId)?.values() ?? [])].reduce((s, v) => s + v, 0);
-  return <div className="reportBlock tightPrint" style={{margin: "14px 0"}}>
+  return <div className="reportBlock tightPrint rwxSplit" style={{margin: "14px 0"}}>
     <h3>Pes de cada activitat dins de cada RA</h3>
     <p className="muted" style={{fontSize: 11, margin: "0 0 6px"}}>Quant compta cada activitat per a la nota de l'RA ({cfg.raAveraging === "weighted" ? "mitjana ponderada dels criteris" : "mitjana simple dels criteris"}). Una activitat amb poc pes al mòdul pot tenir molt pes dins d'un RA si hi és vinculada a molts criteris.</p>
     <table className="wrapCells"><thead><tr><th>Activitat</th>{ras.map(r => <th key={r.id} title={r.description}>{r.code}</th>)}</tr></thead><tbody>

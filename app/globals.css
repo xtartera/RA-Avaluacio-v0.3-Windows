@@ -281,3 +281,117 @@ tr.raRowAssolit td{border-top-color:#dcf0e6}
 .kpiAnalysis .kpiCard span{font-size:10.5px}
 @media(max-width:1250px){.kpiRow.kpiAnalysis{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .report .reportStats.cols5{grid-template-columns:repeat(5,1fr)!important}
+
+/* Impressió de tots els informes: un per pàgina */
+.reportPage{margin:0 0 28px;padding-bottom:22px;border-bottom:2px dashed var(--line)}
+@media print{.reportPage{break-after:page;border-bottom:0;margin:0;padding:0}.reportPage:last-child{break-after:auto}}
+
+/* Pesos i RA: explicació visual (mapa de calor, barres per RA, el meu RA) */
+.rwx{display:grid;gap:18px}
+.rwx h3{margin:0 0 4px;font-size:16px}
+.rwxSteps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:12px}
+.rwxStep{border:1px solid var(--line);border-radius:14px;padding:16px;background:#fbfcfe}
+.rwxStep .n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#1c2a44;color:#fff;font-weight:800;font-size:14px;margin-bottom:8px}
+.rwxStep p{margin:0 0 12px;font-size:13px;color:#64748b}
+.rwxLegend,.rwxKeys{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin:6px 0 12px;align-items:center}
+.rwxLegend i,.rwxKeys i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:5px;vertical-align:-1px}
+.rwxKeys i.hatch{background:repeating-linear-gradient(135deg,#eef1f6,#eef1f6 4px,#dde3ec 4px,#dde3ec 8px)}
+.rwxTypeBar{display:flex;height:34px;border-radius:10px;overflow:hidden;font-size:12px;font-weight:800;color:#fff}
+.rwxTypeBar div{display:grid;place-items:center;min-width:0}
+.rwxChips{display:flex;flex-wrap:wrap;gap:6px}
+.rwxChips span{border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;background:#eef2f9;color:#33486b}
+.rwxCa{display:flex;gap:3px;flex-wrap:wrap}
+.rwxCa span{width:15px;height:15px;border-radius:4px;background:#c7d2e6}
+.rwxRaRow{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;margin-bottom:6px;font-size:12px}
+table.rwxHeat{border-collapse:separate;border-spacing:3px;width:100%}
+.rwxHeat th{font-size:12.5px;padding:4px 6px;text-align:center;position:sticky;top:0;background:#fff}
+.rwxHeat th.l,.rwxHeat td.l{text-align:left}
+.rwxHeat td{padding:0;height:30px;min-width:76px;text-align:center;font-size:12px;font-weight:700;border-radius:7px}
+.rwxHeat td.l{padding:0 8px;font-weight:600;font-size:12.5px;white-space:nowrap}
+.rwxHeat tr.unit td{height:auto;padding:10px 4px 2px;font-size:12px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.06em;text-align:left}
+.rwxHeat .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+.rwxHeat .req{font-size:10.5px;font-weight:800;color:#a12f40;background:#fbe9ec;border-radius:6px;padding:1px 6px;margin-left:6px}
+.rwxStack{display:grid;grid-template-columns:54px 1fr 70px;gap:10px;align-items:center;margin:10px 0}
+.rwxBar{display:flex;height:38px;border-radius:10px;overflow:hidden;background:#eef2f9;border:1px solid var(--line);margin-bottom:3px}
+.rwxBar div{border-right:1px solid #ffffffb0;min-width:1px}
+.rwxBar div:hover{filter:brightness(1.12)}
+.rwxVs{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#f1ecfe;border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:14px}
+.rwxVs .g{font-size:22px;font-weight:900;color:#6d3fd1}
+.rwxEx{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.rwxEx>div{border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;background:#fbfcfe}
+.rwxEx .big{font-size:26px;font-weight:900;color:#8b5cf6}
+.rwxEx span{font-size:11.5px;color:#64748b}
+.rwxMe{display:grid;grid-template-columns:54px 1fr 110px;gap:10px;align-items:center;margin:14px 0}
+.rwxMeBar{display:flex;height:54px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#f1f4f9;margin-bottom:3px}
+.rwxMeBar .seg{position:relative;border-right:1px solid #fff;min-width:1px;background:repeating-linear-gradient(135deg,#eef1f6,#eef1f6 5px,#e3e8f0 5px,#e3e8f0 10px)}
+.rwxMeBar .seg .fill{position:absolute;left:0;right:0;bottom:0}
+.rwxMeBar .seg .tdot{position:absolute;left:0;right:0;top:0;height:4px}
+.rwxMeBar .seg:hover{outline:2px solid #1c2a44;outline-offset:-2px;z-index:2}
+.rwxScore{font-size:20px;font-weight:900;text-align:right}
+.rwxScore small{display:block;font-size:10.5px;color:#64748b;font-weight:600}
+@media(max-width:900px){.rwxSteps{grid-template-columns:1fr}.rwxEx{grid-template-columns:repeat(2,1fr)}}
+@media print{.rwx .panel{break-inside:avoid}}
+/* Informe individual imprès: més compacte (menys pàgines) */
+@media print{
+.fullReportPage h2{margin:12px 0 6px;font-size:15px}
+.fullReportPage td,.fullReportPage th{padding:3px 6px;font-size:10.5px}
+.fullReportPage .reportBlock{padding:8px}
+.fullReportPage .reportRa>div{padding:7px 10px;gap:8px}
+.fullReportPage .bonusList{margin:0 0 8px}
+.fullReportPage .comment textarea{min-height:46px}
+.fullReportPage .reportBlock h3{margin:0 0 5px}
+.fullReportPage .reportBlock.tightPrint{break-inside:avoid}
+}
+@media print{
+.fullReportPage .rwxSplit,.fullReportPage .reportRa{break-inside:auto}
+.fullReportPage .rwxSplit tr,.fullReportPage .reportRa>div{break-inside:avoid}
+.fullReportPage .rwxMeBar{height:38px}
+.fullReportPage .rwxMe{margin:8px 0}
+}
+@media print{
+.fullReportPage h2{margin:8px 0 5px}
+.fullReportPage .reportRow3,.fullReportPage .reportStats{margin:6px 0 8px}
+.fullReportPage .warnNote{margin:8px 0 0!important}
+.fullReportPage .comment{margin-top:8px}
+}
+/* Informe complet: lletra més gran (--rz, ajustable des de l'informe) dins de 2 fulles A4 */
+@media print{
+.fullReportPage{--rz:1.2;zoom:var(--rz)}
+.fullReportPage .comment textarea{min-height:96px}
+}
+}
+@media print{
+.fullReportPage .reportRa>div{padding:4px 8px}
+.fullReportPage .reportRa{gap:5px}
+.fullReportPage .comment{padding:8px 10px}
+.fullReportPage .comment textarea{min-height:38px}
+.fullReportPage footer{margin-top:6px}
+}
+@media print{
+.fullReportPage .reportBlock{margin-top:8px!important;margin-bottom:8px!important}
+.fullReportPage .reportRa{margin-bottom:6px}
+.fullReportPage p{margin-top:0}
+}
+@page fullReport{size:A4;margin:1.4cm}
+@media print{.fullReportPage{page:fullReport}}
+@media print{
+.fullReportPage .rwxMeBar{height:26px;margin-bottom:2px}
+.fullReportPage .rwxMe{margin:4px 0;gap:8px;grid-template-columns:70px 1fr 96px}
+.fullReportPage .rwxKeys{margin:2px 0 4px}
+.fullReportPage .rwxScore{font-size:16px}
+}
+@media print{.fullReportPage .rwxMe{break-inside:avoid}}
+@media print{.fullReportPage .reportBlock.tightPrint.rwxSplit{break-inside:auto}}
+.fullReportPage .reportRow3{grid-template-columns:repeat(3,1fr)}
+.rwxMe{grid-template-columns:90px 1fr 110px}
+@media print{.fullReportPage .rwxMe{grid-template-columns:90px 1fr 96px}}
+.reportUnits .reportBlock{margin:0!important}
+.reportUnits table{width:100%}
+@media print{.fullReportPage .reportUnits{gap:8px;margin-bottom:8px}.fullReportPage .reportUnits td,.fullReportPage .reportUnits th{padding:2px 5px}}
+@media print{.fullReportPage h2,.fullReportPage h3{break-after:avoid}}
+.fullReportPage .reportRow2{grid-template-columns:repeat(2,1fr)}
+/* «El meu RA»: la columna del mig mai no desborda (barra i descripció) i la nota de la dreta no es talla */
+.rwxMe{grid-template-columns:90px minmax(0,1fr) 110px}
+.rwxMe>div{min-width:0}
+.rwxMe .rwxScore{white-space:nowrap}
+@media print{.fullReportPage .rwxMe{grid-template-columns:90px minmax(0,1fr) 100px}}

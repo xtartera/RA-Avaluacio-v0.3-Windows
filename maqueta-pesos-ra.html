@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Com sumen les tasques a cada RA · maqueta</title>
+<style>
+  :root{--ink:#1c2a44;--muted:#64748b;--line:#e3e9f2;--bg:#f6f8fc;--card:#fff;
+    --t0:#14b8a6;--t1:#8b5cf6;--t2:#f59e0b;--t3:#3b82f6}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);line-height:1.45}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
+  .banner{background:#fff7e0;border:1px solid #f1d98a;color:#7a5a0e;border-radius:10px;padding:8px 14px;font-size:12.5px;margin-bottom:18px}
+  h1{font-size:30px;margin:0 0 4px;letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:0 0 26px;font-size:15px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 24px;margin-bottom:22px;box-shadow:0 2px 10px #1c2a440a}
+  h2{font-size:20px;margin:0 0 4px}
+  .lead{color:var(--muted);margin:0 0 16px;font-size:14px}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .step{border:1px solid var(--line);border-radius:14px;padding:16px;background:#fbfcfe}
+  .step .n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;font-weight:800;font-size:14px;margin-bottom:8px}
+  .step h3{margin:0 0 4px;font-size:16px}
+  .step p{margin:0 0 12px;font-size:13px;color:var(--muted)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin:6px 0 12px}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:5px;vertical-align:-1px}
+  .typebar{display:flex;height:34px;border-radius:10px;overflow:hidden;font-size:12px;font-weight:800;color:#fff}
+  .typebar div{display:grid;place-items:center;min-width:0}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;background:#eef2f9;color:#33486b}
+  .chip b{color:var(--ink)}
+  .ca{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px}
+  .ca span{width:15px;height:15px;border-radius:4px;background:#c7d2e6}
+  .rarow{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;margin-bottom:6px;font-size:12px}
+  .rarow b{font-size:13px}
+  /* mapa de calor */
+  table.heat{border-collapse:separate;border-spacing:3px;width:100%}
+  table.heat th{font-size:12.5px;padding:4px 6px;text-align:center;position:sticky;top:0;background:#fff}
+  table.heat th.l,table.heat td.l{text-align:left}
+  table.heat td{padding:0;height:30px;min-width:76px;text-align:center;font-size:12px;font-weight:700;border-radius:7px}
+  table.heat td.l{padding:0 8px;font-weight:600;font-size:12.5px;white-space:nowrap;background:transparent}
+  table.heat tr.unit td{height:auto;padding:10px 4px 2px;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:left}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+  .req{font-size:10.5px;font-weight:800;color:#a12f40;background:#fbe9ec;border-radius:6px;padding:1px 6px;margin-left:6px}
+  .heatnote{font-size:12.5px;color:var(--muted);margin-top:10px}
+  /* barres apilades */
+  .stack{display:grid;grid-template-columns:54px 1fr 70px;gap:10px;align-items:center;margin:10px 0}
+  .stack b{font-size:15px}
+  .bar{display:flex;height:38px;border-radius:10px;overflow:hidden;background:#eef2f9;border:1px solid var(--line)}
+  .bar div{border-right:1px solid #ffffffb0;min-width:1px;position:relative}
+  .bar div:hover{filter:brightness(1.12)}
+  .desc{font-size:11.5px;color:var(--muted)}
+  /* exemple projecte */
+  .ex{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:10px}
+  .exb{border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;background:#fbfcfe}
+  .exb .big{font-size:26px;font-weight:900;color:var(--t1)}
+  .exb .ras{font-weight:800;margin-bottom:4px}
+  .exb .m{font-size:11.5px;color:var(--muted)}
+  .vs{display:flex;align-items:center;gap:14px;background:#f1ecfe;border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:14px}
+  .vs .g{font-size:22px;font-weight:900;color:#6d3fd1}
+  /* el meu RA */
+  .me{display:grid;grid-template-columns:54px 1fr 92px;gap:10px;align-items:center;margin:14px 0}
+  .mebar{display:flex;height:54px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#f1f4f9}
+  .seg{position:relative;border-right:1px solid #fff;min-width:1px;background:repeating-linear-gradient(135deg,#eef1f6,#eef1f6 5px,#e3e8f0 5px,#e3e8f0 10px)}
+  .seg .fill{position:absolute;left:0;right:0;bottom:0}
+  .seg:hover{outline:2px solid var(--ink);outline-offset:-2px;z-index:2}
+  .score{font-size:20px;font-weight:900;text-align:right}
+  .score small{display:block;font-size:10.5px;color:var(--muted);font-weight:600}
+  .keys{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;margin:8px 0 2px}
+  .keys span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:16px;height:16px;border-radius:4px;display:inline-block}
+  @media (max-width:900px){.steps{grid-template-columns:1fr}.ex{grid-template-columns:repeat(2,1fr)}}
+  @media print{body{background:#fff}section{break-inside:avoid;box-shadow:none}.banner{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="banner"><b>MAQUETA.</b> Els pesos són els reals del teu mòdul; les notes de la secció 5 són d'un alumne d'exemple inventat. Passa el ratolí per sobre de les caselles i els blocs per veure'n el detall.</div>
+  <h1>Com sumen les tasques a la teva nota</h1>
+  <p class="sub" id="subtitle"></p>
+
+  <section>
+    <h2>1 · En tres passos</h2>
+    <p class="lead">Cada tasca no suma el mateix a tots els RA: depèn del tipus de tasca i de quins criteris d'avaluació (CA) treballa.</p>
+    <div class="steps" id="steps"></div>
+  </section>
+
+  <section>
+    <h2>2 · Mapa: quina tasca compta per a quin RA</h2>
+    <p class="lead">Com més fort el color, més pes té aquella tasca dins la nota d'aquell RA. Una casella buida vol dir que la tasca no hi compta.</p>
+    <div class="legend" id="heatlegend"></div>
+    <div style="overflow:auto"><table class="heat" id="heat"></table></div>
+    <p class="heatnote">Cada columna suma 100 %: és tot el que decideix la nota d'aquell RA.</p>
+  </section>
+
+  <section>
+    <h2>3 · Què decideix cada RA</h2>
+    <p class="lead">Cada barra és un RA sencer. Cada bloc és una tasca, pintada pel seu tipus; com més ample, més pesa.</p>
+    <div class="legend" id="typelegend"></div>
+    <div id="stacks"></div>
+  </section>
+
+  <section>
+    <h2>4 · Un exemple: un sol projecte, molts RA</h2>
+    <p class="lead">El Projecte 1 compta molt poc per a la nota del mòdul, però pot pesar molt dins d'un RA.</p>
+    <div class="vs" id="vs"></div>
+    <div class="ex" id="ex"></div>
+  </section>
+
+  <section>
+    <h2>5 · El meu RA: què porto i què em falta</h2>
+    <p class="lead">Exemple amb un alumne inventat. Cada bloc és una tasca: el color omple el que has aconseguit i el ratllat gris és el que encara no té nota.</p>
+    <div class="keys"><span><i class="sw" style="background:#22a06b"></i>Nota alta</span><span><i class="sw" style="background:#e0a31a"></i>Aprovat just</span><span><i class="sw" style="background:#d64558"></i>Per sota de 5</span><span><i class="sw" style="background:repeating-linear-gradient(135deg,#eef1f6,#eef1f6 4px,#dde3ec 4px,#dde3ec 8px)"></i>Encara sense nota</span></div>
+    <div id="me"></div>
+  </section>
+</div>
+
+<script>
+const D = {"module":"Sistemes Operatius en Xarxa","ras":[{"code":"RA1","description":"RA1 – Instal·la sistemes operatius en xarxa descrivint-ne les característiques i interpretant-ne la documentació tècnica.","criteria":9},{"code":"RA2","description":"RA2 - Gestiona usuaris i grups de sistemes operatius en xarxa, interpretant especificacions i aplicant eines del sistema.","criteria":9},{"code":"RA3","description":"RA3 - Realitza tasques de gestió sobre dominis identificant necessitats i aplicant eines d'administració de dominis.","criteria":8},{"code":"RA4","description":"RA4 - Gestiona els recursos compartits del sistema, interpretant especificacions i determinant nivells de seguretat.","criteria":7},{"code":"RA5","description":"RA5 - Realitza tasques de monitoratge i ús del sistema operatiu en xarxa, descrivint les eines utilitzades i identificant les principals incidències.","criteria":6},{"code":"RA6","description":"RA6 - Realitza tasques d'integració de sistemes operatius lliures i propietaris, descrivint els avantatges de compartir recursos i instal·lant programari específic.","criteria":9}],"types":[{"id":"type-d7182f86-afec-40ae-af6d-bbf2253c605f","name":"Speedrun","weight":0.2},{"id":"type-67cfe154-92ff-4743-a25e-cb38f7ea848b","name":"PR-Obert","weight":0.2},{"id":"type-a3421e99-8227-4068-bdca-b2ad6d7dd35a","name":"ExPràctic","weight":0.3},{"id":"type-da141e5b-d7c2-47a6-9725-a26714a9c211","name":"ExTeòric","weight":0.3}],"units":[{"name":"UT1","closes":["RA1"],"acts":[{"name":"Projecte 1","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0.24355596257827192,"RA2":0,"RA3":0,"RA4":0,"RA5":0.11656761330071494,"RA6":0},"ca":{"RA1":9,"RA2":0,"RA3":0,"RA4":0,"RA5":6,"RA6":0}},{"name":"Projecte 2","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0.02475093164309199,"RA2":0.012530233550191144,"RA3":0.024229081379416484,"RA4":0,"RA5":0,"RA6":0},"ca":{"RA1":5,"RA2":4,"RA3":7,"RA4":0,"RA5":0,"RA6":0}},{"name":"Projecte 3","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0.0740412619836569,"RA3":0.010878900701632919,"RA4":0.01696617324479155,"RA5":0.046385325000779576,"RA6":0},"ca":{"RA1":0,"RA2":7,"RA3":5,"RA4":5,"RA5":3,"RA6":0}},{"name":"Projecte 4","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0.019162738646385125,"RA3":0.05003886633929791,"RA4":0.005920540608163804,"RA5":0.00899314728602121,"RA6":0},"ca":{"RA1":0,"RA2":6,"RA3":5,"RA4":2,"RA5":2,"RA6":0}},{"name":"Projecte 5","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0.026080144396843703,"RA3":0,"RA4":0.01567170663794814,"RA5":0.013564575857449784,"RA6":0},"ca":{"RA1":0,"RA2":4,"RA3":0,"RA4":4,"RA5":3,"RA6":0}},{"name":"Projecte 7","type":"PR-Obert","required":false,"global":0.06666666666666667,"shares":{"RA1":0.11018847905792878,"RA2":0.12469312478271484,"RA3":0.09267353200065678,"RA4":0.09614164838715213,"RA5":0.06914699877784727,"RA6":0},"ca":{"RA1":8,"RA2":8,"RA3":7,"RA4":5,"RA5":5,"RA6":0}},{"name":"ExTeòric 1","type":"ExTeòric","required":true,"global":0.075,"shares":{"RA1":0.1577871892247114,"RA2":0.07988023888246853,"RA3":0.15446039379378004,"RA4":0,"RA5":0,"RA6":0},"ca":{"RA1":5,"RA2":4,"RA3":7,"RA4":0,"RA5":0,"RA6":0}},{"name":"ExPràctic 1","type":"ExPràctic","required":true,"global":0.075,"shares":{"RA1":0.12527166316027394,"RA2":0.10421103331632289,"RA3":0.07567716222600132,"RA4":0.025891617477172835,"RA5":0.03864999526706653,"RA6":0},"ca":{"RA1":5,"RA2":6,"RA3":4,"RA4":2,"RA5":2,"RA6":0}}]},{"name":"UT2","closes":["RA2","RA3"],"acts":[{"name":"Projecte 21","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0.10860221469818686,"RA2":0,"RA3":0,"RA4":0,"RA5":0.061590926499254996,"RA6":0},"ca":{"RA1":8,"RA2":0,"RA3":0,"RA4":0,"RA5":4,"RA6":0}},{"name":"Projecte 22","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0.01685631089858087,"RA3":0.031057991913894786,"RA4":0,"RA5":0,"RA6":0},"ca":{"RA1":0,"RA2":5,"RA3":6,"RA4":0,"RA5":0,"RA6":0}},{"name":"Projecte 23","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0.08490463987338476,"RA3":0.016416652684493337,"RA4":0,"RA5":0,"RA6":0},"ca":{"RA1":0,"RA2":6,"RA3":5,"RA4":0,"RA5":0,"RA6":0}},{"name":"Projecte 24","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0.03505711667241762,"RA3":0.00982118704177993,"RA4":0,"RA5":0.00606274435561828,"RA6":0},"ca":{"RA1":0,"RA2":5,"RA3":4,"RA4":0,"RA5":2,"RA6":0}},{"name":"Projecte 25","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0.01274021394257014,"RA3":0.010424905016263704,"RA4":0,"RA5":0.00606274435561828,"RA6":0.0314446663774494},"ca":{"RA1":0,"RA2":3,"RA3":4,"RA4":0,"RA5":2,"RA6":7}},{"name":"Projecte 26","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0.016346828755501634,"RA3":0.00386917036572437,"RA4":0.01696617324479155,"RA5":0.017759074169595154,"RA6":0.007433185493422166},"ca":{"RA1":0,"RA2":6,"RA3":4,"RA4":5,"RA5":3,"RA6":7}},{"name":"Projecte 27","type":"PR-Obert","required":false,"global":0.06666666666666667,"shares":{"RA1":0.08736821425310251,"RA2":0.05926232487118711,"RA3":0.09267353200065678,"RA4":0.019228329677430423,"RA5":0.01869430929289974,"RA6":0.03825202703401588},"ca":{"RA1":4,"RA2":7,"RA3":7,"RA4":5,"RA5":3,"RA6":7}},{"name":"ExTeòric 20","type":"ExTeòric","required":true,"global":0.075,"shares":{"RA1":0.044186104349692265,"RA2":0.1357978040335284,"RA3":0.10425772350073888,"RA4":0.016175398136115928,"RA5":0,"RA6":0.034935249611370095},"ca":{"RA1":4,"RA2":7,"RA3":7,"RA4":4,"RA5":0,"RA6":6}},{"name":"ExPràctic 20","type":"ExPràctic","required":true,"global":0.075,"shares":{"RA1":0.09828924103474032,"RA2":0.08484623810152676,"RA3":0.0841065945525116,"RA4":0.021631870887109227,"RA5":0,"RA6":0.08760482136676098},"ca":{"RA1":4,"RA2":7,"RA3":7,"RA4":5,"RA5":0,"RA6":6}}]},{"name":"UT3","closes":["RA4","RA5"],"acts":[{"name":"Projecte 31","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0,"RA3":0,"RA4":0.045554945378474626,"RA5":0.06618972848260242,"RA6":0.012100546073728744},"ca":{"RA1":0,"RA2":0,"RA3":0,"RA4":5,"RA5":4,"RA6":6}},{"name":"Projecte 32","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0,"RA3":0,"RA4":0.03181887887445199,"RA5":0.06618972848260242,"RA6":0.013587479644971449},"ca":{"RA1":0,"RA2":0,"RA3":0,"RA4":5,"RA5":4,"RA6":6}},{"name":"Projecte 33","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0,"RA3":0,"RA4":0.09423066111897015,"RA5":0.013564575857449784,"RA6":0.018452138859530915},"ca":{"RA1":0,"RA2":0,"RA3":0,"RA4":4,"RA5":3,"RA6":6}},{"name":"Projecte 34","type":"PR-Obert","required":false,"global":0.06666666666666667,"shares":{"RA1":0,"RA2":0.028196509592563708,"RA3":0,"RA4":0.21489330700950038,"RA5":0.11724037023332248,"RA6":0.2077826152872969},"ca":{"RA1":0,"RA2":5,"RA3":0,"RA4":6,"RA5":4,"RA6":9}},{"name":"ExTeòric 30","type":"ExTeòric","required":true,"global":0.075,"shares":{"RA1":0,"RA2":0,"RA3":0,"RA4":0.08087699068057963,"RA5":0.06779285240992368,"RA6":0.1406024483108797},"ca":{"RA1":0,"RA2":0,"RA3":0,"RA4":4,"RA5":3,"RA6":6}},{"name":"ExPràctic 30","type":"ExPràctic","required":true,"global":0.075,"shares":{"RA1":0,"RA2":0,"RA3":0,"RA4":0.16346155953458813,"RA5":0.06779285240992368,"RA6":0.10686232332742182},"ca":{"RA1":0,"RA2":0,"RA3":0,"RA4":5,"RA5":3,"RA6":7}}]},{"name":"UT4","closes":["RA6"],"acts":[{"name":"Projecte 41","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0.05100163636208024,"RA3":0.010528387014122278,"RA4":0.008636243264687257,"RA5":0.006148956254589864,"RA6":0.015332869306051978},"ca":{"RA1":0,"RA2":4,"RA3":5,"RA4":5,"RA5":4,"RA6":7}},{"name":"Projecte 42","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0.01063879640091322,"RA3":0.014304412339777979,"RA4":0.005320986936857513,"RA5":0.0032989957575705426,"RA6":0.015332869306051978},"ca":{"RA1":0,"RA2":4,"RA3":6,"RA4":5,"RA5":3,"RA6":7}},{"name":"Projecte 43","type":"Speedrun","required":false,"global":0.011764705882352941,"shares":{"RA1":0,"RA2":0.023752804937162482,"RA3":0.04933427595726816,"RA4":0.00339323464895831,"RA5":0.017759074169595154,"RA6":0.015332869306051978},"ca":{"RA1":0,"RA2":5,"RA3":6,"RA4":5,"RA5":3,"RA6":7}},{"name":"ExTeòric 40","type":"ExTeòric","required":true,"global":0.075,"shares":{"RA1":0,"RA2":0,"RA3":0.07405660250589825,"RA4":0.062163683439875134,"RA5":0.06779285240992368,"RA6":0.1072262433427536},"ca":{"RA1":0,"RA2":0,"RA3":5,"RA4":4,"RA5":3,"RA6":7}},{"name":"ExPràctic 40","type":"ExPràctic","required":true,"global":0.075,"shares":{"RA1":0,"RA2":0,"RA3":0.0911906286660846,"RA4":0.05505605081238124,"RA5":0.10275255936963062,"RA6":0.14771764735224244},"ca":{"RA1":0,"RA2":0,"RA3":6,"RA4":5,"RA5":3,"RA6":8}}]}]};
+const TC = ["var(--t0)","var(--t1)","var(--t2)","var(--t3)"];
+const typeColor = n => TC[Math.max(0, D.types.findIndex(t => t.name === n))] || "#94a3b8";
+const pct = (v, d = 1) => (v * 100).toLocaleString("ca", {minimumFractionDigits: d, maximumFractionDigits: d}) + " %";
+const num = v => v.toLocaleString("ca", {minimumFractionDigits: 1, maximumFractionDigits: 1});
+const acts = D.units.flatMap(u => u.acts.map(a => ({...a, unit: u.name, closes: u.closes})));
+const el = id => document.getElementById(id);
+const html = (id, s) => { el(id).innerHTML = s; };
+
+el("subtitle").textContent = D.module + " · quatre tipus de tasca, " + acts.length + " tasques i " + D.ras.length + " resultats d'aprenentatge";
+
+// llegenda de tipus
+const typeLegend = D.types.map(t => `<span><i style="background:${typeColor(t.name)}"></i>${t.name}</span>`).join("");
+html("typelegend", typeLegend);
+
+// 1 · Tres passos
+const p1 = acts.find(a => a.name === "Projecte 1") || acts[2];
+html("steps", `
+  <div class="step"><div class="n">1</div><h3>Cada tipus de tasca té un pes</h3><p>El pes del tipus es reparteix entre totes les tasques d'aquell tipus.</p>
+    <div class="typebar">${D.types.map(t => `<div style="flex:${t.weight};background:${typeColor(t.name)}" title="${t.name}: ${pct(t.weight, 0)}">${pct(t.weight, 0)}</div>`).join("")}</div>
+    <div class="legend" style="margin-top:8px">${typeLegend}</div></div>
+  <div class="step"><div class="n">2</div><h3>Cada tasca treballa uns criteris (CA)</h3><p>Una tasca com el <b>${p1.name}</b> pot treballar criteris de molts RA alhora.</p>
+    <div class="chips">${D.ras.map(r => `<span class="chip">${r.code}: <b>${p1.ca[r.code]}</b> de ${r.criteria} CA</span>`).join("")}</div></div>
+  <div class="step"><div class="n">3</div><h3>Els criteris formen cada RA</h3><p>La nota d'un RA és la mitjana dels seus criteris, i cada criteri la forma de les tasques que el treballen.</p>
+    ${D.ras.map(r => `<div class="rarow"><b>${r.code}</b><div class="ca">${Array.from({length: r.criteria}, () => "<span></span>").join("")}</div></div>`).join("")}</div>`);
+
+// 2 · Mapa de calor
+const max = Math.max(...acts.flatMap(a => D.ras.map(r => a.shares[r.code])));
+const shade = v => { if (!v) return "#f3f6fb"; const t = Math.min(1, v / max); return `rgba(37,99,235,${0.12 + 0.78 * t})`; };
+const ink = v => v / max > 0.55 ? "#fff" : "#1c2a44";
+html("heatlegend", `<span>Pes dins l'RA:</span>` + [0.1, 0.35, 0.6, 0.85, 1].map(t => `<span><i style="background:rgba(37,99,235,${0.12 + 0.78 * t})"></i>${pct(max * t, 0)}</span>`).join(""));
+let heat = `<tr><th class="l">Tasca</th>${D.ras.map(r => `<th title="${r.description}">${r.code}</th>`).join("")}</tr>`;
+for (const u of D.units) {
+  heat += `<tr class="unit"><td colspan="${D.ras.length + 1}">${u.name} · tanca ${u.closes.join(", ") || "—"}</td></tr>`;
+  for (const a of u.acts) heat += `<tr><td class="l"><span class="dot" style="background:${typeColor(a.type)}"></span>${a.name}${a.required ? '<span class="req">OBLIGATÒRIA</span>' : ""}</td>${D.ras.map(r => { const v = a.shares[r.code]; return `<td style="background:${shade(v)};color:${ink(v)}" title="${a.name} → ${r.code}: ${v ? pct(v) : "no hi compta"} (${a.ca[r.code]} CA)">${v ? pct(v, 0) : ""}</td>`; }).join("")}</tr>`;
+}
+html("heat", heat);
+
+// 3 · Barres apilades per RA
+html("stacks", D.ras.map(r => {
+  const parts = acts.filter(a => a.shares[r.code] > 0).sort((a, b) => b.shares[r.code] - a.shares[r.code]);
+  return `<div class="stack"><div><b>${r.code}</b></div><div><div class="bar">${parts.map(a => `<div style="flex:${a.shares[r.code]};background:${typeColor(a.type)}" title="${a.name} (${a.unit}) · ${pct(a.shares[r.code])} del ${r.code}"></div>`).join("")}</div><div class="desc">${r.description.slice(0, 120)}</div></div><div class="desc">${parts.length} tasques</div></div>`;
+}).join(""));
+
+// 4 · Exemple del projecte
+html("vs", `<div><b>${p1.name}</b> · pes sobre el mòdul</div><div class="g">${pct(p1.global)}</div><div>… però dins d'un RA pot arribar a pesar</div><div class="g">${pct(Math.max(...D.ras.map(r => p1.shares[r.code])), 0)}</div>`);
+html("ex", D.ras.map(r => `<div class="exb"><div class="ras">${r.code}</div><div class="big">${p1.shares[r.code] ? pct(p1.shares[r.code], 0) : "—"}</div><div class="m">${p1.ca[r.code]} de ${r.criteria} criteris</div></div>`).join(""));
+
+// 5 · El meu RA (alumne d'exemple, notes inventades)
+const sample = {"Projecte 1": 10, "Projecte 2": 6, "Projecte 3": 0, "Projecte 4": 5, "Projecte 5": 8, "Projecte 7": 7, "ExTeòric 1": 8.5, "ExPràctic 1": 6};
+const col = g => g >= 7 ? "#22a06b" : g >= 5 ? "#e0a31a" : "#d64558";
+html("me", D.ras.map(r => {
+  const parts = acts.filter(a => a.shares[r.code] > 0);
+  let earned = 0;
+  const segs = parts.map(a => {
+    const g = sample[a.name], s = a.shares[r.code];
+    if (g === undefined) return `<div class="seg" style="flex:${s}" title="${a.name} · ${pct(s)} del ${r.code} · encara sense nota"></div>`;
+    earned += s * g;
+    return `<div class="seg" style="flex:${s}" title="${a.name} · ${pct(s)} del ${r.code} · nota ${num(g)}"><div class="fill" style="height:${g * 10}%;background:${col(g)}"></div></div>`;
+  }).join("");
+  const missing = parts.filter(a => sample[a.name] === undefined).reduce((s, a) => s + a.shares[r.code], 0);
+  return `<div class="me"><div><b>${r.code}</b></div><div><div class="mebar">${segs}</div><div class="desc" style="margin-top:3px">${pct(1 - missing, 0)} del ${r.code} ja té nota · queda un ${pct(missing, 0)} per fer</div></div><div class="score">${earned.toLocaleString("ca", {minimumFractionDigits: 2, maximumFractionDigits: 2})}<small>nota de moment</small></div></div>`;
+}).join(""));
+</script>
+</body>
+</html>

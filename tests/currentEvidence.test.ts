@@ -280,3 +280,30 @@ test("suspens per nota amb obligatòries superades: el motiu esmenta les activit
   const sum = summarizeStudent(f.course, f.group, f.id);
   assert.match(sum.ras[0].causes[0], /activitats sense lliurar que hi compten: A1, A2/);
 });
+
+test("aportació de cada tasca a l'RA: la suma coincideix amb la nota acumulada de la graella", async () => {
+  const {raContributions} = await import("../src/model/raContributions.ts");
+  const {calculateStudent} = await import("../src/model/calculation.ts");
+  const f = fixture([9, 4, 7, 0]);
+  const cfg = f.course.configuration;
+  const [ra] = raContributions(f.course, f.group, f.id);
+  const calc = calculateStudent(f.course, f.group, f.id).learningResults.get(ra.raId)!;
+  assert.ok(Math.abs(ra.earned - calc.accumulated) < 1e-9, `${ra.earned} vs ${calc.accumulated}`);
+  assert.ok(Math.abs(ra.parts.reduce((s, p) => s + p.share, 0) - 1) < 1e-9);
+  assert.equal(ra.parts.find(p => p.name === "A2")!.grade, 4);
+  assert.equal(ra.parts.find(p => p.name === "A5")!.grade, null); // pendent
+  assert.ok(ra.graded < 1 && ra.graded > 0.7);
+  void cfg;
+});
+
+test("resum: un RA està «avaluat completament» quan la seva UT està tota corregida", async () => {
+  const {summarizeStudent} = await import("../src/model/studentSummary.ts");
+  const f = fixture([8, 8, 8, 8]), cfg = f.course.configuration;
+  cfg.workUnits[0].activityIds = cfg.activities.slice(0, 4).map(a => a.id);
+  const done = summarizeStudent(f.course, f.group, f.id).ras[0];
+  assert.equal(done.evaluated, true);
+  assert.deepEqual(done.units, [cfg.workUnits[0].name]);
+  // Si a la UT hi afegim una activitat sense corregir (la 5a), ja no està avaluat completament.
+  cfg.workUnits[0].activityIds = cfg.activities.map(a => a.id);
+  assert.equal(summarizeStudent(f.course, f.group, f.id).ras[0].evaluated, false);
+});

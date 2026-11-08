@@ -38,6 +38,8 @@ export interface UnitResult {
   /** Com es valoren les obligatòries (cadascuna o per la mitjana) i el resultat del conjunt. */
   requiredSummary: UnitRequiredSummary;
   totalActivities: number;
+  /** Totes les activitats de la UT estan corregides. */
+  complete: boolean;
   corrected: number;
   delivered: number;
   /** Activitats corregides de la UT amb 0, en blanc o no presentades. */
@@ -101,7 +103,7 @@ export function analyzeUnitResults(course: AcademicCourse, group: Group, enrollm
     else { status = "en-curs"; reason = ras.find(a => a.outcome === "en-curs")?.reason ?? missing; }
 
     const notes = ras.filter(a => a.outcome !== "sense-dades").map(a => a.accumulated);
-    return {unitId: unit.id, unitName: unit.name, status, reason, required, requiredSummary: {mode: rs.mode, average: rs.average, passed: rs.passed}, totalActivities: acts.length, corrected: evaluated.length, delivered: ev?.delivered ?? 0, notDelivered: ev?.activities.filter(a => !a.delivered).map(a => a.name) ?? [], nota: notes.length ? notes.reduce((s, n) => s + n, 0) / notes.length : null, average: ev?.average ?? null, ras};
+    return {unitId: unit.id, unitName: unit.name, status, reason, required, requiredSummary: {mode: rs.mode, average: rs.average, passed: rs.passed}, totalActivities: acts.length, complete: acts.length > 0 && evaluated.length === acts.length, corrected: evaluated.length, delivered: ev?.delivered ?? 0, notDelivered: ev?.activities.filter(a => !a.delivered).map(a => a.name) ?? [], nota: notes.length ? notes.reduce((s, n) => s + n, 0) / notes.length : null, average: ev?.average ?? null, ras};
   });
 }
 
