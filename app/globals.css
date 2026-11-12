@@ -400,3 +400,4 @@ table.rwxHeat{border-collapse:separate;border-spacing:3px;width:100%}
 .rwxMeBar .seg.nd{background:#b7c0cf}
 .rwxKeys i.nd{background:#b7c0cf}
 @media print{.rwxMeBar .seg.nd,.rwxKeys i.nd{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media print{.fullReportPage footer{break-before:avoid}}
