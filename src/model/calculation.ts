@@ -15,7 +15,18 @@ export function activityIsEvaluated(group: Group, activityId: string): boolean {
   return completed >= 5;
 }
 
+/** Pes de cada activitat al mòdul en el mode de pesos explícits: Σ (pes de l'RA al mòdul × part de l'activitat dins l'RA). */
+function explicitActivityWeights(course: AcademicCourse, onlyActive: boolean): Map<string, number> {
+  const {activities, learningResults} = course.configuration;
+  const raWeight = new Map(learningResults.filter(r => r.status === "active").map(r => [r.id, r.moduleWeight ?? 0]));
+  const result = new Map<string, number>();
+  for (const activity of activities.filter(a => a.session === "ordinaria" && (!onlyActive || a.status === "active")))
+    result.set(activity.id, (activity.raShares ?? []).reduce((sum, s) => sum + (raWeight.get(s.raId) ?? 0) * s.share, 0));
+  return result;
+}
+
 export function activityWeights(course: AcademicCourse): Map<string, number> {
+  if (course.configuration.weightMode === "explicit") return explicitActivityWeights(course, true);
   const {activities, activityTypes} = course.configuration;
   const result = new Map<string, number>();
   for (const type of activityTypes.filter(item => item.status === "active")) {
@@ -26,6 +37,7 @@ export function activityWeights(course: AcademicCourse): Map<string, number> {
 }
 
 export function theoreticalActivityWeights(course: AcademicCourse): Map<string, number> {
+  if (course.configuration.weightMode === "explicit") return explicitActivityWeights(course, false);
   const {activities, activityTypes} = course.configuration;
   const result = new Map<string, number>();
   for (const type of activityTypes.filter(item => item.status === "active")) {

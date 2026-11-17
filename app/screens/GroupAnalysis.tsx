@@ -43,7 +43,7 @@ export function GroupAnalysis({course, group, goTo}: {course: AcademicCourse; gr
    {hasConvocatoria && effectivePerspective !== "ordinaria" && <p className="muted" style={{margin: "-8px 0 14px", fontSize: 11}}>L’evolució, la distribució de l’alumnat, les activitats destacades i la comparació entre grups més avall segueixen corresponent a la <b>convocatòria ordinària</b>.</p>}
 
    {effectivePerspective === "ordinaria" && <div className="kpiRow kpi8">
-    <KpiCard tone="blue" icon={<Gauge size={14}/>} label="Nota projectada" value={`${own.average.toFixed(2)} / 10`} sub={own.count ? `${own.count} alumnes actius` : "Sense alumnat actiu"} trend={hasEvolution && Math.abs(trendDelta) >= .01 ? {icon: trendDelta > 0 ? TrendingUp : TrendingDown, tone: trendDelta > 0 ? "green" : "red", text: `${trendDelta > 0 ? "+" : ""}${trendDelta.toFixed(2)} respecte al 1r trimestre`} : undefined} hint="Mitjana ponderada de tots els RA. És una projecció global; no implica per si sola l'aprovat del mòdul."/>
+    <KpiCard tone="blue" icon={<Gauge size={14}/>} label="Nota projectada" value={`${own.average.toFixed(2)} / 10`} sub={own.count ? `${own.count} alumnes actius` : "Sense alumnat actiu"} trend={hasEvolution && Math.abs(trendDelta) >= .01 ? {icon: trendDelta > 0 ? TrendingUp : TrendingDown, tone: trendDelta > 0 ? "green" : "red", text: `${trendDelta > 0 ? "+" : ""}${trendDelta.toFixed(2)} respecte a la UT 1`} : undefined} hint="Mitjana ponderada de tots els RA. És una projecció global; no implica per si sola l'aprovat del mòdul."/>
     <KpiCard tone="green" icon={<ThumbsUp size={14}/>} label="Aprovats" value={`${own.passedPct.toFixed(0)}%`} sub={`${own.passed} de ${own.withEvidenceCount} amb RA avaluats`} hint="Alumnes amb tots i cadascun dels RA avaluats assolits (nota ≥5 i cap activitat obligatòria suspesa), segons normativa. No es basa en la mitjana global." onExpand={() => setNameModal({title: "Aprovats (tots els RA assolits)", names: own.passedNames})}/>
     <KpiCard tone="amber" icon={<AlertCircle size={14}/>} label="Zona límit" value={`${own.borderlinePct.toFixed(0)}%`} sub={`${own.borderline} de ${own.withEvidenceCount} amb RA avaluats`} hint="Alumnes amb exactament 1 RA no assolit (la resta assolits). No mira la mitjana global, sinó el nombre de RA suspesos." onExpand={() => setNameModal({title: "Zona límit (1 RA no assolit)", names: own.borderlineNames})}/>
     <KpiCard tone="red" icon={<AlertTriangle size={14}/>} label="En risc" value={`${own.riskPct.toFixed(0)}%`} sub={`${own.risk} de ${own.withEvidenceCount} amb RA avaluats`} hint="Alumnes amb 2 o més RA no assolits. No mira la mitjana global, sinó el nombre de RA suspesos." onExpand={() => setNameModal({title: "En risc (2 o més RA no assolits)", names: own.riskNames})}/>
@@ -81,7 +81,7 @@ export function GroupAnalysis({course, group, goTo}: {course: AcademicCourse; gr
       <EvoBar tone="slate" label="Es mantenen" count={stable} total={own.count}/>
       <EvoBar tone="red" label="Empitjoren" count={worsened} total={own.count}/>
      </div>
-     <p className="muted" style={{marginTop: 10, fontSize: 11}}>Respecte a la nota projectada al final del 1r trimestre.</p>
+     <p className="muted" style={{marginTop: 10, fontSize: 11}}>Respecte a la nota projectada al final de la UT 1.</p>
     </> : <p className="muted">Sense alumnat actiu.</p>}</article>
    </div>
 

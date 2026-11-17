@@ -90,11 +90,11 @@ function StudentGradesPrintReport({course,group,enrollmentId,close}:{course:Acad
   <p className="muted" style={{margin:"14px 0 0",fontSize:11}}>La nota projectada pondera cada activitat pel pes del seu tipus, dels CA que hi treballa i dels RA corresponents (secció «Com es calcula»); no és la mitjana simple de les notes d’activitat.</p>
 
   <h2>Qualificacions per activitat</h2>
-  <table><thead><tr><th>Activitat</th><th>Tipus</th><th>Trimestre</th><th>Nota base</th><th>Bonificacions</th><th>Total</th><th>Estat</th></tr></thead>
+  <table><thead><tr><th>Activitat</th><th>Tipus</th><th>UT</th><th>Nota base</th><th>Bonificacions</th><th>Total</th><th>Estat</th></tr></thead>
    <tbody>{rows.map(({activity,type,grade,total})=><tr key={activity.id}>
     <td><strong>{activity.name}</strong></td>
     <td>{type?.name??"—"}</td>
-    <td>{termOrdinal(activity.term)}</td>
+    <td>UT {activity.term}</td>
     <td>{grade?.status==="graded"&&grade.baseValue!==null?grade.baseValue.toFixed(2):"—"}</td>
     <td>{grade?.bonuses.length?grade.bonuses.map(b=>`+${b.value} (${b.reason})`).join(" · "):"—"}</td>
     <td><strong>{total!==null?total.toFixed(2):"—"}</strong></td>

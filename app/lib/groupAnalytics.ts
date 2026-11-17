@@ -205,7 +205,7 @@ export function analyzeGroup(course: AcademicCourse, group: Group, compareGroupI
  const stable = hasEvolution ? own.count - improved - worsened : 0;
  const trendPoints = [
   {label: "Inici", value: 0},
-  ...termCheckpoints.map(c => ({label: `${termOrdinal(c.term)} trimestre`, value: c.summary.average})),
+  ...termCheckpoints.map(c => ({label: `UT ${c.term}`, value: c.summary.average})),
   {label: "Actual", value: own.average},
  ];
 
@@ -240,7 +240,7 @@ export function analyzeGroup(course: AcademicCourse, group: Group, compareGroupI
   if (own.riskPct > 15) diagnosis.push({tone: "red", icon: AlertTriangle, text: `El ${own.riskPct.toFixed(0)}% de l'alumnat té 2 o més RA no assolits; cal seguiment prioritari.`});
   else if (own.riskPct > 0) diagnosis.push({tone: "amber", icon: AlertTriangle, text: `Un ${own.riskPct.toFixed(0)}% de l'alumnat té 2 o més RA no assolits.`});
   else diagnosis.push({tone: "green", icon: ThumbsUp, text: "Cap alumne amb 2 o més RA no assolits amb les dades actuals."});
-  if (Math.abs(trendDelta) >= .1) diagnosis.push({tone: trendDelta > 0 ? "green" : "red", icon: trendDelta > 0 ? TrendingUp : TrendingDown, text: `El grup mostra una evolució ${trendDelta > 0 ? "positiva" : "negativa"} (${trendDelta > 0 ? "+" : ""}${trendDelta.toFixed(2)}) respecte al 1r trimestre.`});
+  if (Math.abs(trendDelta) >= .1) diagnosis.push({tone: trendDelta > 0 ? "green" : "red", icon: trendDelta > 0 ? TrendingUp : TrendingDown, text: `El grup mostra una evolució ${trendDelta > 0 ? "positiva" : "negativa"} (${trendDelta > 0 ? "+" : ""}${trendDelta.toFixed(2)}) respecte a la UT 1.`});
   if (weakestRa) diagnosis.push({tone: weakestRa.achievementPct! < 60 ? "red" : "amber", icon: AlertCircle, text: `${weakestRa.ra.code} és el resultat amb menor assoliment (${weakestRa.achievementPct!.toFixed(0)}%).`});
   if (own.delivery < 80) diagnosis.push({tone: "amber", icon: AlertTriangle, text: `La taxa de lliurament és del ${own.delivery.toFixed(0)}%; encara hi ha lliuraments pendents.`});
   if (own.excellencePct >= 20) diagnosis.push({tone: "green", icon: Sparkles, text: `Un ${own.excellencePct.toFixed(0)}% de l'alumnat assoleix nivell d'excel·lència (≥8).`});

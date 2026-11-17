@@ -11,7 +11,7 @@ export function GroupReport({course, group, close, compareGroupId}: {course: Aca
 
  return createPortal(<div className="modal"><div className="report groupReport">
   <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={() => window.print()}><Printer/>Imprimeix</button></div><ReportLogo/>
-
+  <h2 style={{textAlign: "center", fontSize: 22, margin: "2px 0 10px", letterSpacing: ".01em"}}>{course.configuration.moduleName}</h2>
   <div className="reportHead"><Users/><div><small>INFORME D’ANÀLISI DEL GRUP</small><h1>Grup {group.code}</h1><p>{course.configuration.level} · {course.configuration.moduleName} · {course.academicYear}</p></div><div className="bigScore"><span>NOTA PROJECTADA</span><strong>{own.average.toFixed(2)}</strong><em>{own.count} alumnes actius · {own.coverage.toFixed(1)}% avaluat</em></div></div>
 
   <div className="reportStats cols6">

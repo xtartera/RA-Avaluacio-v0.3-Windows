@@ -9,6 +9,8 @@ export interface LearningResult {
   description: string;
   order: number;
   status: EntityStatus;
+  /** Mode de pesos explícits: pes de l'RA al mòdul (0..1). Ignorat en el mode per tipus. */
+  moduleWeight?: number;
 }
 
 export interface AssessmentCriterion {
@@ -40,6 +42,8 @@ export interface Activity {
   status: EntityStatus;
   session: Session;
   recoversRaIds: Id[];
+  /** Mode de pesos explícits: part de cada RA que representa l'activitat (0..1; les d'un mateix RA sumen 1). Ignorat en el mode per tipus. */
+  raShares?: {raId: Id; share: number}[];
 }
 
 export interface ActivityCriterionLink {
@@ -59,6 +63,7 @@ export interface WorkUnit {
   status: EntityStatus;
 }
 
+export type WeightMode = "types" | "explicit";
 export type RaAveraging = "simple" | "weighted";
 export type CicleNivell = "Grau mitjà" | "Grau superior";
 
@@ -77,6 +82,8 @@ export interface ModuleConfiguration {
   links: ActivityCriterionLink[];
   workUnits: WorkUnit[];
   raAveraging: RaAveraging;
+  /** «types»: el pes d'una activitat surt del pes del seu tipus. «explicit»: el pes de l'RA al mòdul i el % de cada activitat dins l'RA s'escriuen directament. */
+  weightMode: WeightMode;
   roundingThreshold: number;
   requiredActivityMinGrade: number;
   /** Si és cert, les activitats obligatòries d'una UT es valoren per la seva mitjana (≥ nota mínima) en lloc de cadascuna per separat. */
@@ -288,7 +295,7 @@ export function emptyConfiguration(): ModuleConfiguration {
   return {
     moduleName: "Sistemes Operatius en Xarxa", abbreviation: "SOX", level: "2n SMX",
     cicle: "SMX", cicleNivell: "Grau mitjà", curs: "2n", termCount: 2,
-    learningResults: [], criteria: [], activityTypes: [], activities: [], links: [], workUnits: [], raAveraging: "simple", roundingThreshold: .75, requiredActivityMinGrade: 5, requiredByAverage: false, riskThreshold: 4, minRaCoverage: 25,
+    learningResults: [], criteria: [], activityTypes: [], activities: [], links: [], workUnits: [], raAveraging: "simple", weightMode: "types", roundingThreshold: .75, requiredActivityMinGrade: 5, requiredByAverage: false, riskThreshold: 4, minRaCoverage: 25,
   };
 }
 
@@ -296,6 +303,7 @@ export function migrateDatabase(data: AppDatabase): AppDatabase {
   for (const course of data.courses) {
     if (!course.configuration.workUnits) course.configuration.workUnits = [];
     if (!course.configuration.raAveraging) course.configuration.raAveraging = "simple";
+    if (!course.configuration.weightMode) course.configuration.weightMode = "types";
     if (course.configuration.roundingThreshold === undefined) course.configuration.roundingThreshold = .75;
     if (course.configuration.requiredActivityMinGrade === undefined) course.configuration.requiredActivityMinGrade = 5;
     if (course.configuration.requiredByAverage === undefined) course.configuration.requiredByAverage = false;

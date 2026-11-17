@@ -87,12 +87,12 @@ export function analyzeStudent(course: AcademicCourse, group: Group, enrollmentI
  });
  const trendPoints = [
   {label: "Inici", value: 0},
-  ...termCheckpoints.map(c => ({label: `${termOrdinal(c.term)} trimestre`, value: c.studentScore})),
+  ...termCheckpoints.map(c => ({label: `UT ${c.term}`, value: c.studentScore})),
   {label: "Actual", value: calc.globalScore},
  ];
  const groupTrendPoints = [
   {label: "Inici", value: 0},
-  ...termCheckpoints.map(c => ({label: `${termOrdinal(c.term)} trimestre`, value: c.groupAvg})),
+  ...termCheckpoints.map(c => ({label: `UT ${c.term}`, value: c.groupAvg})),
   {label: "Actual", value: groupAverage},
  ];
 
@@ -166,7 +166,7 @@ const raRows: RaAnalysisRow[] = ras.map(ra => {
   diagnosis.push({tone: "blue", icon: Info, text: "Encara no hi ha evidències suficients per a aquest alumne."});
  } else {
   diagnosis.push({tone: "blue", icon: Info, text: `La cobertura avaluada és del ${calc.globalCoverage.toFixed(0)}%; les dades ${calc.globalCoverage < 100 ? "encara són provisionals" : "són completes"}.`});
-  if (Math.abs(trendDelta) >= .1) diagnosis.push({tone: trendDelta > 0 ? "green" : "red", icon: trendDelta > 0 ? TrendingUp : TrendingDown, text: `La nota projectada ha ${trendDelta > 0 ? "augmentat" : "disminuït"} ${trendDelta > 0 ? "+" : ""}${trendDelta.toFixed(2)} punts respecte al 1r trimestre.`});
+  if (Math.abs(trendDelta) >= .1) diagnosis.push({tone: trendDelta > 0 ? "green" : "red", icon: trendDelta > 0 ? TrendingUp : TrendingDown, text: `La nota projectada ha ${trendDelta > 0 ? "augmentat" : "disminuït"} ${trendDelta > 0 ? "+" : ""}${trendDelta.toFixed(2)} punts respecte a la UT 1.`});
   const belowFive = riskRas.filter(r => r.score! < 5);
   const blockedPositive = riskRas.filter(r => r.score! >= 5);
   if (belowFive.length) diagnosis.push({tone: belowFive.length > 1 ? "red" : "amber", icon: AlertTriangle, text: `${belowFive.map(r => r.ra.code).join(", ")}: nota provisional per sota de 5.`});
@@ -184,7 +184,7 @@ const raRows: RaAnalysisRow[] = ras.map(ra => {
   for (const r of riskRas.slice(0, 3)) if (improve.length < 5) improve.push(`${r.ra.code} no assolit.`);
   if (deliveryPct < 80 && improve.length < 5) improve.push(`Lliuraments per sota del desitjable (${deliveryPct.toFixed(0)}% de les activitats corregides).`);
   if (calc.globalCoverage < 50 && improve.length < 5) improve.push(`Cobertura encara parcial (${calc.globalCoverage.toFixed(0)}%); la projecció és provisional.`);
-  if (trendDelta < -.1 && improve.length < 5) improve.push(`Tendència negativa des del 1r trimestre (${trendDelta.toFixed(2)}).`);
+  if (trendDelta < -.1 && improve.length < 5) improve.push(`Tendència negativa des de la UT 1 (${trendDelta.toFixed(2)}).`);
 
   if (riskRas.length) actions.push(`Fer seguiment de la propera evidència de ${riskRas.map(r => r.ra.code).join(", ")}.`);
   if (deliveryPct < 80) actions.push("Reforçar la constància en els lliuraments.");
