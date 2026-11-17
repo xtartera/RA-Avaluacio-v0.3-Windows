@@ -307,3 +307,23 @@ test("resum: un RA està «avaluat completament» quan la seva UT està tota cor
   cfg.workUnits[0].activityIds = cfg.activities.map(a => a.id);
   assert.equal(summarizeStudent(f.course, f.group, f.id).ras[0].evaluated, false);
 });
+
+import {moduleComment} from "../src/model/moduleComment.ts";
+import type {StudentSummary} from "../src/model/studentSummary.ts";
+
+const sumOf = (over: Partial<StudentSummary>): StudentSummary => ({projected: 7, coverage: 60, provisional: false, status: "superat", causes: [], requiredFailed: [], ras: [
+  {code: "RA1", description: "", state: "assolit", causes: [], evaluated: true, requiredFailed: false, units: ["UT1"]},
+  {code: "RA2", description: "", state: "en-curs", causes: [], evaluated: false, requiredFailed: false, units: ["UT2"]},
+], ...over});
+
+test("el comentari del mòdul: provisional, superat per nivells i no superat amb la causa", () => {
+  assert.match(moduleComment(sumOf({provisional: true, coverage: 10, status: "pendent"})), /provisional/);
+  assert.match(moduleComment(sumOf({projected: 9})), /molt bo/);
+  assert.match(moduleComment(sumOf({projected: 7})), /és bo/);
+  assert.match(moduleComment(sumOf({projected: 5.3})), /just/);
+  const bad = moduleComment(sumOf({status: "no-superat", requiredFailed: ["ExTeoric 1"], ras: [{code: "RA1", description: "", state: "no-assolit", causes: [], evaluated: true, requiredFailed: true, units: ["UT1"]}]}));
+  assert.match(bad, /no està superat/);
+  assert.match(bad, /ExTeoric 1/);
+  assert.match(bad, /RA1/);
+  assert.match(moduleComment(sumOf({})), /60 % del mòdul/);
+});
