@@ -67,7 +67,7 @@ export interface WorkUnit {
 export interface ProgramSequenceRow {text: string; organitzacio: string; temps: string; metodologia: string; recursos: string; localitzacio: string}
 
 /** Dades de l'AEA (la UT) que no surten de la configuració: les escriu el professor. */
-export interface ProgramUnit {hores?: string; descripcio?: string; organitzadors?: string; capacitats?: string; documentacio?: string; sequencia?: ProgramSequenceRow[]}
+export interface ProgramUnit {hores?: string; /** Hores fixades pel professor per activitat (la resta es reparteix). */ activityHours?: Record<string, number>; descripcio?: string; organitzadors?: string; capacitats?: string; documentacio?: string; sequencia?: ProgramSequenceRow[]}
 
 export interface ProgramVersion {version: string; data: string; descripcio: string; aprovacio: string}
 
