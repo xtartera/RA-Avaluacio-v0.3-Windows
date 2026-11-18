@@ -32,14 +32,15 @@ export function MyRaBars({course, group, enrollmentId, report = false, revealed,
     {ras.map(r => {
       const missing = r.parts.filter(p => p.grade === null).reduce((s, p) => s + p.share, 0);
       const sr = summary.ras.find(q => q.code === r.code), state: RaState = sr?.state ?? "en-curs", st = STATE[state];
-      const hidden = !!sr?.requiredFailed && !showAllScores && !(revealed?.has(r.raId));
+      const hidden = !r.adjusted && !!sr?.requiredFailed && !showAllScores && !(revealed?.has(r.raId));
       return <div className="rwxMe" key={r.raId} style={hideScores ? {gridTemplateColumns: "90px minmax(0, 1fr)"} : undefined}>
         <div><b title={r.description}>{r.code}</b><br/><span className="bonus" style={{background: st.bg, color: st.fg, fontWeight: 800, fontSize: 10.5, whiteSpace: "nowrap"}}>{st.label}</span></div>
         <div><span className="muted" style={{fontSize: 10.5, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>{r.description}</span>
           <div className="rwxMeBar">{r.parts.map(p => <div key={p.activityId} className={p.grade === 0 ? "seg nd" : "seg"} style={{flex: p.share}} title={`${p.name} (${p.unitName}) · ${pct(p.share)} del ${r.code} · ${p.grade === null ? "encara sense nota" : p.grade === 0 ? "corregida i no lliurada (0)" : hideScores ? "ja té nota" : `nota ${n1(p.grade)}`}`}>{p.grade !== null && <div className="fill" style={{height: `${Math.max(0, Math.min(100, p.grade * 10))}%`, background: gradeColor(p.grade)}}/>}<i className="tdot" style={{background: TYPE_COLORS[(typeIndex.get(p.typeId) ?? 0) % TYPE_COLORS.length]}}/></div>)}</div>
           <span className="muted" style={{fontSize: 11}}>{pct(1 - missing)} del {r.code} ja té nota · queda un {pct(missing)} per fer</span>
+          {r.adjusted ? <span style={{display: "block", fontSize: 11, color: "#8a5a00"}}>Nota decidida pel professor ({n2(r.adjusted.value)}; calculada {n2(r.earned)}): {r.adjusted.reason}</span> : null}
           {state === "no-assolit" && sr?.causes.length ? <span style={{display: "block", fontSize: 11, color: "#8f3742"}}>{sr.causes.join("; ")}</span> : null}</div>
-        {!hideScores && <div className="rwxScore">{hidden ? <span style={{fontSize: 13, color: "#a12f40"}}>No assolit</span> : n2(r.earned)}<small>{hidden ? "nota amagada" : "nota de la graella"}</small>{sr?.requiredFailed && onToggle && <button className="noPrint" style={{border: 0, background: "none", color: "var(--blue)", fontSize: 10, fontWeight: 700, cursor: "pointer", padding: 0}} onClick={() => onToggle(r.raId)}>{hidden ? "Mostra nota" : "Amaga"}</button>}</div>}
+        {!hideScores && <div className="rwxScore">{hidden ? <span style={{fontSize: 13, color: "#a12f40"}}>No assolit</span> : n2(r.adjusted ? r.adjusted.value : r.earned)}<small title={r.adjusted?.reason}>{hidden ? "nota amagada" : r.adjusted ? "decidida pel professor" : "nota de la graella"}</small>{sr?.requiredFailed && onToggle && <button className="noPrint" style={{border: 0, background: "none", color: "var(--blue)", fontSize: 10, fontWeight: 700, cursor: "pointer", padding: 0}} onClick={() => onToggle(r.raId)}>{hidden ? "Mostra nota" : "Amaga"}</button>}</div>}
       </div>;
     })}
   </Wrap>;

@@ -1,4 +1,4 @@
-import {activityIsEvaluated, activityShareInRa, totalGrade} from "./calculation.ts";
+import {activityIsEvaluated, activityShareInRa, raAdjustmentOf, totalGrade} from "./calculation.ts";
 import {countsForGrade, type AcademicCourse, type Group} from "./domain.ts";
 
 export interface RaContribution {
@@ -23,6 +23,8 @@ export interface RaContributions {
   earned: number;
   /** Part de l'RA (0..1) que ja té nota. */
   graded: number;
+  /** Nota de l'RA decidida pel professor: substitueix `earned` a la nota que es mostra. */
+  adjusted?: {value: number; reason: string};
 }
 
 /** Aportació de cada tasca a cada RA per a un alumne, en l'ordre de les UT. Base de la visualització «El meu RA». */
@@ -38,6 +40,7 @@ export function raContributions(course: AcademicCourse, group: Group, enrollment
       const value = grade?.status === "not_presented" ? 0 : grade?.status === "graded" ? totalGrade(grade) : null;
       return {activityId: id, name: activities.get(id)!.name, typeId: activities.get(id)!.activityTypeId, unitName: unitOf.get(id) ?? "Sense UT", share, grade: value, evaluated: activityIsEvaluated(group, id)};
     }).sort((a, b) => (order.get(a.activityId) ?? 1e6) - (order.get(b.activityId) ?? 1e6));
-    return {raId: r.id, code: r.code, description: r.description, parts, earned: parts.reduce((s, p) => s + p.share * (p.grade ?? 0), 0), graded: parts.filter(p => p.grade !== null).reduce((s, p) => s + p.share, 0)};
+    const adj = raAdjustmentOf(group, enrollmentId, r.id);
+    return {adjusted: adj ? {value: adj.value, reason: adj.reason} : undefined, raId: r.id, code: r.code, description: r.description, parts, earned: parts.reduce((s, p) => s + p.share * (p.grade ?? 0), 0), graded: parts.filter(p => p.grade !== null).reduce((s, p) => s + p.share, 0)};
   });
 }

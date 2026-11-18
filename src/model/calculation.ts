@@ -152,12 +152,27 @@ export function failingRequiredActivities(course: AcademicCourse, group: Group, 
   return failing.size;
 }
 
+export interface RaResult {
+  score: number; coverage: number; failingActivities: number; provisional: boolean; accumulated: number;
+  /** El professor ha decidit la nota d'aquest RA (`calculated` és la que sortia del càlcul). */
+  adjusted?: {reason: string; calculated: number};
+}
+
+export function raAdjustmentOf(group: Group, enrollmentId: string, raId: string) {
+  return (group.raAdjustments ?? []).find(a => a.enrollmentId === enrollmentId && a.raId === raId);
+}
+export function finalAdjustmentOf(group: Group, enrollmentId: string) {
+  return (group.finalAdjustments ?? []).find(a => a.enrollmentId === enrollmentId);
+}
+
 export interface StudentCalculation {
   criteria: Map<string, number>;
   criteriaCoverage: Map<string, number>;
   /** `score`: nota estimada (projecció sobre el que ja està avaluat). `accumulated`: nota acumulada (mínim garantit, el que no té nota compta 0). */
-  learningResults: Map<string, {score: number; coverage: number; failingActivities: number; provisional: boolean; accumulated: number}>;
+  learningResults: Map<string, RaResult>;
   globalScore: number;
+  /** Nota final decidida pel professor (substitueix globalScore i globalAccumulated); `calculated` és la que sortia del càlcul. */
+  finalAdjustment?: {value: number; reason: string; calculated: number};
   globalCoverage: number;
   /** Nota global acumulada: punts ja guanyats sobre 10 (Σ nota acumulada de cada RA × el seu pes al mòdul). Tot el que no té nota compta 0; no és una projecció. */
   globalAccumulated: number;
@@ -202,7 +217,7 @@ export function calculateStudent(course: AcademicCourse, group: Group, enrollmen
     accumulatedCriteria.set(criterion.id, total ? earned / total : 0);
   }
   let accNumerator = 0;
-  const raResults = new Map<string, {score: number; coverage: number; failingActivities: number; provisional: boolean; accumulated: number}>();
+  const raResults = new Map<string, RaResult>();
   const minCoverage = course.configuration.minRaCoverage ?? 25;
   let globalScore = 0; let globalCoverage = 0; let totalRaWeight = 0;
   for (const ra of course.configuration.learningResults.filter(item => item.status === "active")) {
@@ -219,6 +234,14 @@ export function calculateStudent(course: AcademicCourse, group: Group, enrollmen
     const accumulated = criteria.length === 0 ? 0 : course.configuration.raAveraging === "weighted"
       ? (raWeight ? criteria.reduce((sum, c) => sum + (accumulatedCriteria.get(c.id) ?? 0) * (criterionGlobalWeights.get(c.id) ?? 0), 0) / raWeight : 0)
       : criteria.reduce((sum, c) => sum + (accumulatedCriteria.get(c.id) ?? 0), 0) / criteria.length;
+    const adj = raAdjustmentOf(group, enrollmentId, ra.id);
+    if (adj) {
+      // Nota de l'RA decidida pel professor: substitueix el càlcul, compta com a avaluada del tot i no queda bloquejada per cap obligatòria.
+      accNumerator += adj.value * raWeight;
+      raResults.set(ra.id, {score: adj.value, coverage: 100, failingActivities: 0, provisional: false, accumulated: adj.value, adjusted: {reason: adj.reason, calculated: score}});
+      globalScore += adj.value * raWeight; totalRaWeight += raWeight;
+      continue;
+    }
     accNumerator += accumulated * raWeight;
     raResults.set(ra.id, {score, coverage, failingActivities, provisional: coverage > 0 && coverage < minCoverage && failingActivities === 0, accumulated});
     const effectiveWeight = raWeight * coverage / 100;
@@ -227,7 +250,10 @@ export function calculateStudent(course: AcademicCourse, group: Group, enrollmen
   const allWeight = [...weights.values()].reduce((a, b) => a + b, 0);
   const evaluatedWeight = [...weights].filter(([id]) => evaluated.has(id)).reduce((sum, [, weight]) => sum + weight, 0);
   globalCoverage = allWeight ? evaluatedWeight / allWeight * 100 : 0;
-  return {criteria: criterionScores, criteriaCoverage: criterionCoverage, learningResults: raResults, globalScore: totalRaWeight ? globalScore / totalRaWeight : 0, globalCoverage, globalAccumulated: accNumerator};
+  const calculatedScore = totalRaWeight ? globalScore / totalRaWeight : 0;
+  const finalAdj = finalAdjustmentOf(group, enrollmentId);
+  if (finalAdj) return {criteria: criterionScores, criteriaCoverage: criterionCoverage, learningResults: raResults, globalScore: finalAdj.value, globalCoverage, globalAccumulated: finalAdj.value, finalAdjustment: {value: finalAdj.value, reason: finalAdj.reason, calculated: calculatedScore}};
+  return {criteria: criterionScores, criteriaCoverage: criterionCoverage, learningResults: raResults, globalScore: calculatedScore, globalCoverage, globalAccumulated: accNumerator};
 }
 
 export function groupStdDev(course: AcademicCourse, group: Group): number {
@@ -365,6 +391,7 @@ export function calculateFinalStudent(course: AcademicCourse, group: Group, enro
     globalScore += result.score * weight;
     totalWeight += weight;
   }
+  if (ordinaria.finalAdjustment) return {ordinaria, learningResults, globalScore: ordinaria.finalAdjustment.value, modulePassed: ordinaria.finalAdjustment.value >= course.configuration.requiredActivityMinGrade};
   const modulePassed = ras.length > 0 && [...learningResults.values()].every(r => r.achieved);
   return {ordinaria, learningResults, globalScore: totalWeight ? globalScore / totalWeight : 0, modulePassed};
 }

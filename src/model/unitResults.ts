@@ -84,13 +84,14 @@ export function analyzeUnitResults(course: AcademicCourse, group: Group, enrollm
       const linkedIds = new Set(cfg.links.filter(l => criteriaIds.has(l.criterionId)).map(l => l.activityId));
       const missingLinked = ordinary.filter(a => linkedIds.has(a.id) && activityIsEvaluated(group, a.id) && !isDelivered(group.grades.find(g => g.enrollmentId === enrollmentId && g.activityId === a.id))).map(a => a.name);
       let outcome: UnitRaResult["outcome"], reason: string;
-      if (!evaluated.length) { outcome = "sense-dades"; reason = "encara sense activitats corregides"; }
+      if (x?.adjusted) { outcome = nota >= min ? "superat" : "suspes"; reason = `nota de l'RA decidida pel professor (${fmt2(nota)}): ${x.adjusted.reason}`; }
+      else if (!evaluated.length) { outcome = "sense-dades"; reason = "encara sense activitats corregides"; }
       else if (failed.length) { outcome = "suspes"; reason = failedText; }
       else if (x && x.failingActivities > 0) { outcome = "suspes"; reason = "hi ha una obligatòria suspesa que decideix aquest RA"; }
       else if (nota >= min) { outcome = "superat"; reason = required.length ? "obligatòries superades i nota de l'RA correcta" : "nota de l'RA correcta"; }
       else if (!complete) { outcome = "en-curs"; reason = `de moment ${fmt2(nota)}; ${missing}`; }
       else { outcome = "suspes"; reason = `la UT està corregida i la nota de l'RA és ${fmt2(nota)} (menys de ${min})${missingLinked.length ? `; activitats sense lliurar que hi compten: ${missingLinked.join(", ")}` : ""}`; }
-      return {code: r.code, description: r.description, estimated, accumulated: nota, coverage, outcome, reason, failedRequired: failed.length > 0 || !!(x && x.failingActivities > 0), notDelivered: missingLinked};
+      return {code: r.code, description: r.description, estimated, accumulated: nota, coverage, outcome, reason, failedRequired: !x?.adjusted && (failed.length > 0 || !!(x && x.failingActivities > 0)), notDelivered: missingLinked};
     });
 
     let status: UnitStatus, reason: string;

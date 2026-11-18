@@ -122,6 +122,35 @@ export interface GradeBonus {
   createdAt: string;
 }
 
+/** Nota d'un RA decidida pel professor: substitueix la calculada i no queda condicionada per les activitats obligatòries. */
+export interface RaAdjustment {
+  id: Id;
+  enrollmentId: Id;
+  raId: Id;
+  value: number;
+  reason: string;
+  createdAt: string;
+}
+
+/** Nota final del mòdul decidida pel professor: substitueix la calculada i la dóna per superada o no segons el mínim. */
+export interface FinalAdjustment {
+  id: Id;
+  enrollmentId: Id;
+  value: number;
+  reason: string;
+  createdAt: string;
+}
+
+/** Registre dels ajustos d'RA i de nota final: cada canvi, amb el valor i el motiu d'abans i de després (null = no hi havia ajust). */
+export interface AdjustmentLogEntry {
+  id: Id;
+  enrollmentId: Id;
+  raId?: Id;
+  at: string;
+  previous: {value: number; reason: string} | null;
+  next: {value: number; reason: string} | null;
+}
+
 export interface Grade {
   id: Id;
   enrollmentId: Id;
@@ -240,6 +269,9 @@ export interface Group {
   diagnostics: DiagnosticResult[];
   observations: InitialObservation[];
   familyNotes: FamilyNote[];
+  raAdjustments?: RaAdjustment[];
+  finalAdjustments?: FinalAdjustment[];
+  adjustmentLog?: AdjustmentLogEntry[];
 }
 
 export interface ImportBatch {
@@ -287,7 +319,7 @@ export function conflictingRecoveryActivity(activities: Activity[], raId: Id, ex
 export function emptyGroup(code: GroupCode): Group {
   return {
     id: newId("group"), code, name: `Grup ${code}`, capacity: 25,
-    enrollments: [], students: [], grades: [], activityStates: [], comments: [], diagnostics: [], observations: [], familyNotes: [],
+    enrollments: [], students: [], grades: [], activityStates: [], comments: [], diagnostics: [], observations: [], familyNotes: [], raAdjustments: [], finalAdjustments: [], adjustmentLog: [],
   };
 }
 
@@ -324,6 +356,9 @@ export function migrateDatabase(data: AppDatabase): AppDatabase {
       if (!group.diagnostics) group.diagnostics = [];
       if (!group.observations) group.observations = [];
       if (!group.familyNotes) group.familyNotes = [];
+      if (!group.raAdjustments) group.raAdjustments = [];
+      if (!group.finalAdjustments) group.finalAdjustments = [];
+      if (!group.adjustmentLog) group.adjustmentLog = [];
       for (const state of group.activityStates) {
         if (state.locked === undefined) state.locked = false;
       }

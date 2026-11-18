@@ -29,6 +29,8 @@ export interface StudentSummary {
   causes: string[];
   ras: SummaryRa[];
   requiredFailed: string[];
+  /** Nota final decidida pel professor (`calculated` és la que sortia del càlcul). */
+  finalAdjustment?: {value: number; reason: string; calculated: number};
 }
 
 /**
@@ -40,6 +42,7 @@ export function summarizeStudent(course: AcademicCourse, group: Group, enrollmen
   const activities = new Map(cfg.activities.map(a => [a.id, a]));
   const failedRequiredOf = (raId: string) => {
     const names = new Set<string>();
+    if (calc.learningResults.get(raId)?.adjusted) return [];
     for (const unit of cfg.workUnits.filter(u => u.status === "active" && u.learningResultIds.includes(raId))) {
       const rs = requiredGroupStatus(course, group, enrollmentId, unit);
       // En mode mitjana, la causa és el conjunt de les obligatòries i no una activitat concreta.
@@ -86,5 +89,9 @@ export function summarizeStudent(course: AcademicCourse, group: Group, enrollmen
   else if (provisional) status = "pendent";
   else if (calc.globalScore >= min) status = "superat";
   else { status = "no-superat"; causes.push(`La nota projectada del mòdul no arriba al mínim exigit (${min}).`); }
+  if (calc.finalAdjustment) {
+    const value = calc.finalAdjustment.value;
+    return {projected: value, coverage: calc.globalCoverage, provisional: false, status: value >= min ? "superat" : "no-superat", causes: value >= min ? [] : [`La nota final decidida pel professor (${value.toFixed(2)}) no arriba al mínim exigit (${min}).`], ras, requiredFailed: [], finalAdjustment: calc.finalAdjustment};
+  }
   return {projected: calc.globalScore, coverage: calc.globalCoverage, provisional, status, causes, ras, requiredFailed};
 }
