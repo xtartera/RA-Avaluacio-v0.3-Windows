@@ -9,3 +9,6 @@ audit-*.png
 ra-avaluacio-*.json
 ra-avaluacio.json
 copies-seguretat/
+
+# Notes personals (no es pugen a GitHub)
+notes-privades/

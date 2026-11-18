@@ -63,6 +63,33 @@ export interface WorkUnit {
   status: EntityStatus;
 }
 
+/** Fila de la seqüència d'una activitat d'ensenyament-aprenentatge (AEA) a la programació didàctica. */
+export interface ProgramSequenceRow {text: string; organitzacio: string; temps: string; metodologia: string; recursos: string; localitzacio: string}
+
+/** Dades de l'AEA (la UT) que no surten de la configuració: les escriu el professor. */
+export interface ProgramUnit {hores?: string; descripcio?: string; organitzadors?: string; capacitats?: string; documentacio?: string; sequencia?: ProgramSequenceRow[]}
+
+export interface ProgramVersion {version: string; data: string; descripcio: string; aprovacio: string}
+
+/**
+ * Dades escrites a mà de la programació didàctica del mòdul (la resta —RA, CA, activitats, instruments, pesos i regles de qualificació— surt de la configuració).
+ * Tot és opcional: el que falta es mostra amb un text per defecte editable.
+ */
+export interface ProgramacioData {
+  codiCicle?: string; codiModul?: string; departament?: string; familia?: string; nomCicle?: string; grup?: string;
+  horesCentre?: string; horesEmpresa?: string;
+  elaboratPer?: string; carrecElaborat?: string; dataElaborat?: string;
+  revisatPer?: string; carrecRevisat?: string; dataRevisat?: string;
+  aprovatPer?: string; carrecAprovat?: string; dataAprovat?: string;
+  versions?: ProgramVersion[];
+  competenciaGeneral?: string; capacitatsClau?: string; competencies?: string; objectius?: string;
+  estrategies?: string; tac?: string; diversitat?: string; organitzacio?: string; assistencia?: string; termini?: string;
+  avaluacio?: string; espais?: string; normativa?: string;
+  raContinguts?: Record<string, string>;
+  raDates?: Record<string, {inici: string; fi: string}>;
+  units?: Record<string, ProgramUnit>;
+}
+
 export type WeightMode = "types" | "explicit";
 export type RaAveraging = "simple" | "weighted";
 export type CicleNivell = "Grau mitjà" | "Grau superior";
@@ -91,6 +118,8 @@ export interface ModuleConfiguration {
   riskThreshold: number;
   /** Cobertura mínima (%) d'un RA perquè es valori com a assolit o no assolit; per sota és «provisional». */
   minRaCoverage: number;
+  /** Dades de la programació didàctica escrites a mà (vegeu `ProgramacioData`). */
+  programacio?: ProgramacioData;
 }
 
 export interface Student {
