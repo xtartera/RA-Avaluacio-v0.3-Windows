@@ -22,6 +22,7 @@ declare global {
   }
   interface Window {
     showSaveFilePicker(options?: SaveFilePickerOptions): Promise<FileSystemFileHandle>;
+    showDirectoryPicker(options?: {mode?: "read" | "readwrite"}): Promise<FileSystemDirectoryHandle>;
     showOpenFilePicker(options?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
   }
 }
