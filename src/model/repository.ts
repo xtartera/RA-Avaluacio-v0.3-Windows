@@ -1,4 +1,5 @@
 import {migrateDatabase, type AppDatabase} from "./domain.ts";
+import {courseLabel, deepEqual, mergeDatabases} from "./mergeDatabases.ts";
 
 export interface AppRepository {
   load(): Promise<AppDatabase>;
@@ -170,6 +171,7 @@ export class FileBackedRepository implements AppRepository {
   private baseline: {text: string; stamp: string} | null = null;
   private conflict = false;
   private loadProblem: string | null = null;
+  private conflictCourses: string[] = [];
   private backupDir: FileSystemDirectoryHandle | null = null;
 
   constructor(cache: AppRepository = new IndexedDbRepository()) {
@@ -186,6 +188,11 @@ export class FileBackedRepository implements AppRepository {
   }
 
   /** Motiu pel qual el fitxer no s'ha pogut llegir en obrir l'app (null si es va llegir bé). */
+  /** Noms dels cursos que han canviat per les dues bandes (buit si no se sap o no és per un curs concret). */
+  conflictingCourses(): string[] {
+    return this.conflictCourses;
+  }
+
   readProblem(): string | null {
     return this.loadProblem;
   }
@@ -284,12 +291,72 @@ export class FileBackedRepository implements AppRepository {
         const stamp = stampOf(file);
         if (stamp !== this.baseline.stamp) {
           const text = await file.text();
-          if (text !== this.baseline.text) { this.conflict = true; throw new ExternalChangeError(); }
+          if (text !== this.baseline.text) {
+            const result = this.tryMerge(data, text);
+            if (!result.ok) { this.flagConflict(result.conflicts); throw new ExternalChangeError(); }
+            // Les dues sessions han tocat cursos diferents: es combinen i es desa el resultat.
+            await this.backupIfConfigured(text);
+            this.baseline = {text, stamp};
+            await this.writeFile(JSON.stringify(result.merged, null, 2));
+            await this.cache.save(result.merged);
+            this.onMerged?.(result.merged, result.fromTheirs);
+            return;
+          }
           this.baseline.stamp = stamp; // només s'ha tocat la data (sincronització del Drive): mateix contingut
         }
       }
       await this.writeFile(JSON.stringify(data, null, 2));
     }
+  }
+
+  /** S'avisa quan una fusió automàtica ha incorporat canvis d'altres sessions (la pantalla n'ha d'agafar l'estat). */
+  onMerged: ((merged: AppDatabase, fromTheirs: string[]) => void) | null = null;
+
+  private flagConflict(courses: string[]): void {
+    this.conflict = true;
+    this.conflictCourses = courses;
+  }
+
+  private tryMerge(mine: AppDatabase, theirsText: string):
+    | {ok: true; merged: AppDatabase; fromTheirs: string[]}
+    | {ok: false; conflicts: string[]} {
+    try {
+      if (!this.baseline) return {ok: false, conflicts: []};
+      const base = migrateDatabase(JSON.parse(this.baseline.text));
+      const theirs = migrateDatabase(JSON.parse(theirsText));
+      const r = mergeDatabases(base, migrateDatabase(structuredClone(mine)), theirs);
+      if (r.conflicts.length) return {ok: false, conflicts: r.conflicts.map(courseLabel)};
+      return {ok: true, merged: r.merged, fromTheirs: r.fromTheirs.map(courseLabel)};
+    } catch {
+      return {ok: false, conflicts: []};
+    }
+  }
+
+  private async backupIfConfigured(text: string): Promise<void> {
+    const dir = this.backupDir;
+    if (dir && (await dir.queryPermission({mode: "readwrite"})) === "granted") await this.backupText(text);
+  }
+
+  /**
+   * Comprova (p. ex. en tornar a la finestra) si altres sessions han canviat el fitxer i n'incorpora els canvis.
+   * Retorna l'estat nou si ha canviat alguna cosa, o null si no. Llança ExternalChangeError si hi ha conflicte real.
+   */
+  async syncExternal(mine: AppDatabase): Promise<{merged: AppDatabase; fromTheirs: string[]} | null> {
+    if (!this.handle || this.conflict || !this.baseline) return null;
+    if ((await this.handle.queryPermission({mode: "readwrite"})) !== "granted") return null;
+    const file = await this.handle.getFile();
+    const stamp = stampOf(file);
+    if (stamp === this.baseline.stamp) return null;
+    const text = await file.text();
+    if (text === this.baseline.text) { this.baseline.stamp = stamp; return null; }
+    const result = this.tryMerge(mine, text);
+    if (!result.ok) { this.flagConflict(result.conflicts); throw new ExternalChangeError(); }
+    await this.backupIfConfigured(text);
+    this.baseline = {text, stamp};
+    const theirs = migrateDatabase(JSON.parse(text));
+    if (!deepEqual(result.merged, theirs)) await this.writeFile(JSON.stringify(result.merged, null, 2));
+    await this.cache.save(result.merged);
+    return {merged: result.merged, fromTheirs: result.fromTheirs};
   }
 
   private async writeFile(text: string): Promise<void> {
@@ -307,7 +374,7 @@ export class FileBackedRepository implements AppRepository {
     const parsed = migrateDatabase(JSON.parse(text));
     await this.cache.save(parsed);
     this.baseline = {text, stamp: stampOf(file)};
-    this.conflict = false; this.loadProblem = null;
+    this.conflict = false; this.loadProblem = null; this.conflictCourses = [];
     return parsed;
   }
 
@@ -318,7 +385,7 @@ export class FileBackedRepository implements AppRepository {
     const text = await file.text();
     const where = await this.backupText(text);
     this.baseline = {text, stamp: stampOf(file)};
-    this.conflict = false; this.loadProblem = null;
+    this.conflict = false; this.loadProblem = null; this.conflictCourses = [];
     await this.save(data);
     return where;
   }
