@@ -85,6 +85,7 @@ export interface ProgramacioData {
   competenciaGeneral?: string; capacitatsClau?: string; competencies?: string; objectius?: string;
   estrategies?: string; tac?: string; diversitat?: string; organitzacio?: string; assistencia?: string; termini?: string;
   avaluacio?: string; espais?: string; normativa?: string;
+  condicions?: string; recuperacio?: string;
   raContinguts?: Record<string, string>;
   raDates?: Record<string, {inici: string; fi: string}>;
   units?: Record<string, ProgramUnit>;

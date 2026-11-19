@@ -9,6 +9,8 @@ export interface ProgramDefaults {
   competenciaGeneral: string; capacitatsClau: string; competencies: string; objectius: string;
   estrategies: string; tac: string; diversitat: string; organitzacio: string; assistencia: string; termini: string;
   avaluacio: string; espais: string; normativa: string;
+  /** Condicions per superar cada RA (una per línia) i recuperació (opcional, una per línia). */
+  condicions: string; recuperacio: string;
 }
 
 const yearShort = (academicYear: string) => academicYear.replace(/\D/g, "").length >= 8 ? `${academicYear.replace(/\D/g, "").slice(2, 4)}${academicYear.replace(/\D/g, "").slice(6, 8)}` : academicYear.replace(/\W/g, "");
@@ -32,6 +34,7 @@ export function programDefaults(course: AcademicCourse): ProgramDefaults {
     termini: "Només s'acceptaran les tasques, reptes i activitats dins del termini indicat. Només en casos justificats, i sota el criteri de l'equip docent, es podran admetre fora de termini.",
     avaluacio: "Al començament del mòdul, l'equip docent proporcionarà informació detallada sobre els resultats d'aprenentatge, els criteris d'avaluació, els continguts i els diferents instruments d'avaluació utilitzats. Els alumnes poden presentar-se a dues convocatòries en el curs escolar; la primera convocatòria (ordinària) sempre comptabilitza i, a la de juny, si l'alumne no es presenta no comptabilitza. Per superar el mòdul professional, els alumnes tenen dret a presentar-se fins a quatre convocatòries; si no se supera en aquestes quatre es pot sol·licitar una convocatòria extraordinària a la direcció del centre. Si es detecta alguna activitat copiada, tant l'alumne que ha copiat com aquell que s'ha deixat copiar quedaran automàticament suspesos. L'avaluació és contínua i formativa.",
     espais: "Els espais destinats al desenvolupament de les activitats del mòdul seran les aules i els tallers d'informàtica assignats als grups, amb ordinadors per a l'alumnat, connexió a Internet i pissarra digital interactiva. Els recursos didàctics seran principalment eines i recursos de codi lliure. L'alumnat tindrà accés a un campus virtual amb els materials, l'enunciat de les activitats i els terminis de lliurament, el lliurament de les activitats i la consulta contínua de les qualificacions.",
+    condicions: programCondicions(course), recuperacio: "",
     normativa: smx
       ? [...SMX_NORMATIVA, "[Completa, si escau, amb l'ordre d'avaluació vigent del Departament d'Educació i Formació Professional.]"].join("\n")
       : "Llei orgànica 3/2022, de 31 de març, d'ordenació i integració de la formació professional.\nReial decret 659/2023, de 18 de juliol, pel qual es desplega l'ordenació del sistema de formació professional.\n[Completa amb el reial decret del títol, el currículum a Catalunya i l'ordre d'avaluació vigent.]",
@@ -45,6 +48,17 @@ export const programCodi = (course: AcademicCourse): string => firstText(course.
 export function programHores(course: AcademicCourse): {centre: string; empresa: string} {
   const d = course.configuration.programacio, ref = smxModuleOf(course);
   return {centre: firstText(d?.horesCentre, ref ? String(ref.horesCentre) : ""), empresa: firstText(d?.horesEmpresa, ref ? String(ref.horesEmpresa) : "")};
+}
+
+/** Condicions per superar cada RA segons la configuració del mòdul (el professor les pot substituir). */
+export function programCondicions(course: AcademicCourse): string {
+  const cfg = course.configuration, min = cfg.requiredActivityMinGrade;
+  const ids = new Set(cfg.workUnits.filter(u => u.status === "active").flatMap(u => u.requiredActivityIds));
+  const names = cfg.activities.filter(a => a.status === "active" && a.session === "ordinaria" && ids.has(a.id)).map(a => a.name);
+  const required = cfg.requiredByAverage
+    ? `La mitjana de les activitats obligatòries de cada unitat de treball ha de ser igual o superior a ${min}.`
+    : `Cada activitat obligatòria ha d'estar entregada i tenir una qualificació igual o superior a ${min}.`;
+  return [`La nota de l'RA ha de ser igual o superior a ${min}.`, required + (names.length ? ` Activitats obligatòries: ${names.join(", ")}.` : " (Aquest mòdul no té activitats obligatòries definides.)"), "Si no es compleixen aquestes condicions, l'RA no es considera assolit."].join("\n");
 }
 
 /** Valor efectiu: el que ha escrit el professor o, si és buit, el text per defecte. */
@@ -73,6 +87,12 @@ export interface ProgramContent {
 
 /** Continguts orientatius del currículum per a l'RA ri, només si el mòdul té tants RA com blocs de continguts de referència. */
 const refContingut = (ref: ReturnType<typeof smxModuleOf>, nRas: number, ri: number) => (ref && ref.continguts.length === nRas ? ref.continguts[ri].join("\n") : "");
+
+/** Número i nom d'una AEA: si el nom comença per «AEA<n>:» (p. ex. AEA0) s'hi respecta la numeració; si no, és la posició. */
+function aeaLabel(name: string, i: number): {index: number; name: string} {
+  const m = name.match(/^AEA\s*(\d+)\s*[:.\-–]\s*(.+)$/i);
+  return m ? {index: Number(m[1]), name: m[2].trim()} : {index: i + 1, name};
+}
 
 /** Dades derivades de la configuració del curs que la programació didàctica ha de mostrar: RA, CA, instruments, matriu de pesos, fórmula de la nota i AEA. */
 export function programContent(course: AcademicCourse): ProgramContent {
@@ -104,7 +124,7 @@ export function programContent(course: AcademicCourse): ProgramContent {
     const acts = activities.filter(a => u.activityIds.includes(a.id));
     const caIds = new Set(cfg.links.filter(l => acts.some(a => a.id === l.activityId)).map(l => l.criterionId));
     return {
-      id: u.id, index: i + 1, name: u.name,
+      id: u.id, ...aeaLabel(u.name, i), 
       ras: ras.filter(r => u.learningResultIds.includes(r.id) || cfg.criteria.some(c => c.learningResultId === r.id && caIds.has(c.id))).map(r => r.code),
       cas: cfg.criteria.filter(c => caIds.has(c.id)).sort((a, b) => a.code.localeCompare(b.code, "ca", {numeric: true})).map(c => c.code),
       activities: acts.map(a => ({id: a.id, name: a.name, type: typeName.get(a.activityTypeId) ?? "Sense tipus", required: required.has(a.id) || u.requiredActivityIds.includes(a.id)})),

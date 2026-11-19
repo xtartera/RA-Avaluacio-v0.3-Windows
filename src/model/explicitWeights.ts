@@ -33,9 +33,18 @@ export function explicitWeightIssues(course: AcademicCourse): string[] {
     const criteria = new Set(cfg.criteria.filter(c => c.status === "active" && c.learningResultId === ra.id).map(c => c.id));
     for (const x of shares) if (!cfg.links.some(l => l.activityId === x.a.id && criteria.has(l.criterionId))) issues.push(`${x.a.name} té part de ${ra.code} però no està vinculada a cap criteri d'aquest RA.`);
   }
+  const raWeight = new Map(ras.map(r => [r.id, r.moduleWeight ?? 0]));
   for (const a of activities) {
-    const raIds = (a.raShares ?? []).filter(s => s.share > 0).map(s => s.raId);
-    if (raIds.length > 1) issues.push(`${a.name} té part de més d'un RA: el repartiment entre criteris (vincles) ha de seguir la mateixa proporció.`);
+    const parts = (a.raShares ?? []).filter(s => s.share > 0);
+    if (parts.length < 2) continue;
+    // Una activitat amb part de diversos RA ha de repartir el seu pes entre els criteris de cada RA en la mateixa proporció que el pes que hi aporta.
+    const total = parts.reduce((s, x) => s + (raWeight.get(x.raId) ?? 0) * x.share, 0);
+    const ok = total > 0 && parts.every(x => {
+      const raCriteria = new Set(cfg.criteria.filter(c => c.learningResultId === x.raId).map(c => c.id));
+      const allocated = cfg.links.filter(l => l.activityId === a.id && raCriteria.has(l.criterionId)).reduce((s, l) => s + l.allocation, 0);
+      return Math.abs(allocated - (raWeight.get(x.raId) ?? 0) * x.share / total) <= EPS;
+    });
+    if (!ok) issues.push(`${a.name} té part de més d'un RA: el repartiment entre criteris (vincles) ha de seguir la mateixa proporció.`);
   }
   return issues;
 }

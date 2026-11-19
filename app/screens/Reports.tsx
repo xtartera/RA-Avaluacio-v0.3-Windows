@@ -1,3 +1,4 @@
+import {calcNotesMarkdown} from "../../src/model/calcDoc";
 import {ReportLogo} from "../components/shared";
 import {useEffect, useState} from "react";
 import {createPortal} from "react-dom";
@@ -60,7 +61,7 @@ function ActivityContributionPrintReport({course,close}:{course:AcademicCourse;c
  const realTotal=[...real.values()].reduce((sum,w)=>sum+w,0),teoricTotal=[...teoric.values()].reduce((sum,w)=>sum+w,0);
  const activeCount=activities.filter(a=>a.status==="active").length;
  const[introHtml,setIntroHtml]=useState<string|null>(null);
- useEffect(()=>{let alive=true;fetch("/CALCUL-NOTES.md").then(r=>r.text()).then(async text=>{const body=text.split("\n---\n")[0];const rendered=await marked.parse(body);if(alive)setIntroHtml(rendered)}).catch(()=>{if(alive)setIntroHtml("<p>No s’ha pogut carregar el document «Com es calcula».</p>")});return()=>{alive=false}},[]);
+ useEffect(()=>{let alive=true;Promise.resolve(marked.parse(calcNotesMarkdown(course).split("\n---\n")[0])).then(rendered=>{if(alive)setIntroHtml(rendered)});return()=>{alive=false}},[course]);
  return createPortal(<div className="modal"><div className="report raPrintReport contribReport">
   <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={()=>window.print()}><Printer/>Imprimeix</button></div><ReportLogo/>
 

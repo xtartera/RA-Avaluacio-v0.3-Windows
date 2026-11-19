@@ -1,5 +1,5 @@
 import {Fragment, useMemo, useState} from "react";
-import {activityShareInRa, activityWeights} from "../../src/model/calculation";
+import {activityShareInRa, activityWeights, raWeights} from "../../src/model/calculation";
 import {countsForGrade, type AcademicCourse} from "../../src/model/domain";
 
 export const TYPE_COLORS = ["#14b8a6", "#8b5cf6", "#f59e0b", "#3b82f6", "#ec4899", "#64748b"];
@@ -32,6 +32,7 @@ export function RaWeightsExplainer({course}: {course: AcademicCourse}) {
   }, [course, cfg]);
 
   const {ras, shares, types, units, acts, caCount, criteriaOf} = data;
+  const explicit = cfg.weightMode === "explicit", raW = useMemo(() => raWeights(course), [course]);
   const share = (a: Act, raId: string) => shares.get(raId)?.get(a.id) ?? 0;
   const maxShare = Math.max(0.0001, ...acts.flatMap(a => ras.map(r => share(a, r.id))));
   // Exemple per defecte: la tasca que més pesa dins d'un RA en proporció al seu pes sobre el mòdul.
@@ -47,8 +48,12 @@ export function RaWeightsExplainer({course}: {course: AcademicCourse}) {
   return <div className="rwx">
     <article className="panel"><h2>1 · En tres passos</h2><p className="muted">Cada tasca no suma el mateix a tots els RA: depèn del tipus de tasca i de quins criteris d’avaluació (CA) treballa.</p>
       <div className="rwxSteps">
-        <div className="rwxStep"><span className="n">1</span><h3>Cada tipus de tasca té un pes</h3><p>El pes del tipus es reparteix entre totes les tasques d’aquell tipus.</p>
-          <div className="rwxTypeBar">{types.map((t, i) => <div key={t.id} style={{flex: t.weight, background: TYPE_COLORS[i % TYPE_COLORS.length]}} title={`${t.name}: ${pct(t.weight, 0)}`}>{pct(t.weight, 0)}</div>)}</div>{typeLegend}</div>
+        {explicit
+          ? <div className="rwxStep"><span className="n">1</span><h3>Cada RA té un pes al mòdul</h3><p>El pes de l’RA el fixa la programació i es reparteix entre les tasques que el formen.</p>
+            <div className="rwxTypeBar">{ras.map((r, i) => <div key={r.id} style={{flex: raW.get(r.id) ?? 0, background: TYPE_COLORS[i % TYPE_COLORS.length]}} title={`${r.code}: ${pct(raW.get(r.id) ?? 0)}`}>{r.code}</div>)}</div>
+            <div className="rwxLegend">{ras.map((r, i) => <span key={r.id}><i style={{background: TYPE_COLORS[i % TYPE_COLORS.length]}}/>{r.code} {pct(raW.get(r.id) ?? 0, 1)}</span>)}</div></div>
+          : <div className="rwxStep"><span className="n">1</span><h3>Cada tipus de tasca té un pes</h3><p>El pes del tipus es reparteix entre totes les tasques d’aquell tipus.</p>
+          <div className="rwxTypeBar">{types.map((t, i) => <div key={t.id} style={{flex: t.weight, background: TYPE_COLORS[i % TYPE_COLORS.length]}} title={`${t.name}: ${pct(t.weight, 0)}`}>{pct(t.weight, 0)}</div>)}</div>{typeLegend}</div>}
         <div className="rwxStep"><span className="n">2</span><h3>Cada tasca treballa uns criteris (CA)</h3><p>Una tasca com <b>{ex.name}</b> pot treballar criteris de molts RA alhora.</p>
           <div className="rwxChips">{ras.map(r => <span key={r.id}>{r.code}: <b>{caCount(ex.id, r.id)}</b> de {criteriaOf(r.id).length} CA</span>)}</div></div>
         <div className="rwxStep"><span className="n">3</span><h3>Els criteris formen cada RA</h3><p>La nota d’un RA és la mitjana dels seus criteris, i cada criteri el formen les tasques que el treballen.</p>

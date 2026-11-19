@@ -106,6 +106,20 @@ export const SMX_MODULES: SmxModule[] = [
       ["Legislació sobre protecció de dades.", "Legislació sobre els serveis de la societat de la informació i correu electrònic."],
     ],
   },
+  {
+    codi: "0227", nom: "Serveis de xarxa", abbreviation: "SX", curs: "2n", horesCentre: 132, horesEmpresa: 66,
+    cppes: ["a", "d", "e", "f", "g", "j", "m", "o", "s"], og: ["d", "f", "h", "i", "k", "l", "m"],
+    continguts: [
+      ["Adreça IP, màscara de xarxa, porta d'enllaç.", "DHCP. Rangs, exclusions, concessions i reserves."],
+      ["Sistemes de noms plans i jeràrquics.", "Zones primàries i secundàries. Transferències de zona. Tipus de registres."],
+      ["Usuaris i grups. Accés anònim. Permisos. Quotes. Límit d'amplada de banda.", "Comandes de control, autenticació, gestió i transferència de fitxers. Transferència en mode text i binari."],
+      ["Comptes de correu, àlies i bústies d'usuari.", "Protocols i serveis de descàrrega de correu."],
+      ["Servidors virtuals. Nom d'encapçalament d'ordinador central. Identificació d'un servidor virtual.", "Accés anònim i autenticat. Mètodes d'autenticació."],
+      ["Terminals en mode text.", "Terminals en mode gràfic."],
+      ["Punts d'accés.", "Encaminadors sense fils.", "Seguretat en xarxes sense fils."],
+      ["Passarel·les a nivell d'aplicació.", "Emmagatzematge en memòria cau.", "Encaminament de trànsit entre interfícies de xarxa."],
+    ],
+  },
 ];
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();

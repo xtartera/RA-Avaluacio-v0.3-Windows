@@ -27,7 +27,7 @@ export function Programacio({course, mutate}: {course: AcademicCourse; mutate: M
   const set = (patch: Partial<ProgramacioData>) => mutate(d => { const c = findCourse(d, course.id).configuration; c.programacio = {...(c.programacio ?? {}), ...patch}; });
   const setUnit = (id: string, patch: Partial<NonNullable<ProgramacioData["units"]>[string]>) => set({units: {...(data.units ?? {}), [id]: {...(data.units?.[id] ?? {}), ...patch}}});
   const text = (key: keyof ProgramDefaults) => programValue(course, key);
-  const textFields: [keyof ProgramDefaults, string, number][] = [["competenciaGeneral", "1. Competència general del títol", 3], ["capacitatsClau", "2. Capacitats clau", 3], ["competencies", "3.1 Competències professionals, personals i socials", 5], ["objectius", "3.2 Objectius generals associats al mòdul", 5], ["estrategies", "4.1 Estratègies metodològiques", 5], ["tac", "Eines TAC", 3], ["diversitat", "Atenció a la diversitat", 3], ["organitzacio", "4.2 Organització del mòdul", 3], ["assistencia", "Assistència", 2], ["termini", "Terminis de lliurament", 2], ["avaluacio", "5. Avaluació i qualificació (text introductori)", 7], ["espais", "6. Espais, equipaments i recursos", 5], ["normativa", "Marc normatiu (una norma per línia)", 6]];
+  const textFields: [keyof ProgramDefaults, string, number][] = [["competenciaGeneral", "1. Competència general del títol", 3], ["capacitatsClau", "2. Capacitats clau", 3], ["competencies", "3.1 Competències professionals, personals i socials", 5], ["objectius", "3.2 Objectius generals associats al mòdul", 5], ["estrategies", "4.1 Estratègies metodològiques", 5], ["tac", "Eines TAC", 3], ["diversitat", "Atenció a la diversitat", 3], ["organitzacio", "4.2 Organització del mòdul", 3], ["assistencia", "Assistència", 2], ["termini", "Terminis de lliurament", 2], ["avaluacio", "5. Avaluació i qualificació (text introductori)", 7], ["espais", "6. Espais, equipaments i recursos", 5], ["normativa", "Marc normatiu (una norma per línia)", 6], ["condicions", "5. Condicions per superar cada RA (una per línia)", 4], ["recuperacio", "5. Recuperació (opcional, un punt per línia)", 5]];
   const versions = data.versions ?? [];
   return <div className="managementScreen"><article className="panel managementPanel">
     <div className="managementHeader"><div className="managementTitle"><span className="sectionIcon"><FileText/></span><div><h2>Programació didàctica · {cfg.moduleName}</h2><p>{programYearLabel(course.academicYear)} · {cfg.level}. Els RA, CA, activitats, instruments, pesos i regles de qualificació es llegeixen de la configuració del mòdul; la resta s'escriu aquí.</p></div></div>
@@ -147,7 +147,7 @@ export function ProgramacioDocument({course, close}: {course: AcademicCourse; cl
   const year = programYearLabel(course.academicYear), file = programFileName(course), today = new Date().toLocaleDateString("ca", {day: "2-digit", month: "2-digit", year: "numeric"});
   const {centre, empresa: emp} = programHores(course), total = Number(centre) + Number(emp), codi = programCodi(course), ref = smxModuleOf(course);
   const versions = data.versions?.length ? data.versions : [{version: "01", data: today, descripcio: "Primera versió", aprovacio: data.elaboratPer ?? ""}];
-  const min = cfg.requiredActivityMinGrade, roundTh = cfg.roundingThreshold;
+  const roundTh = cfg.roundingThreshold;
   useEffect(() => {
     // Número de pàgina al peu (navegadors que suporten les caixes de marge de @page) i marges d'impressió només mentre el document és obert.
     const style = document.createElement("style");
@@ -179,9 +179,6 @@ export function ProgramacioDocument({course, close}: {course: AcademicCourse; cl
   const header = <div className="pdHead"><div><b>Generalitat de Catalunya · Departament d'Ensenyament</b><br/><b>Institut Cirvianum de Torelló</b><br/>C/ Ausies March, s/n · 08519 TORELLÓ · Tel. 93 859 17 58</div><img src={LOGO_SRC} alt="Institut Cirvianum" height={44}/></div>;
   const footer = <div className="pdFoot"><span>Nom arxiu: {file}</span><span>Data: {today}</span><span>Elaborat: {dash(data.elaboratPer)}</span></div>;
   const sections = ["0. Gestió de la programació", "1. Competència general del títol", "2. Capacitats clau", "3. Competències professionals, personals i socials i objectius generals", "4. Estratègies metodològiques i organització del MP", "5. Avaluació i qualificació del MP", "6. Espais, equipaments i recursos del MP", "7. Programació del mòdul professional", "8. Programació d'activitats d'ensenyament-aprenentatge"];
-  const requiredText = cfg.requiredByAverage
-    ? `La mitjana de les activitats obligatòries de cada unitat de treball ha de ser igual o superior a ${min}.`
-    : `Cada activitat obligatòria ha d'estar entregada i tenir una qualificació igual o superior a ${min}.`;
   return createPortal(<div className="modal"><div className="report pdDoc" role="dialog" aria-modal="true" aria-label="Programació didàctica">
     <style>{CSS}</style>
     <div className="noPrint reportActions"><button onClick={close}><X/>Tanca</button><button className="dark" onClick={() => window.print()} title="Al diàleg d'impressió tria «Desa com a PDF»"><Printer/>Imprimeix / Desa en PDF</button></div>
@@ -234,11 +231,12 @@ export function ProgramacioDocument({course, close}: {course: AcademicCourse; cl
         <div style={{overflowX: "auto"}}><table className="pdT pdMatrix"><thead><tr><th/>{c.columns.map(col => <th className="v" key={col.id}>{col.name}</th>)}<th>Total</th></tr></thead>
           <tbody>{c.matrix.map(r => <tr key={r.code}><td className="f">{r.code}</td>{r.cells.map((v, i) => <td key={i}>{v === null ? "" : v}</td>)}<td><b>{Math.round(r.total)}</b></td></tr>)}</tbody></table></div>
         <h4>Condicions per superar cada RA</h4>
-        <ul><li>La nota de l'RA ha de ser igual o superior a {min}.</li><li>{requiredText}{c.requiredNames.length ? ` Activitats obligatòries: ${c.requiredNames.join(", ")}.` : " (Aquest mòdul no té activitats obligatòries definides.)"}</li><li>Si no es compleixen aquestes condicions, l'RA no es considera assolit.</li></ul>
+        <Bullets text={text("condicions")}/>
         <h4>Qualificació del mòdul professional</h4>
         <div className="pdFormula">{c.qmp}</div>
         {c.gap > 0.0005 && <p>L'RAemp correspon al resultat d'aprenentatge que avalua l'empresa; es resol a la junta d'avaluació i s'hi incorpora la seva part de la nota.</p>}
         <p>Per superar el mòdul professional cal assolir TOTS els resultats d'aprenentatge de manera independent. La qualificació final s'arrodoneix a l'enter amb el criteri següent: a partir de {(roundTh).toLocaleString("ca")} de decimals s'arrodoneix cap amunt.</p>
+        {text("recuperacio").trim() && <><h4>Recuperació</h4><Bullets text={text("recuperacio")}/></>}
 
         <div className="pdBar" data-toc="s6">6. ESPAIS, EQUIPAMENTS I RECURSOS DEL MP</div><Paras text={text("espais")}/>
 

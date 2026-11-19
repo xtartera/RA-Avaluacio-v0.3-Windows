@@ -24,9 +24,11 @@ Aquests documents s'han de tenir presents **cada vegada que es genera o es regen
 |---|---|---|---|---|
 | Sistemes operatius en xarxa (SOX) | 0224 | 2n | 132 | 66 |
 | Seguretat informàtica (SI) | 0226 | 2n | 99 | 33 |
+| Serveis de xarxa (SX) | 0227 | 2n | 132 | 66 |
 
 CPPeS: SOX = a, c, e, f, h, l, m, n, o, q, r, s · SI = a, c, i, j, l, n, p, q, u.
 OG: SOX = a, c, d, f, g, h, i, j, k, l, m, o · SI = a, c, d, e, g, k, l.
+SX (0227): CPPeS a, d, e, f, g, j, m, o, s · OG d, f, h, i, k, l, m. La plantilla del mòdul (`src/model/templates/serveis0227.ts`) surt de la programació del professor del mòdul (PD_CF_SMX_0227_2627, 2026/27).
 
 ## Pendent / a tenir en compte
 
