@@ -169,6 +169,7 @@ export class FileBackedRepository implements AppRepository {
   /** Contingut i marca (data+mida) del fitxer tal com el vam llegir o escriure per última vegada. */
   private baseline: {text: string; stamp: string} | null = null;
   private conflict = false;
+  private loadProblem: string | null = null;
   private backupDir: FileSystemDirectoryHandle | null = null;
 
   constructor(cache: AppRepository = new IndexedDbRepository()) {
@@ -182,6 +183,11 @@ export class FileBackedRepository implements AppRepository {
 
   hasConflict(): boolean {
     return this.conflict;
+  }
+
+  /** Motiu pel qual el fitxer no s'ha pogut llegir en obrir l'app (null si es va llegir bé). */
+  readProblem(): string | null {
+    return this.loadProblem;
   }
 
   isSupported(): boolean {
@@ -218,9 +224,29 @@ export class FileBackedRepository implements AppRepository {
   async requestPermission(): Promise<FileConnection> {
     if (!this.handle) return {status: "disconnected"};
     const permission = await this.handle.requestPermission({mode: "readwrite"});
-    return permission === "granted"
-      ? {status: "connected", fileName: this.handle.name}
-      : {status: "needs-permission", fileName: this.handle.name};
+    if (permission !== "granted") return {status: "needs-permission", fileName: this.handle.name};
+    await this.checkAfterReconnect();
+    return {status: "connected", fileName: this.handle.name};
+  }
+
+  /**
+   * En obrir l'app sense permís d'escriptura, load() només ha pogut llegir la còpia local. Quan
+   * es concedeix el permís cal comparar-la amb el fitxer real: si difereixen, es marca conflicte
+   * (la pantalla ofereix carregar la versió del fitxer o conservar la local) en lloc d'escriure-hi a sobre.
+   */
+  async checkAfterReconnect(): Promise<void> {
+    if (!this.handle) return;
+    try {
+      const file = await this.handle.getFile();
+      const text = await file.text();
+      if (!text.trim()) return;
+      const theirs = migrateDatabase(JSON.parse(text));
+      const mine = await this.cache.load();
+      this.baseline = {text, stamp: stampOf(file)};
+      if (JSON.stringify(theirs) !== JSON.stringify(mine)) this.conflict = true;
+    } catch {
+      // Fitxer il·legible: es manté el comportament anterior.
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -239,8 +265,11 @@ export class FileBackedRepository implements AppRepository {
           await this.cache.save(parsed);
           return parsed;
         }
-      } catch {
-        // Fitxer il·legible o corromput: es continua amb la còpia local.
+      } catch (e) {
+        // Fitxer il·legible o corromput: es continua amb la còpia local, però NO s'hi escriurà a sobre
+        // sense que l'usuari ho decideixi (podria ser una edició manual amb un error de sintaxi).
+        this.conflict = true;
+        this.loadProblem = `El fitxer no es pot llegir (${e instanceof Error ? e.message : String(e)}). Probablement té un error de sintaxi JSON.`;
       }
     }
     return this.cache.load();
@@ -278,7 +307,7 @@ export class FileBackedRepository implements AppRepository {
     const parsed = migrateDatabase(JSON.parse(text));
     await this.cache.save(parsed);
     this.baseline = {text, stamp: stampOf(file)};
-    this.conflict = false;
+    this.conflict = false; this.loadProblem = null;
     return parsed;
   }
 
@@ -289,7 +318,7 @@ export class FileBackedRepository implements AppRepository {
     const text = await file.text();
     const where = await this.backupText(text);
     this.baseline = {text, stamp: stampOf(file)};
-    this.conflict = false;
+    this.conflict = false; this.loadProblem = null;
     await this.save(data);
     return where;
   }

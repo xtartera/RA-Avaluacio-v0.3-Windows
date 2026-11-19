@@ -92,3 +92,48 @@ test("noms i rotació de les còpies de seguretat", () => {
   assert.deepEqual(del, names.slice(0, 3));
   assert.deepEqual(backupsToDelete(names.slice(0, 5)), []);
 });
+
+test("en tornar a donar permís, si el fitxer difereix de la còpia local es marca conflicte i no s'hi escriu a sobre", async () => {
+  const file = fakeFile(JSON.stringify(db(1)));
+  const cache = memoryCache();
+  await cache.save(db(1));
+  const repo = new FileBackedRepository(cache);
+  repo.useHandle(file.handle);
+  // el fitxer s'edita a fora mentre l'app només tenia la còpia local
+  file.state.text = JSON.stringify(db(7)); file.state.modified += 1;
+  await repo.checkAfterReconnect();
+  assert.equal(repo.hasConflict(), true);
+  await assert.rejects(repo.save(db(1)), ExternalChangeError);
+  assert.equal(JSON.parse(file.state.text).gradeHistory[0].n, 7);
+  const theirs = await repo.resolveTakeTheirs();
+  assert.equal((theirs.gradeHistory[0] as unknown as {n: number}).n, 7);
+});
+
+test("en tornar a donar permís, si el fitxer coincideix amb la còpia local no hi ha conflicte", async () => {
+  const file = fakeFile(JSON.stringify(db(1), null, 2));
+  const cache = memoryCache();
+  await cache.save(db(1));
+  const repo = new FileBackedRepository(cache);
+  repo.useHandle(file.handle);
+  await repo.checkAfterReconnect();
+  assert.equal(repo.hasConflict(), false);
+  await repo.save(db(2));
+  assert.equal(JSON.parse(file.state.text).gradeHistory[0].n, 2);
+});
+
+test("un fitxer amb JSON invàlid no se sobreescriu en silenci: queda en conflicte i en fa còpia en conservar", async () => {
+  const file = fakeFile("{ aquest json està trencat ");
+  const repo = new FileBackedRepository(memoryCache());
+  repo.useHandle(file.handle);
+  await repo.load();
+  assert.equal(repo.hasConflict(), true);
+  assert.ok(repo.readProblem());
+  await assert.rejects(repo.save(db(2)), ExternalChangeError);
+  assert.equal(file.state.text, "{ aquest json està trencat ");
+  let backed = "";
+  (repo as unknown as {backupText: (t: string) => Promise<string>}).backupText = async t => { backed = t; return "còpia"; };
+  await repo.resolveKeepMine(db(2));
+  assert.equal(backed, "{ aquest json està trencat ");
+  assert.equal(JSON.parse(file.state.text).gradeHistory[0].n, 2);
+  assert.equal(repo.readProblem(), null);
+});
