@@ -473,3 +473,20 @@ nav>button .navGlobal svg,.navSub button .navGlobal svg{width:12px;height:12px}
  .jointEvalReport .rwxMe{break-inside:avoid}
  .jointEvalReport .rwxSplit{break-inside:auto}
 }
+
+/* Menú lateral tenyit quan s'és en un mòdul que no és propi: ambre (només lectura) o vermell (desbloquejat) */
+.app>aside{transition:background-color .25s ease}
+.app>aside.asideForeign{--sidebar-bg:#6b4700;--sidebar-hover-1:#8d5d00;--sidebar-hover-2:#7a5000;--sidebar-active-accent:#ffd27a;--brand-accent-text:#ffe2a3}
+.app>aside.asideForeign nav button,.app>aside.asideForeign .navGroupHeader{color:#f3dba6}
+.app>aside.asideForeign nav button:hover,.app>aside.asideForeign nav button.active,.app>aside.asideForeign .navGroupHeader:hover,.app>aside.asideForeign .navGroupHeader.open{color:#fff}
+.app>aside.asideForeign .navGroupHeader svg:last-child,.app>aside.asideForeign .navGlobal{color:#e3c070}
+.app>aside.asideForeign .navSub{border-left-color:#a77400}
+.app>aside.asideForeign .brand span,.app>aside.asideForeign .healthy span{color:#f0dba5}
+.app>aside.asideForeign .healthy{background:#7d5400;border-color:#a77400}
+.app>aside.asideUnlocked{--sidebar-bg:#6a1522;--sidebar-hover-1:#8d2434;--sidebar-hover-2:#7a1c2b;--sidebar-active-accent:#ffb3bd;--brand-accent-text:#ffd0d6}
+.app>aside.asideUnlocked nav button,.app>aside.asideUnlocked .navGroupHeader{color:#f6cdd3}
+.app>aside.asideUnlocked nav button:hover,.app>aside.asideUnlocked nav button.active,.app>aside.asideUnlocked .navGroupHeader:hover,.app>aside.asideUnlocked .navGroupHeader.open{color:#fff}
+.app>aside.asideUnlocked .navGroupHeader svg:last-child,.app>aside.asideUnlocked .navGlobal{color:#e9a2ad}
+.app>aside.asideUnlocked .navSub{border-left-color:#a73346}
+.app>aside.asideUnlocked .brand span,.app>aside.asideUnlocked .healthy span{color:#f4c7ce}
+.app>aside.asideUnlocked .healthy{background:#7c1d2d;border-color:#a73346}
