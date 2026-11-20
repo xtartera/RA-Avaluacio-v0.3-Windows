@@ -1,4 +1,5 @@
 import type {StudentSummary} from "./studentSummary.ts";
+import {trendSentence} from "./trend.ts";
 
 const n1 = (v: number) => v.toLocaleString("ca", {minimumFractionDigits: 1, maximumFractionDigits: 1});
 const list = (items: string[]) => items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} i ${items[items.length - 1]}`;
@@ -7,7 +8,7 @@ const list = (items: string[]) => items.length <= 1 ? items.join("") : `${items.
  * Comentari personalitzat de 3-4 línies sobre el rendiment global al mòdul, a partir de l'estat dels RA, la cobertura i la nota projectada.
  * Llenguatge neutre (sense gènere) i orientat a què fer a continuació; no substitueix la valoració del professorat.
  */
-export function moduleComment(summary: StudentSummary): string {
+function baseModuleComment(summary: StudentSummary): string {
   const total = summary.ras.length, assolits = summary.ras.filter(r => r.state === "assolit"), fallits = summary.ras.filter(r => r.state === "no-assolit");
   const cov = Math.round(summary.coverage), p = summary.projected;
   const progress = `S'ha avaluat un ${cov} % del mòdul${total ? `: ${assolits.length} de ${total} RA assolits${fallits.length ? ` i ${fallits.length} no assolit${fallits.length > 1 ? "s" : ""} (${list(fallits.map(r => r.code))})` : ""}` : ""}.`;
@@ -24,4 +25,15 @@ export function moduleComment(summary: StudentSummary): string {
   const required = summary.requiredFailed.length ? `Cal recuperar les activitats obligatòries suspeses (${list(summary.requiredFailed)}). ` : "";
   const ras = fallits.length ? `${fallits.length > 1 ? `Els ${list(fallits.map(r => r.code))} no estan assolits` : `El ${fallits[0].code} no està assolit`} de moment. ` : "";
   return `${progress} Ara mateix el mòdul no està superat. ${required}${ras}Encara hi ha marge per recuperar-ho: les activitats pendents poden millorar el resultat. Es recomana parlar-ne amb el professorat per acordar un pla de recuperació.`;
+}
+
+/**
+ * Comentari de la valoració global del mòdul: la situació actual (RA, cobertura i nota projectada) i, si ja hi ha prou activitats
+ * avaluades, l'evolució dels últims resultats en positiu; si baixen, reforça l'esforç i les ganes. Canvia a mesura que s'avalua.
+ */
+export function moduleComment(summary: StudentSummary): string {
+  const base = baseModuleComment(summary);
+  if (summary.provisional) return base; // amb poques activitats avaluades encara no es pot parlar d'evolució
+  const trend = trendSentence(summary.trend);
+  return trend ? `${base} ${trend}` : base;
 }

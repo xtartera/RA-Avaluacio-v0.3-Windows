@@ -3,7 +3,7 @@ import {AlertTriangle, ClipboardList, Eye, FileUp, FileText, Plus, Printer, Tras
 import {applyDiagnosticResult, createDiagnosticActivity, deleteDiagnosticActivity, diagnosticActivities, removeDiagnosticResult, type ImportDiagnosticInput} from "../../src/controllers/diagnostics";
 import {matchStudent, parseDiagnosticPdf, type ParsedDiagnostic} from "../../src/controllers/diagnosticParser";
 import {blockStatus, concludeDiagnostic, summarizeGroupDiagnostic, unitLabel} from "../../src/model/diagnostic";
-import {newId, type AcademicCourse, type DiagnosticResult, type Group} from "../../src/model/domain";
+import {newId, type AcademicCourse, type AppDatabase, type DiagnosticResult, type Group} from "../../src/model/domain";
 import {deleteAttachment, putAttachment} from "../../src/model/repository";
 import {activePeople, findCourse, findGroup, type Mutate} from "../lib/helpers";
 import {BlockBars, downloadAttachment, LevelPill, QuestionList} from "../components/diagnosticViews";
@@ -26,7 +26,7 @@ interface Draft {
 const fmt = (n: number) => n.toLocaleString("ca", {minimumFractionDigits: 1, maximumFractionDigits: 1});
 const PILL = {domina: {background: "#e3f6ec", color: "#15825f"}, correcte: {background: "#e6eefc", color: "#2f5fb3"}, reforcar: {background: "#fff3d6", color: "#8a6410"}, prioritari: {background: "#fbe7ea", color: "#b23a4b"}} as const;
 
-export function InitialAssessment({course, group, mutate, msg}: {course: AcademicCourse; group: Group; mutate: Mutate; msg: (s: string) => void}) {
+export function InitialAssessment({db, course, group, mutate, msg}: {db: AppDatabase; course: AcademicCourse; group: Group; mutate: Mutate; msg: (s: string) => void}) {
   const activities = diagnosticActivities(course);
   const [activityId, setActivityId] = useState(activities[0]?.id ?? "");
   const activity = activities.find(a => a.id === activityId) ?? activities[0];
@@ -124,7 +124,7 @@ export function InitialAssessment({course, group, mutate, msg}: {course: Academi
   return <div className="managementScreen">
     <article className="panel managementPanel">
       <div className="managementHeader">
-        <div className="managementTitle"><span className="sectionIcon"><ClipboardList/></span><div><h2>Avaluació inicial</h2><p>{QUESTIONNAIRES_ENABLED ? "Qüestionaris diagnòstics del quadern digital. " : "Observació a l’aula i resultats acumulats de la UT. "}<b>No compten per a la nota</b>, els RA ni els lliuraments: només serveixen per generar conclusions.</p></div></div>
+        <div className="managementTitle"><span className="sectionIcon"><ClipboardList/></span><div><h2>Actes d’avaluació</h2><p>{QUESTIONNAIRES_ENABLED ? "Qüestionaris diagnòstics del quadern digital. " : "Observació a l’aula i resultats acumulats de la UT. "}<b>No compten per a la nota</b>, els RA ni els lliuraments: només serveixen per generar conclusions.</p></div></div>
         <div className="actionRow">
           <div className="switch" role="group" aria-label="Vista"><button className={view === "resum" ? "active" : ""} aria-pressed={view === "resum"} onClick={() => setView("resum")}>Resum del grup</button>{QUESTIONNAIRES_ENABLED && <button className={view === "qüestionaris" ? "active" : ""} aria-pressed={view === "qüestionaris"} onClick={() => setView("qüestionaris")}>Qüestionaris</button>}<button className={view === "observacio" ? "active" : ""} aria-pressed={view === "observacio"} onClick={() => setView("observacio")}>Observació</button></div>
           {view === "qüestionaris" && <>
@@ -133,7 +133,7 @@ export function InitialAssessment({course, group, mutate, msg}: {course: Academi
           </>}
         </div>
       </div>
-      {view === "resum" ? <InitialGroupSummary course={course} group={group} mutate={mutate} openReport={id => setReportFor({enrollmentId: id})}/> : view === "observacio" ? <InitialObservation course={course} group={group} mutate={mutate} msg={msg} openReport={id => setReportFor({enrollmentId: id})}/> : !activity ? <div className="tableEmpty"><ClipboardList/><strong>Encara no hi ha cap avaluació inicial</strong><span>Crea-ne una (per exemple «Avaluació inicial UT1» i «Avaluació inicial UT2») i després importa-hi els PDF dels alumnes.</span></div> : <>
+      {view === "resum" ? <InitialGroupSummary db={db} course={course} group={group} mutate={mutate} openReport={id => setReportFor({enrollmentId: id})}/> : view === "observacio" ? <InitialObservation course={course} group={group} mutate={mutate} msg={msg} openReport={id => setReportFor({enrollmentId: id})}/> : !activity ? <div className="tableEmpty"><ClipboardList/><strong>Encara no hi ha cap avaluació inicial</strong><span>Crea-ne una (per exemple «Avaluació inicial UT1» i «Avaluació inicial UT2») i després importa-hi els PDF dels alumnes.</span></div> : <>
         <div className="managementToolbar" style={{alignItems: "end", gap: 14, flexWrap: "wrap"}}>
           <label style={{display: "flex", flexDirection: "column", gap: 4, fontSize: 11, fontWeight: 700, color: "var(--muted)"}}>Avaluació<select value={activity.id} onChange={e => { setActivityId(e.target.value); setDrafts([]); setDetail(null); }}>{activities.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
           <div className="actionRow" style={{marginLeft: "auto"}}>

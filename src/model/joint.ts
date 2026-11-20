@@ -1,3 +1,4 @@
+import {type StudentTrend} from "./trend.ts";
 import {calculateStudent} from "./calculation.ts";
 import {countsForGrade, type AcademicCourse, type AppDatabase, type Group} from "./domain.ts";
 import {summarizeStudent, type SummaryStatus} from "./studentSummary.ts";
@@ -25,6 +26,8 @@ export interface JointModuleResult {
   finalAdjustment?: {value: number; calculated: number; reason: string};
   /** Notes d'RA decidides pel professor. */
   raAdjustments: JointAdjustment[];
+  /** Evolució dels últims resultats en aquest mòdul (null si encara hi ha poques activitats avaluades). */
+  trend?: StudentTrend | null;
 }
 
 export interface JointStudent {
@@ -64,7 +67,7 @@ function moduleResult(course: AcademicCourse, group: Group | undefined, key: str
     ...base, state: hasEvidence ? summary.status : "pendent", enrollmentId: enrollment.id,
     projected: hasEvidence ? summary.projected : null, coverage: summary.coverage,
     achieved: summary.ras.filter(r => r.state === "assolit").map(r => r.code), failed: summary.ras.filter(r => r.state === "no-assolit").map(r => r.code), inProgress: summary.ras.filter(r => r.state === "en-curs").map(r => r.code),
-    causes: summary.causes, finalAdjustment: summary.finalAdjustment ? {value: summary.finalAdjustment.value, calculated: summary.finalAdjustment.calculated, reason: summary.finalAdjustment.reason} : undefined, raAdjustments,
+    trend: hasEvidence ? summary.trend : null, causes: summary.causes, finalAdjustment: summary.finalAdjustment ? {value: summary.finalAdjustment.value, calculated: summary.finalAdjustment.calculated, reason: summary.finalAdjustment.reason} : undefined, raAdjustments,
   };
 }
 

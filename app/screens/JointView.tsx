@@ -3,6 +3,7 @@ import {createPortal} from "react-dom";
 import {AlertTriangle, GraduationCap, Printer, X} from "lucide-react";
 import type {AcademicCourse, AppDatabase} from "../../src/model/domain";
 import {analyzeJoint, buildJointStudents, jointCourses, type JointModuleResult, type JointStudent} from "../../src/model/joint";
+import {jointTrendSentence} from "../../src/model/trend";
 import {ReportLogo} from "../components/shared";
 import {StudentSummaryPage} from "./StudentSummaryReport";
 
@@ -111,7 +112,7 @@ function JointGroupSummaries({courses, students, course, groupCode, close}: {cou
 
 /** Informe d'avaluació conjunt (resum + una pàgina per mòdul) de tots els alumnes del grup. */
 function JointGroupEvaluations({courses, students, course, groupCode, close}: {courses: AcademicCourse[]; students: JointStudent[]; course: AcademicCourse; groupCode: string; close: () => void}) {
-  return createPortal(<div className="modal"><div className="report initialReport" role="dialog" aria-modal="true" aria-label="Avaluació de tots els alumnes">
+  return createPortal(<div className="modal"><div className="report initialReport jointEvalReport" role="dialog" aria-modal="true" aria-label="Avaluació de tots els alumnes">
     <div className="noPrint reportActions"><button onClick={close} autoFocus><X/>Tanca</button><button className="dark" onClick={() => window.print()}><Printer/>Imprimeix {students.length} informes</button></div>
     {students.map(s => <EvaluationPages key={s.key} courses={courses} student={s} course={course} groupCode={groupCode}/>)}
   </div></div>, document.body);
@@ -127,7 +128,8 @@ function jointComment(student: JointStudent): string {
   if (list("superat").length) parts.push(`De moment supera ${list("superat").length === present.length ? "tots els mòduls cursats" : join(list("superat"))}`);
   if (list("no-superat").length) parts.push(`De moment no supera ${join(list("no-superat"))}${present.filter(m => m.state === "no-superat").flatMap(m => m.failed).length ? `, amb RA pendents de recuperar (${present.filter(m => m.state === "no-superat").map(m => `${m.abbreviation}: ${m.failed.join(", ") || "nota global"}`).join("; ")})` : ""}`);
   if (list("pendent").length) parts.push(`${join(list("pendent"))} ${list("pendent").length > 1 ? "són encara provisionals" : "és encara provisional"}, per falta d'evidències corregides`);
-  return `${parts.join(". ")}.`;
+  const trend = jointTrendSentence(present.map(m => ({abbreviation: m.abbreviation, trend: m.trend})));
+  return `${parts.join(". ")}.${trend ? ` ${trend}` : ""}`;
 }
 
 /** Informe a l'estil de «Informe d'avaluació de l'alumne», amb tots els mòduls: una pàgina de resum i una pàgina completa per mòdul. */
@@ -135,7 +137,7 @@ function EvaluationSummary({courses, student, course, groupCode, title, withModu
   const today = new Date().toLocaleDateString("ca", {day: "2-digit", month: "2-digit", year: "numeric"});
   const adjustments = student.modules.flatMap(m => adjustmentTexts(m).map(t => `${m.abbreviation} · ${t}`));
   return (
-    <section className="initialPage"><ReportLogo/>
+    <section className={"initialPage" + (withModulePages ? " evalStart" : "")}><ReportLogo/>
       <h2 style={{textAlign: "center", fontSize: 22, margin: "2px 0 10px"}}>{courses.map(c => c.configuration.moduleName).join(" · ")}</h2>
       <div className="reportHead"><GraduationCap/><div><small>{title}</small><h1>{student.name}</h1><p>{course.configuration.level} · Grup {groupCode} · {course.academicYear} · Dades a {today}</p></div></div>
       <InternalNotice compact/>
@@ -156,12 +158,13 @@ function EvaluationPages({courses, student, course, groupCode}: {courses: Academ
   }).filter((x): x is NonNullable<typeof x> => !!x);
   return <>
     <EvaluationSummary courses={courses} student={student} course={course} groupCode={groupCode} title="INFORME CONJUNT D'AVALUACIÓ DE L'ALUMNE" withModulePages/>
-    {pages.map(p => <StudentSummaryPage key={p.c.id} course={p.c} group={p.group} enrollmentId={p.enrollmentId} title={`INFORME CONJUNT D'AVALUACIÓ DE L'ALUMNE · ${p.c.configuration.abbreviation}`}/>)}
+    {pages.map(p => <StudentSummaryPage key={p.c.id} course={p.c} group={p.group} enrollmentId={p.enrollmentId} title={`INFORME CONJUNT D'AVALUACIÓ DE L'ALUMNE · ${p.c.configuration.abbreviation}`} compact/>)}
+    {(1 + pages.length) % 2 === 1 && <section className="initialPage blankPage" aria-hidden="true">&nbsp;</section>}
   </>;
 }
 
 function JointEvaluationReport({courses, student, course, groupCode, close}: {courses: AcademicCourse[]; student: JointStudent; course: AcademicCourse; groupCode: string; close: () => void}) {
-  return createPortal(<div className="modal"><div className="report initialReport" role="dialog" aria-modal="true" aria-label="Informe d'avaluació conjunt de l'alumne">
+  return createPortal(<div className="modal"><div className="report initialReport jointEvalReport" role="dialog" aria-modal="true" aria-label="Informe d'avaluació conjunt de l'alumne">
     <div className="noPrint reportActions"><button onClick={close} autoFocus><X/>Tanca</button><button className="dark" onClick={() => window.print()}><Printer/>Imprimeix</button></div>
     <EvaluationPages courses={courses} student={student} course={course} groupCode={groupCode}/>
   </div></div>, document.body);

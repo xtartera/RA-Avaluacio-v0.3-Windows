@@ -440,3 +440,36 @@ table.rwxHeat{border-collapse:separate;border-spacing:3px;width:100%}
 .navGlobal{margin-left:auto;display:inline-flex;align-items:center;color:#7f8fb0;opacity:.8}
 nav>button .navGlobal svg,.navSub button .navGlobal svg{width:12px;height:12px}
 .navSub button{text-align:left}
+
+/* Actes d'avaluació en Word: dues targetes, una per acta */
+.actaCards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px 24px 4px}
+.actaCard{border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px 16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 4px 14px #233b650a}
+.actaCardHead{display:flex;gap:12px;align-items:flex-start}
+.actaCardHead>b{flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--tint-a);color:var(--accent-text-6)}
+.actaCardHead strong{display:block;font-size:14px;color:var(--ink)}
+.actaCardHead .desc{display:block;font-size:12px;line-height:1.45;color:var(--muted);margin-top:3px}
+.actaCardTag{margin-left:auto;flex:none;font-size:10px;font-weight:800;letter-spacing:.07em;color:#51607a;background:#eef2f8;border-radius:20px;padding:3px 9px}
+.actaCardActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.actaCardActions button{flex:1 1 190px;display:flex;align-items:center;gap:10px;text-align:left;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#f8fafd}
+.actaCardActions button:hover:not(:disabled){border-color:var(--accent-border);background:var(--tint-a)}
+.actaCardActions button:disabled{opacity:.6;cursor:progress}
+.actaCardActions button svg{flex:none;width:18px;height:18px;color:var(--accent-text-6)}
+.actaCardActions button b{display:block;font-size:12.5px}
+.actaCardActions button small{display:block;font-weight:400;font-size:11px;color:var(--muted);margin-top:1px}
+@media(max-width:900px){.actaCards{grid-template-columns:1fr}}
+
+/* Informe conjunt d'avaluació de l'alumne: pàgines compactes i uniformes (resum + una pàgina per mòdul) */
+.coverageBox{display:inline-block;margin-left:10px;padding:1px 9px;border:1px solid #c9d6ee;border-radius:8px;background:#f3f7fe;color:#2f5fb3;font-size:.55em;font-weight:800;letter-spacing:0;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.jointEvalReport .rwxMeBar{height:20px;margin-bottom:2px;border-radius:7px}
+.jointEvalReport .rwxMe{margin:3px 0;gap:8px;grid-template-columns:70px minmax(0,1fr) 92px}
+.jointEvalReport .rwxKeys{margin:4px 0 2px}
+.jointEvalReport .reportBlock{padding:8px}
+.jointEvalReport .rwxSplit{margin:8px 0!important}
+.blankPage{min-height:1px;color:transparent}
+@media print{
+ html:has(.jointEvalReport){page:fullReport}
+ .jointEvalReport .evalStart:not(:first-of-type){break-before:right}
+ .jointEvalReport .blankPage{break-after:page}
+ .jointEvalReport .rwxMe{break-inside:avoid}
+ .jointEvalReport .rwxSplit{break-inside:auto}
+}

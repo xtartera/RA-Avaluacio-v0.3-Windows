@@ -1,6 +1,7 @@
 import {calculateStudent, raIsAchieved, raIsFailing, requiredGroupStatus} from "./calculation.ts";
 import {analyzeUnitResults, raOutcome} from "./unitResults.ts";
 import type {AcademicCourse, Group} from "./domain.ts";
+import {studentTrend, type StudentTrend} from "./trend.ts";
 
 export type SummaryStatus = "superat" | "no-superat" | "pendent";
 export type RaState = "assolit" | "no-assolit" | "en-curs";
@@ -31,6 +32,8 @@ export interface StudentSummary {
   requiredFailed: string[];
   /** Nota final decidida pel professor (`calculated` és la que sortia del càlcul). */
   finalAdjustment?: {value: number; reason: string; calculated: number};
+  /** Evolució dels resultats (últimes activitats enfront de les anteriors); null si encara hi ha poques activitats avaluades. */
+  trend?: StudentTrend | null;
 }
 
 /**
@@ -39,6 +42,7 @@ export interface StudentSummary {
  */
 export function summarizeStudent(course: AcademicCourse, group: Group, enrollmentId: string): StudentSummary {
   const cfg = course.configuration, min = cfg.requiredActivityMinGrade, calc = calculateStudent(course, group, enrollmentId);
+  const trend = studentTrend(course, group, enrollmentId);
   const activities = new Map(cfg.activities.map(a => [a.id, a]));
   const failedRequiredOf = (raId: string) => {
     const names = new Set<string>();
@@ -91,7 +95,7 @@ export function summarizeStudent(course: AcademicCourse, group: Group, enrollmen
   else { status = "no-superat"; causes.push(`La nota projectada del mòdul no arriba al mínim exigit (${min}).`); }
   if (calc.finalAdjustment) {
     const value = calc.finalAdjustment.value;
-    return {projected: value, coverage: calc.globalCoverage, provisional: false, status: value >= min ? "superat" : "no-superat", causes: value >= min ? [] : [`La nota final decidida pel professor (${value.toFixed(2)}) no arriba al mínim exigit (${min}).`], ras, requiredFailed: [], finalAdjustment: calc.finalAdjustment};
+    return {projected: value, coverage: calc.globalCoverage, provisional: false, status: value >= min ? "superat" : "no-superat", causes: value >= min ? [] : [`La nota final decidida pel professor (${value.toFixed(2)}) no arriba al mínim exigit (${min}).`], ras, requiredFailed: [], finalAdjustment: calc.finalAdjustment, trend};
   }
-  return {projected: calc.globalScore, coverage: calc.globalCoverage, provisional, status, causes, ras, requiredFailed};
+  return {projected: calc.globalScore, coverage: calc.globalCoverage, provisional, status, causes, ras, requiredFailed, trend};
 }
