@@ -7,12 +7,31 @@ import {AlertTriangle, FileSpreadsheet, Printer, X} from "lucide-react";
 import {activityWeights, raWeights, theoreticalActivityWeights, theoreticalRaWeights} from "../../src/model/calculation";
 import type {AcademicCourse} from "../../src/model/domain";
 import {raShares, typeColor, useGridMaxHeight} from "../lib/helpers";
+import {downloadGradesWorkbook} from "../../src/controllers/gradesExport";
 
 export function Reports({course}:{course:AcademicCourse}){
  return <>
   <div className="panelHeader" style={{marginBottom:16}}><h2>Informes i extraccions de dades</h2></div>
+  <GradesExportPanel course={course}/>
   <ActivityContributionReport course={course}/>
  </>;
+}
+
+function GradesExportPanel({course}:{course:AcademicCourse}){
+ const[scope,setScope]=useState<string>("tots"),[done,setDone]=useState<string|null>(null),[error,setError]=useState<string|null>(null);
+ const groups=scope==="tots"?course.groups:course.groups.filter(g=>g.id===scope);
+ const run=()=>{try{setError(null);setDone(downloadGradesWorkbook(course,groups))}catch(e){setDone(null);setError(String(e))}};
+ return <article className="panel" style={{marginBottom:16}}>
+  <div className="panelHeader"><h2><FileSpreadsheet size={16} style={{verticalAlign:"-3px",marginRight:6,color:"var(--blue)"}}/>Còpia de les notes en full de càlcul (Excel)</h2></div>
+  <p className="muted" style={{margin:"6px 0 12px"}}>Descarrega un llibre <strong>.xlsx</strong> (Excel o Calc) amb les notes introduïdes a <strong>{course.configuration.abbreviation}</strong>: un full de <strong>resum</strong>, un full per cada <strong>unitat</strong> (alumnes × activitats, amb tipus, pes i data), les <strong>bonificacions</strong> i les <strong>notes decidides pel professor</strong>, i un full <strong>«Totes les notes»</strong> en format llarg, pensat per a filtres i taules dinàmiques. És una còpia de lectura: no es pot tornar a importar a l’app.</p>
+  <div className="actionRow" style={{flexWrap:"wrap",alignItems:"center"}}>
+   <label className="muted" style={{display:"inline-flex",alignItems:"center",gap:8}}>Grup <select value={scope} onChange={e=>setScope(e.target.value)}><option value="tots">Tots els grups</option>{course.groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
+   <button className="dark" onClick={run}><FileSpreadsheet/>Descarrega l’Excel</button>
+  </div>
+  {done&&<p className="ok" style={{display:"inline-block",marginTop:10}}>Descarregat: {done}</p>}
+  {error&&<p className="risk" style={{display:"inline-block",marginTop:10}}>{error}</p>}
+  <p className="muted" style={{fontSize:11,marginTop:10}}><AlertTriangle size={12} style={{verticalAlign:"-2px"}}/> El fitxer conté noms d’alumnes i notes: desa’l només en llocs adequats (no a una carpeta pública ni per correu sense protegir).</p>
+ </article>;
 }
 
 function ActivityContributionReport({course}:{course:AcademicCourse}){
