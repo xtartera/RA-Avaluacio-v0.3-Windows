@@ -99,3 +99,6 @@ export function summarizeStudent(course: AcademicCourse, group: Group, enrollmen
   }
   return {projected: calc.globalScore, coverage: calc.globalCoverage, provisional, status, causes, ras, requiredFailed, trend};
 }
+
+/** Explicació de la nota projectada, igual a tots els informes. */
+export const PROJECTED_NOTE = "La nota projectada és la nota que s'espera que l'alumne obtingui al final de curs segons el seu rendiment actual. És un càlcul aproximat i pot ser ben diferent de la realitat: una estimació del professorat a partir del rendiment que mostra l'alumne ara, no una nota definitiva.";

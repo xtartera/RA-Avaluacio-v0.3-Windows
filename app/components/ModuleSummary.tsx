@@ -1,7 +1,8 @@
 import type {StudentSummary, SummaryStatus} from "../../src/model/studentSummary";
 
 /** Explicació de la nota projectada, igual a tots els informes. */
-export const PROJECTED_NOTE = "La nota projectada és la nota que s'espera que l'alumne obtingui al final de curs segons el seu rendiment actual. És un càlcul aproximat i pot ser ben diferent de la realitat: una estimació del professorat a partir del rendiment que mostra l'alumne ara, no una nota definitiva.";
+import {PROJECTED_NOTE} from "../../src/model/studentSummary";
+export {PROJECTED_NOTE};
 
 const STATUS: Record<SummaryStatus, {bg: string; fg: string; label: string}> = {
   superat: {bg: "#dff3e4", fg: "#1d6b48", label: "Superat de moment"},

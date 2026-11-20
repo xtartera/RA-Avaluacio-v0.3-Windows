@@ -1,10 +1,10 @@
 import {useState} from "react";
 import {createPortal} from "react-dom";
-import {AlertTriangle, GraduationCap, Printer, X} from "lucide-react";
+import {AlertTriangle, FileDown, GraduationCap, Printer, X} from "lucide-react";
 import type {AcademicCourse, AppDatabase} from "../../src/model/domain";
-import {analyzeJoint, buildJointStudents, jointCourses, type JointModuleResult, type JointStudent} from "../../src/model/joint";
-import {jointTrendSentence} from "../../src/model/trend";
+import {adjustmentTexts, analyzeJoint, buildJointStudents, jointComment, jointCourses, jointFootnote, type JointModuleResult, type JointStudent} from "../../src/model/joint";
 import {ReportLogo} from "../components/shared";
+import {StudentPdfExport} from "../components/StudentPdfExport";
 import {StudentSummaryPage} from "./StudentSummaryReport";
 
 const fmt = (v: number) => v.toLocaleString("ca", {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -12,17 +12,6 @@ const STATE_LABEL = {superat: "Superat de moment", "no-superat": "No superat de 
 const STATE_CLASS = {superat: "ok", "no-superat": "risk", pendent: "pending", absent: "muted"} as const;
 
 const StateChip = ({m}: {m: JointModuleResult}) => <span className={STATE_CLASS[m.state]}>{STATE_LABEL[m.state]}</span>;
-const adjustmentTexts = (m: JointModuleResult) => [
-  ...m.raAdjustments.map(a => `${a.code}: ${fmt(a.value)} decidida pel professor (calculada ${fmt(a.calculated)}). Motiu: ${a.reason}`),
-  ...(m.finalAdjustment ? [`Nota final: ${fmt(m.finalAdjustment.value)} decidida pel professor (calculada ${fmt(m.finalAdjustment.calculated)}). Motiu: ${m.finalAdjustment.reason}`] : []),
-];
-
-/** Avís permanent: aquests documents són per a l'equip docent. */
-function InternalNotice({compact = false}: {compact?: boolean}) {
-  return <div role="note" style={{display: "flex", gap: 10, alignItems: "center", background: "#fff4d6", border: "1px solid #e8c766", color: "#6b4a00", borderRadius: 10, padding: compact ? "6px 10px" : "10px 14px", margin: compact ? "8px 0" : "0 0 14px", fontSize: compact ? 11 : 13, fontWeight: 700}}>
-    <AlertTriangle size={compact ? 14 : 18} style={{flexShrink: 0}}/>Document intern: ús exclusiu de l'equip docent. Conté notes decidides pel professor i anàlisis comparades; no s'ha de lliurar a l'alumnat ni a les famílies.
-  </div>;
-}
 
 function Cell({m}: {m: JointModuleResult}) {
   if (m.state === "absent") return <td className="muted" title="No matriculat en aquest mòdul">—</td>;
@@ -32,19 +21,19 @@ function Cell({m}: {m: JointModuleResult}) {
 
 export function JointView({db, course, groupCode}: {db: AppDatabase; course: AcademicCourse; groupCode: string}) {
   const courses = jointCourses(db, course), students = buildJointStudents(courses, groupCode), analysis = analyzeJoint(courses, students);
-  const [view, setView] = useState<"graella" | "analisi">("graella"), [studentReport, setStudentReport] = useState<string | null>(null), [evaluationReport, setEvaluationReport] = useState<string | null>(null), [groupReport, setGroupReport] = useState<null | "menu" | "resum" | "avaluacio">(null);
+  const [view, setView] = useState<"graella" | "analisi">("graella"), [studentReport, setStudentReport] = useState<string | null>(null), [evaluationReport, setEvaluationReport] = useState<string | null>(null), [groupReport, setGroupReport] = useState<null | "menu" | "resum" | "avaluacio">(null), [pdfExport, setPdfExport] = useState(false);
   const reportStudent = students.find(s => s.key === studentReport), evaluationStudent = students.find(s => s.key === evaluationReport);
-  if (courses.length < 2) return <div className="managementScreen"><InternalNotice/><article className="panel managementPanel"><p>La vista conjunta necessita almenys dos mòduls del curs {course.academicYear}. Ara només n'hi ha {courses.length}. Crea l'altre mòdul a «Cursos».</p></article></div>;
+  if (courses.length < 2) return <div className="managementScreen"><article className="panel managementPanel"><p>La vista conjunta necessita almenys dos mòduls del curs {course.academicYear}. Ara només n'hi ha {courses.length}. Crea l'altre mòdul a «Cursos».</p></article></div>;
   return <div className="managementScreen">
-    <InternalNotice/>
     <article className="panel managementPanel">
       <div className="managementHeader"><div className="managementTitle"><div><h2>Grup {groupCode} · {courses.map(c => c.configuration.abbreviation).join(" + ")} · {course.academicYear}</h2><p>{students.length} alumnes · cada mòdul es calcula amb els seus criteris; aquí només es llegeixen i es comparen. No hi ha cap mitjana global dels mòduls.</p></div></div>
-        <div className="actionRow"><div className="switch"><button className={view === "graella" ? "active" : ""} onClick={() => setView("graella")}>Graella conjunta</button><button className={view === "analisi" ? "active" : ""} onClick={() => setView("analisi")}>Anàlisi del grup</button></div><button className="dark" onClick={() => setGroupReport("menu")}><Printer/>Informe del grup</button></div></div>
+        <div className="actionRow"><div className="switch"><button className={view === "graella" ? "active" : ""} onClick={() => setView("graella")}>Graella conjunta</button><button className={view === "analisi" ? "active" : ""} onClick={() => setView("analisi")}>Anàlisi del grup</button></div><button onClick={() => setPdfExport(true)} title="Un PDF de l'informe conjunt de cada alumne, anomenat nom.cognom.pdf, en un ZIP o en una carpeta"><FileDown/>PDF per alumne</button><button className="dark" onClick={() => setGroupReport("menu")}><Printer/>Informe del grup</button></div></div>
       {view === "graella" ? <GroupTable courses={courses} students={students} onReport={setStudentReport} onEvaluation={setEvaluationReport}/> : <AnalysisView courses={courses} analysis={analysis}/>}
       <p className="muted" style={{fontSize: 11, marginTop: 10}}>Els alumnes s'uneixen pel nom (sense accents, majúscules ni ordre de cognoms). ✎ = hi ha notes decidides pel professor: passa-hi el ratolí per sobre per veure el motiu.</p>
     </article>
     {evaluationStudent && <JointEvaluationReport courses={courses} student={evaluationStudent} course={course} groupCode={groupCode} close={() => setEvaluationReport(null)}/>}
     {reportStudent && <JointStudentReport courses={courses} student={reportStudent} course={course} groupCode={groupCode} close={() => setStudentReport(null)}/>}
+    {pdfExport && <StudentPdfExport courses={courses} students={students} course={course} groupCode={groupCode} close={() => setPdfExport(false)}/>}
     {groupReport === "menu" && <GroupReportChoice courses={courses} students={students} choose={setGroupReport} close={() => setGroupReport(null)}/>}
     {groupReport === "resum" && <JointGroupSummaries courses={courses} students={students} course={course} groupCode={groupCode} close={() => setGroupReport(null)}/>}
     {groupReport === "avaluacio" && <JointGroupEvaluations courses={courses} students={students} course={course} groupCode={groupCode} close={() => setGroupReport(null)}/>}
@@ -119,18 +108,6 @@ function JointGroupEvaluations({courses, students, course, groupCode, close}: {c
 }
 
 /** Valoració conjunta en prosa, a partir de l'estat de cada mòdul (no hi ha cap nota global). */
-function jointComment(student: JointStudent): string {
-  const present = student.modules.filter(m => m.state !== "absent");
-  if (!present.length) return "";
-  const list = (state: JointModuleResult["state"]) => present.filter(m => m.state === state).map(m => m.moduleName);
-  const join = (xs: string[]) => xs.length > 1 ? `${xs.slice(0, -1).join(", ")} i ${xs[xs.length - 1]}` : xs[0];
-  const parts: string[] = [];
-  if (list("superat").length) parts.push(`De moment supera ${list("superat").length === present.length ? "tots els mòduls cursats" : join(list("superat"))}`);
-  if (list("no-superat").length) parts.push(`De moment no supera ${join(list("no-superat"))}${present.filter(m => m.state === "no-superat").flatMap(m => m.failed).length ? `, amb RA pendents de recuperar (${present.filter(m => m.state === "no-superat").map(m => `${m.abbreviation}: ${m.failed.join(", ") || "nota global"}`).join("; ")})` : ""}`);
-  if (list("pendent").length) parts.push(`${join(list("pendent"))} ${list("pendent").length > 1 ? "són encara provisionals" : "és encara provisional"}, per falta d'evidències corregides`);
-  const trend = jointTrendSentence(present.map(m => ({abbreviation: m.abbreviation, trend: m.trend})));
-  return `${parts.join(". ")}.${trend ? ` ${trend}` : ""}`;
-}
 
 /** Informe a l'estil de «Informe d'avaluació de l'alumne», amb tots els mòduls: una pàgina de resum i una pàgina completa per mòdul. */
 function EvaluationSummary({courses, student, course, groupCode, title, withModulePages}: {courses: AcademicCourse[]; student: JointStudent; course: AcademicCourse; groupCode: string; title: string; withModulePages: boolean}) {
@@ -140,13 +117,12 @@ function EvaluationSummary({courses, student, course, groupCode, title, withModu
     <section className={"initialPage" + (withModulePages ? " evalStart" : "")}><ReportLogo/>
       <h2 style={{textAlign: "center", fontSize: 22, margin: "2px 0 10px"}}>{courses.map(c => c.configuration.moduleName).join(" · ")}</h2>
       <div className="reportHead"><GraduationCap/><div><small>{title}</small><h1>{student.name}</h1><p>{course.configuration.level} · Grup {groupCode} · {course.academicYear} · Dades a {today}</p></div></div>
-      <InternalNotice compact/>
       <table><thead><tr><th>Mòdul</th><th>Nota projectada</th><th>Estat</th><th>Avaluat</th><th>RA assolits</th><th>RA no assolits</th><th>RA en curs</th></tr></thead>
         <tbody>{student.modules.map(m => <tr key={m.courseId}><td><strong>{m.moduleName}</strong></td>{m.state === "absent" ? <td colSpan={6} className="muted">No matriculat en aquest mòdul</td> : <><td><strong>{m.projected === null ? "—" : fmt(m.projected)}</strong></td><td><StateChip m={m}/></td><td>{m.coverage.toFixed(0)}%</td><td>{m.achieved.join(", ") || "—"}</td><td>{m.failed.length ? <span className="risk">{m.failed.join(", ")}</span> : "—"}</td><td>{m.inProgress.join(", ") || "—"}</td></>}</tr>)}</tbody></table>
       <div className="reportBlock tightPrint" style={{margin: "12px 0 0", background: "#fbfaf3", border: "1px solid #e4dcc0"}}><h3>Valoració global</h3><p style={{fontSize: 12.5, lineHeight: 1.5, margin: 0}}>{jointComment(student) || "Sense mòduls."}</p></div>
       {adjustments.length > 0 && <div className="reportBlock tightPrint" style={{margin: "10px 0 0"}}><h3>Notes decidides pel professor</h3><ul className="reportList" style={{fontSize: 12}}>{adjustments.map((t, i) => <li key={i}>{t}</li>)}</ul></div>}
-      <p className="muted" style={{fontSize: 10.5, margin: "10px 0 0"}}>«De moment» vol dir que l'estat es basa només en el que ja està corregit; «Pendent d'avaluar» vol dir que encara no s'ha arribat al percentatge mínim d'avaluació del mòdul ({courses.map(c => `${c.configuration.abbreviation} ${c.configuration.minRaCoverage ?? 25}%`).join(", ")}), i llavors la nota és només provisional. Cada mòdul s'avalua amb els seus propis criteris; no hi ha una nota global dels mòduls.{withModulePages ? " Les pàgines següents detallen cada mòdul." : ""} Aquest informe no substitueix la resolució final.</p>
-      <footer>Informe conjunt d'avaluació de l'alumne · Document intern de l'equip docent · Dades locals</footer>
+      <p className="muted" style={{fontSize: 10.5, margin: "10px 0 0"}}>{jointFootnote(courses, withModulePages)}</p>
+      <footer>Informe conjunt d'avaluació de l'alumne · Dades locals</footer>
     </section>
   );
 }

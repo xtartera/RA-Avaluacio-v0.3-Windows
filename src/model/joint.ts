@@ -1,4 +1,4 @@
-import {type StudentTrend} from "./trend.ts";
+import {jointTrendSentence, type StudentTrend} from "./trend.ts";
 import {calculateStudent} from "./calculation.ts";
 import {countsForGrade, type AcademicCourse, type AppDatabase, type Group} from "./domain.ts";
 import {summarizeStudent, type SummaryStatus} from "./studentSummary.ts";
@@ -120,4 +120,30 @@ export function analyzeJoint(courses: AcademicCourse[], students: JointStudent[]
     partial: courses.length > 1 ? students.filter(s => s.present < courses.length) : [], gaps,
     allPassed: students.filter(s => s.present === courses.length && s.passed === s.present && s.present > 0),
   };
+}
+
+/** Text de les notes decidides pel professor d'un mòdul (RA i nota final). */
+const fmt2 = (v: number) => v.toLocaleString("ca", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+export const adjustmentTexts = (m: JointModuleResult) => [
+  ...m.raAdjustments.map(a => `${a.code}: ${fmt2(a.value)} decidida pel professor (calculada ${fmt2(a.calculated)}). Motiu: ${a.reason}`),
+  ...(m.finalAdjustment ? [`Nota final: ${fmt2(m.finalAdjustment.value)} decidida pel professor (calculada ${fmt2(m.finalAdjustment.calculated)}). Motiu: ${m.finalAdjustment.reason}`] : []),
+];
+
+/** Valoració global conjunta d'un alumne: l'estat de cada mòdul i l'evolució dels últims resultats. */
+export function jointComment(student: JointStudent): string {
+  const present = student.modules.filter(m => m.state !== "absent");
+  if (!present.length) return "";
+  const list = (state: JointModuleResult["state"]) => present.filter(m => m.state === state).map(m => m.moduleName);
+  const join = (xs: string[]) => xs.length > 1 ? `${xs.slice(0, -1).join(", ")} i ${xs[xs.length - 1]}` : xs[0];
+  const parts: string[] = [];
+  if (list("superat").length) parts.push(`De moment supera ${list("superat").length === present.length ? "tots els mòduls cursats" : join(list("superat"))}`);
+  if (list("no-superat").length) parts.push(`De moment no supera ${join(list("no-superat"))}${present.filter(m => m.state === "no-superat").flatMap(m => m.failed).length ? `, amb RA pendents de recuperar (${present.filter(m => m.state === "no-superat").map(m => `${m.abbreviation}: ${m.failed.join(", ") || "nota global"}`).join("; ")})` : ""}`);
+  if (list("pendent").length) parts.push(`${join(list("pendent"))} ${list("pendent").length > 1 ? "són encara provisionals" : "és encara provisional"}, per falta d'evidències corregides`);
+  const trend = jointTrendSentence(present.map(m => ({abbreviation: m.abbreviation, trend: m.trend})));
+  return `${parts.join(". ")}.${trend ? ` ${trend}` : ""}`;
+}
+
+/** Nota a peu de l'informe conjunt de l'alumne. */
+export function jointFootnote(courses: {configuration: {abbreviation: string; minRaCoverage?: number}}[], withModulePages: boolean): string {
+  return `«De moment» vol dir que l'estat es basa només en el que ja està corregit; «Pendent d'avaluar» vol dir que encara no s'ha arribat al percentatge mínim d'avaluació del mòdul (${courses.map(c => `${c.configuration.abbreviation} ${c.configuration.minRaCoverage ?? 25}%`).join(", ")}), i llavors la nota és només provisional. Cada mòdul s'avalua amb els seus propis criteris; no hi ha una nota global dels mòduls.${withModulePages ? " Les pàgines següents detallen cada mòdul." : ""} Aquest informe no substitueix la resolució final.`;
 }
