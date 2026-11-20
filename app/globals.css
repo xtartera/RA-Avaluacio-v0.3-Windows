@@ -401,3 +401,36 @@ table.rwxHeat{border-collapse:separate;border-spacing:3px;width:100%}
 .rwxKeys i.nd{background:#b7c0cf}
 @media print{.rwxMeBar .seg.nd,.rwxKeys i.nd{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 @media print{.fullReportPage footer{break-before:avoid}}
+
+/* Registre de notes en paper: pàgines A4 horitzontals, una taula per grup repartida en fulls */
+@page gradesRegister{size:A4 landscape;margin:9mm 10mm}
+.registerDoc{width:min(1180px,100%)}
+.registerPage{margin:0 0 28px;padding-bottom:22px;border-bottom:2px dashed var(--line)}
+.registerPage:last-of-type{border-bottom:0;margin-bottom:0}
+.registerHead{display:flex;align-items:center;gap:18px;margin-bottom:10px}
+.registerHead h1{font-size:19px;margin:2px 0}
+.registerHead small{color:#4e77c9;font-weight:800;font-size:10px;letter-spacing:.1em}
+.registerHead p{font-size:11.5px;color:#7d899d;margin:0}
+.registerTable{table-layout:fixed;border-collapse:collapse;width:100%;font-size:10.5px}
+.registerTable th,.registerTable td{border:1px solid #9aa6b8;padding:1px 3px;text-align:center;vertical-align:middle}
+.registerTable thead th{background:#eef2f8;color:#26344c;font-weight:700;letter-spacing:0;text-transform:none;position:static}
+.registerTable .registerName{width:46mm;text-align:left;font-weight:700;white-space:normal;overflow-wrap:anywhere}
+.registerTable td.registerName{font-weight:600}
+.registerTable .registerUnit{background:#dfe7f4;font-size:11px}
+.registerTable .registerAct{font-size:9.5px;line-height:1.1;overflow-wrap:anywhere;height:26px}
+.registerTable .registerMeta{font-weight:400;font-size:9px;color:#51607a}
+.registerTable tbody td{height:16px;line-height:1.1;font-variant-numeric:tabular-nums}
+.registerTable tbody tr:nth-child(even) td{background:#fafbfd}
+.registerTable td.registerNp{font-weight:800}
+.registerFoot{display:flex;justify-content:space-between;gap:16px;margin-top:10px;font-size:10px;color:#51607a}
+@media print{
+ html:has(.registerDoc){page:gradesRegister}
+ .report.registerDoc{width:auto;padding:0;box-shadow:none;border-radius:0}
+ .registerPage{page:gradesRegister;break-after:page;border-bottom:0;margin:0;padding:0}
+ .registerHead{margin-bottom:6px}
+ .registerHead img,.registerHead svg{max-height:34px;width:auto}
+ .registerPage:last-of-type{break-after:auto}
+ .registerTable thead{display:table-header-group}
+ .registerTable tr{break-inside:avoid}
+ .registerTable thead th,.registerTable tbody tr:nth-child(even) td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}

@@ -28,6 +28,25 @@ const roster = (group: Group) => group.enrollments.filter(e => e.status === "act
 
 const stamp = (date: Date) => date.toLocaleString("ca", {day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"});
 
+/** Activitats actives del mòdul agrupades per UT (en l'ordre de les UT); les que no són a cap UT van a «Altres activitats». */
+export function courseSections(course: AcademicCourse): {sections: {name: string; activities: Activity[]}[]; ordinary: Activity[]; extraordinary: Activity[]} {
+  const cfg = course.configuration;
+  const ordinary = cfg.activities.filter(a => a.status === "active" && a.session === "ordinaria").sort((x, y) => x.order - y.order);
+  const extraordinary = cfg.activities.filter(a => a.status === "active" && a.session === "extraordinaria").sort((x, y) => x.order - y.order);
+
+  const units = cfg.workUnits.filter(u => u.status === "active").sort((x, y) => x.order - y.order);
+  const placed = new Set<string>();
+  const sections: {name: string; activities: Activity[]}[] = units.map(u => {
+    const list = ordinary.filter(a => u.activityIds.includes(a.id));
+    list.forEach(a => placed.add(a.id));
+    return {name: u.name, activities: list};
+  }).filter(s => s.activities.length > 0);
+  const rest = ordinary.filter(a => !placed.has(a.id));
+  if (rest.length) sections.push({name: sections.length ? "Altres activitats" : "Notes", activities: rest});
+  if (extraordinary.length) sections.push({name: "Extraordinària", activities: extraordinary});
+  return {sections, ordinary, extraordinary};
+}
+
 /**
  * Llibre de càlcul amb les notes introduïdes: un full de resum, un full per UT (alumnes × activitats), un full amb
  * les bonificacions i un full llarg «Totes les notes» pensat per a taules dinàmiques i filtres.
@@ -40,20 +59,7 @@ export function buildGradesWorkbook(course: AcademicCourse, groups: Group[], now
   const used = new Set<string>();
   const title = `${cfg.moduleName} (${cfg.abbreviation}) · ${course.academicYear}`;
   const generated = `Generat el ${stamp(now)} · Dades de l'app RA · Avaluació`;
-  const ordinary = cfg.activities.filter(a => a.status === "active" && a.session === "ordinaria").sort((x, y) => x.order - y.order);
-  const extraordinary = cfg.activities.filter(a => a.status === "active" && a.session === "extraordinaria").sort((x, y) => x.order - y.order);
-
-  // Agrupació d'activitats per UT (en l'ordre de les UT); les que no són a cap UT van a «Altres activitats».
-  const units = cfg.workUnits.filter(u => u.status === "active").sort((x, y) => x.order - y.order);
-  const placed = new Set<string>();
-  const sections: {name: string; activities: Activity[]}[] = units.map(u => {
-    const list = ordinary.filter(a => u.activityIds.includes(a.id));
-    list.forEach(a => placed.add(a.id));
-    return {name: u.name, activities: list};
-  }).filter(s => s.activities.length > 0);
-  const rest = ordinary.filter(a => !placed.has(a.id));
-  if (rest.length) sections.push({name: sections.length ? "Altres activitats" : "Notes", activities: rest});
-  if (extraordinary.length) sections.push({name: "Extraordinària", activities: extraordinary});
+  const {sections, ordinary, extraordinary} = courseSections(course);
 
   const sheets: SheetData[] = [];
 
@@ -157,4 +163,58 @@ export function downloadGradesWorkbook(course: AcademicCourse, groups: Group[]):
   const fileName = workbookFileName(course, groups, now);
   XLSX.writeFile(book, fileName);
   return fileName;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Registre en paper: una taula per grup amb totes les activitats agrupades per UT, repartida en pàgines
+// horitzontals de com a màxim `maxColumns` activitats (una UT només es parteix si no hi cap sola).
+// ---------------------------------------------------------------------------------------------
+
+export interface RegisterColumn {name: string; type: string; weight: string; date: string}
+export interface RegisterUnit {name: string; span: number}
+export interface RegisterRow {name: string; cells: string[]}
+export interface RegisterPage {groupCode: string; groupName: string; units: RegisterUnit[]; columns: RegisterColumn[]; rows: RegisterRow[]; part: number; parts: number}
+export interface Register {title: string; generated: string; pages: RegisterPage[]}
+
+const comma = (value: number) => String(round(value)).replace(".", ",");
+
+export function buildRegister(course: AcademicCourse, groups: Group[], now = new Date(), maxColumns = 14): Register {
+  const cfg = course.configuration;
+  const weights = activityWeights(course);
+  const typeName = (a: Activity) => cfg.activityTypes.find(t => t.id === a.activityTypeId)?.name ?? "";
+  const {sections} = courseSections(course);
+
+  // Reparteix les seccions en blocs de com a màxim `maxColumns` columnes.
+  type Piece = {unit: string; activities: Activity[]};
+  const pieces: Piece[] = [];
+  for (const section of sections) {
+    for (let i = 0; i < section.activities.length; i += maxColumns)
+      pieces.push({unit: i === 0 ? section.name : `${section.name} (cont.)`, activities: section.activities.slice(i, i + maxColumns)});
+  }
+  const blocks: Piece[][] = [];
+  for (const piece of pieces) {
+    const last = blocks.at(-1);
+    if (last && last.reduce((n, p) => n + p.activities.length, 0) + piece.activities.length <= maxColumns) last.push(piece); else blocks.push([piece]);
+  }
+
+  const pages: RegisterPage[] = [];
+  for (const group of groups) {
+    const people = roster(group);
+    const grades = new Map(group.grades.map(g => [`${g.enrollmentId}|${g.activityId}`, g] as const));
+    blocks.forEach((block, index) => {
+      const activities = block.flatMap(p => p.activities);
+      pages.push({
+        groupCode: group.code, groupName: group.name, part: index + 1, parts: blocks.length,
+        units: block.map(p => ({name: p.unit, span: p.activities.length})),
+        columns: activities.map(a => ({name: a.name, type: typeName(a), weight: weights.has(a.id) ? `${comma((weights.get(a.id) ?? 0) * 100)} %` : "", date: a.date ?? ""})),
+        rows: people.map(({enrollment, name}) => ({name, cells: activities.map(a => {
+          const grade = grades.get(`${enrollment.id}|${a.id}`);
+          if (grade?.status === "not_presented") return "NP";
+          const total = totalGrade(grade);
+          return total === null ? "" : comma(total);
+        })}))
+      });
+    });
+  }
+  return {title: `${cfg.moduleName} (${cfg.abbreviation}) · ${course.academicYear}`, generated: `Generat el ${stamp(now)}`, pages};
 }

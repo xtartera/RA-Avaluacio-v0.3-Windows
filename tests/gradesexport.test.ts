@@ -75,3 +75,35 @@ test("noms de full: s'eliminen caràcters prohibits, es retalla a 31 i es fan ú
   assert.equal(sheetName("x".repeat(40), used).length, 31);
   assert.ok(!sheetName("AEA3 Servei d'accés remot (SSH i més)", new Set()).endsWith("("));
 });
+
+test("registre en paper: una pàgina per bloc de columnes, UT agrupades i notes formatades", async () => {
+  const {buildRegister} = await import("../src/controllers/gradesExport.ts");
+  const course = courseWithStudents();
+  const activities = course.configuration.activities.filter(a => a.status === "active" && a.session === "ordinaria").length;
+  const register = buildRegister(course, [course.groups[0]], new Date(2026, 10, 20, 9, 5));
+  assert.match(register.generated, /^Generat el 20\/11\/2026/);
+  const columns = register.pages.reduce((n, p) => n + p.columns.length, 0);
+  assert.ok(columns >= activities, "totes les activitats hi surten");
+  for (const page of register.pages) {
+    assert.ok(page.columns.length <= 14);
+    assert.equal(page.units.reduce((n, u) => n + u.span, 0), page.columns.length);
+    assert.equal(page.rows.length, 3);
+    assert.ok(page.rows.every(r => r.cells.length === page.columns.length));
+  }
+  const first = register.pages[0];
+  assert.deepEqual(first.rows.map(r => r.name), ["Abril, Marta", "Casas, Joan", "Zamora, Pau"]);
+  assert.equal(first.rows[2].cells[0], "7,5");   // 7 + 0,5 de bonificació, amb coma decimal
+  assert.equal(first.rows[0].cells[0], "NP");
+  assert.equal(first.rows[1].cells[0], "");
+});
+
+test("registre en paper: dos grups = pàgines de cadascun; una UT llarga es parteix en més d'una pàgina", async () => {
+  const {buildRegister} = await import("../src/controllers/gradesExport.ts");
+  const course = courseWithStudents();
+  const one = buildRegister(course, [course.groups[0]]).pages.length;
+  assert.equal(buildRegister(course, course.groups).pages.length, one * 2);
+  const narrow = buildRegister(course, [course.groups[0]], new Date(), 3);
+  assert.ok(narrow.pages.length > one);
+  assert.ok(narrow.pages.every(p => p.columns.length <= 3));
+  assert.ok(narrow.pages.some(p => p.units.some(u => u.name.endsWith("(cont.)"))) || narrow.pages.length > one);
+});
