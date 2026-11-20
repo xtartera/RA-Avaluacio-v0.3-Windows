@@ -434,3 +434,9 @@ table.rwxHeat{border-collapse:separate;border-spacing:3px;width:100%}
  .registerTable tr{break-inside:avoid}
  .registerTable thead th,.registerTable tbody tr:nth-child(even) td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+
+/* Menú lateral: subapartats i marca d'entrades que afecten tots els mòduls */
+.navSection{margin:8px 0 2px 2px;font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#7f8fb0}
+.navGlobal{margin-left:auto;display:inline-flex;align-items:center;color:#7f8fb0;opacity:.8}
+nav>button .navGlobal svg,.navSub button .navGlobal svg{width:12px;height:12px}
+.navSub button{text-align:left}
