@@ -30,9 +30,9 @@ export function InitialGroupSummary({db, course, group, mutate, openReport}: {db
     } finally { setBusy(false); }
   };
   const year = course.academicYear.replace(/[^0-9]+/g, "-");
-  const downloadActa = async (kind: "preavaluacio" | "avaluacio1", joint: boolean) => {
+  const downloadActa = async (kind: "preavaluacio" | "avaluacio1" | "avaluacio2", joint: boolean) => {
     const {buildActaDocx, buildJointActaDocx} = await import("../lib/preevaluationDoc");
-    const label = kind === "preavaluacio" ? "preavaluacio" : "1a_avaluacio";
+    const label = kind === "preavaluacio" ? "preavaluacio" : kind === "avaluacio1" ? "1a_avaluacio" : "2a_avaluacio";
     setBusyKey(`${kind}-${joint ? "tots" : "un"}`);
     try { await download(joint ? () => buildJointActaDocx(kind, modules, group.code) : () => buildActaDocx(kind, course, group),
       joint ? `Acta_${label}_tots_els_moduls_${group.code}_${year}.docx` : `Acta_${label}_${course.configuration.abbreviation}_${group.code}_${year}.docx`); } finally { setBusyKey(null); }
@@ -54,6 +54,7 @@ export function InitialGroupSummary({db, course, group, mutate, openReport}: {db
       {([
         {kind: "preavaluacio" as const, title: "Acta de preavaluació", text: "Primers resultats d'activitats: un comentari i un semàfor per alumne, per a la sessió de preavaluació."},
         {kind: "avaluacio1" as const, title: "Acta de la 1a avaluació", text: "Resultats d'aprenentatge: els RA assolits, els que van en curs (amb la nota i el que en falta) i els que cal recuperar, sempre en positiu."},
+        {kind: "avaluacio2" as const, title: "Acta de la 2a avaluació", text: "Resultat determinant: qui supera el mòdul i, si no, quins RA falten i per què. Realista però amb una sortida: la convocatòria extraordinària."},
       ]).map(card => <article className="actaCard" key={card.kind}>
         <div className="actaCardHead"><b><FileText size={18}/></b><div><strong>{card.title}</strong><span className="desc">{card.text}</span></div><span className="actaCardTag">WORD</span></div>
         <div className="actaCardActions">

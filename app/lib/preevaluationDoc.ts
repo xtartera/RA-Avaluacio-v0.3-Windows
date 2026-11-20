@@ -2,6 +2,7 @@ import {AlignmentType, BorderStyle, Document, ImageRun, Packer, PageBreak, Parag
 import {trafficPiePng} from "./trafficPie.ts";
 import {buildJointPreevaluation, buildPreevaluation, type PreevaluationRow} from "../../src/model/preevaluation.ts";
 import {buildFirstEvaluation} from "../../src/model/firstEvaluation.ts";
+import {buildSecondEvaluation} from "../../src/model/secondEvaluation.ts";
 import type {AcademicCourse, Group} from "../../src/model/domain.ts";
 
 const FONT = "Arial";
@@ -11,10 +12,11 @@ const borders = {top: line, bottom: line, left: line, right: line};
 const p = (text: string, opts: {bold?: boolean; size?: number; after?: number} = {}) => new Paragraph({spacing: {after: opts.after ?? 0}, children: [new TextRun({text, bold: opts.bold, size: opts.size ?? 22, font: FONT})]});
 const cell = (children: Paragraph[], width: number, extra: object = {}) => new TableCell({borders, width: {size: width, type: WidthType.DXA}, margins: {top: 80, bottom: 80, left: 100, right: 100}, children, ...extra});
 /** Tipus d'acta: el títol, l'encapçalament dels comentaris i com es generen els comentaris i els semàfors. */
-export type ActaKind = "preavaluacio" | "avaluacio1";
+export type ActaKind = "preavaluacio" | "avaluacio1" | "avaluacio2";
 const KINDS: Record<ActaKind, {title: string; heading: string; docTitle: string; build: (course: AcademicCourse, group: Group) => PreevaluationRow[]}> = {
   preavaluacio: {title: "ACTA DE PREAVALUACIÓ", heading: "Comentaris de la preavaluació:", docTitle: "Acta de preavaluació", build: buildPreevaluation},
   avaluacio1: {title: "ACTA DE LA 1a AVALUACIÓ", heading: "Comentaris de la 1a avaluació:", docTitle: "Acta de la 1a avaluació", build: buildFirstEvaluation},
+  avaluacio2: {title: "ACTA DE LA 2a AVALUACIÓ", heading: "Comentaris de la 2a avaluació:", docTitle: "Acta de la 2a avaluació", build: buildSecondEvaluation},
 };
 const dot = (color: string, size: number) => new TextRun({text: "●", size, color: COLOR[color], font: FONT});
 
