@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Accés · RA · Avaluació</title>
+<style>
+  :root{color-scheme:light dark;--bg:#f4f7fb;--card:#fff;--ink:#14213d;--muted:#66758f;--line:#dbe3ef;--blue:#2f5fb3;--red:#b3262f}
+  @media (prefers-color-scheme:dark){:root{--bg:#0f1830;--card:#17223d;--ink:#e8eefc;--muted:#9fb0cf;--line:#2a3a5e;--blue:#7fa6ee;--red:#ff8a93}}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,"Segoe UI",sans-serif}
+  main{width:min(420px,calc(100% - 32px));background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:0 18px 50px #1d2d4b1f}
+  h1{font-size:20px;margin:0 0 6px}
+  p{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 18px}
+  label{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  input{width:100%;padding:12px 14px;font:inherit;font-size:16px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit}
+  /* Lletra de pas fix i sense gaire espaiat: una clau de 29 caràcters hi ha de cabre sencera, també amb W i M. */
+  #clau{font-family:ui-monospace,Consolas,"Liberation Mono",monospace;font-size:15px;letter-spacing:.01em;padding-right:10px}
+  .show{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:13px;text-transform:none;letter-spacing:0;font-weight:500;cursor:pointer}
+  .show input{width:auto;padding:0}
+  input:focus{outline:2px solid var(--blue);outline-offset:1px}
+  button{margin-top:14px;width:100%;padding:12px;font:inherit;font-weight:700;border:0;border-radius:10px;background:var(--blue);color:#fff;cursor:pointer}
+  button:disabled{opacity:.6;cursor:progress}
+  .error{min-height:20px;margin:12px 0 0;font-size:13px;color:var(--red)}
+  small{display:block;margin-top:16px;color:var(--muted);font-size:12px;line-height:1.5}
+</style>
+</head>
+<body>
+<main>
+  <h1>RA · Avaluació</h1>
+  <p>Aquesta aplicació és d'accés restringit. Escriu la clau personal que t'ha enviat l'administrador.</p>
+  <form id="form" autocomplete="off">
+    <label for="clau">Clau d'accés</label>
+    <input id="clau" name="clau" type="password" autocomplete="off" autocapitalize="characters" spellcheck="false" autofocus required placeholder="XXXX-XXXX-XXXX-…"/>
+    <label class="show"><input type="checkbox" id="mostra"/> Mostra la clau</label>
+    <button id="entra" type="submit">Entra</button>
+    <p class="error" id="error" role="alert" aria-live="polite"></p>
+  </form>
+  <small>Si no en tens, demana-la a l'administrador. La clau és personal: no la comparteixis. Quedarà desada en aquest dispositiu durant un temps.</small>
+</main>
+<script>
+  (function () {
+    var form = document.getElementById("form"), input = document.getElementById("clau"), button = document.getElementById("entra"), error = document.getElementById("error");
+    // Només es torna a camins de dins de l'app (mai a una altra adreça).
+    var target = new URLSearchParams(location.search).get("torna") || "/";
+    if (target.charAt(0) !== "/" || target.charAt(1) === "/" || target.indexOf("\\") !== -1) target = "/";
+    document.getElementById("mostra").addEventListener("change", function (e) { input.type = e.target.checked ? "text" : "password"; });
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      error.textContent = ""; button.disabled = true; button.textContent = "Comprovant…";
+      fetch("/api/entra", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({clau: input.value})})
+        .then(function (response) { return response.json().catch(function () { return {}; }).then(function (data) { return {ok: response.ok, data: data}; }); })
+        .then(function (result) {
+          if (result.ok) { location.replace(target); return; }
+          error.textContent = result.data.error || "No s'ha pogut entrar.";
+          button.disabled = false; button.textContent = "Entra"; input.select();
+        })
+        .catch(function () { error.textContent = "No hi ha connexió amb el servidor."; button.disabled = false; button.textContent = "Entra"; });
+    });
+  })();
+</script>
+</body>
+</html>

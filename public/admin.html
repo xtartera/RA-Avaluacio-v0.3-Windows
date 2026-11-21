@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Administració d'accessos · RA · Avaluació</title>
+<style>
+  :root{color-scheme:light dark;--bg:#f4f7fb;--card:#fff;--ink:#14213d;--muted:#66758f;--line:#dbe3ef;--blue:#2f5fb3;--red:#b3262f;--green:#1d6b48;--amber:#fff4d6}
+  @media (prefers-color-scheme:dark){:root{--bg:#0f1830;--card:#17223d;--ink:#e8eefc;--muted:#9fb0cf;--line:#2a3a5e;--blue:#7fa6ee;--red:#ff8a93;--green:#6fd3a0;--amber:#3d3210}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,"Segoe UI",sans-serif;font-size:14px}
+  main{max-width:980px;margin:0 auto;padding:28px 16px 60px}
+  h1{font-size:22px;margin:0 0 4px} h2{font-size:15px;margin:0 0 10px}
+  .muted{color:var(--muted)} .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:16px 0}
+  input,button{font:inherit} input{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit}
+  button{padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;cursor:pointer;font-weight:600}
+  button.primary{background:var(--blue);border-color:var(--blue);color:#fff} button.danger{color:var(--red)} button:disabled{opacity:.55;cursor:progress}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  table{width:100%;border-collapse:collapse} th,td{text-align:left;padding:9px 8px;border-top:1px solid var(--line);vertical-align:middle}
+  th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-top:0}
+  .tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}
+  .on{background:#dff3e4;color:#1d6b48}.off{background:#f9dcdc;color:#a12f40}
+  .msg{margin:10px 0 0;min-height:20px;color:var(--red)} .ok{color:var(--green)}
+  .keybox{background:var(--amber);border:1px solid #e8c766;border-radius:12px;padding:14px;margin:12px 0}
+  .key{font-family:ui-monospace,Consolas,monospace;font-size:20px;font-weight:700;letter-spacing:.06em;word-break:break-all}
+  textarea{width:100%;min-height:96px;margin-top:8px;padding:8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;font:inherit}
+  .scroll{overflow-x:auto} input.dies{width:70px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Administració d'accessos</h1>
+  <p class="muted">Qui pot entrar a l'app. Només tu has de conèixer la clau d'administrador.</p>
+
+  <section class="card" id="login">
+    <h2>Clau d'administrador</h2>
+    <form class="row" id="loginForm"><input id="adminKey" type="password" autocomplete="off" placeholder="Clau d'administrador" required style="min-width:260px"/><button class="primary" type="submit">Entra</button></form>
+    <p class="msg" id="loginMsg" role="alert"></p>
+  </section>
+
+  <div id="panel" hidden>
+    <section class="card">
+      <h2>Afegir una persona</h2>
+      <form class="row" id="addForm">
+        <input id="addNom" placeholder="Nom (p. ex. Anna Puig)" maxlength="60" required style="min-width:240px"/>
+        <label class="muted">Dies d'accés per dispositiu <input class="dies" id="addDies" type="number" min="1" max="365" placeholder="per defecte" style="width:110px"/></label>
+        <button class="primary" type="submit">Crea i genera la clau</button>
+      </form>
+      <p class="msg" id="addMsg" role="alert"></p>
+      <div id="keyResult"></div>
+    </section>
+
+    <section class="card">
+      <h2>Persones amb accés</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>Nom</th><th>Estat</th><th>Dies</th><th>Alta</th><th>Últim accés</th><th>Accions</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+      <p class="muted" id="empty" hidden>Encara no hi ha ningú. Afegeix la primera persona (tu mateix, per exemple).</p>
+      <p class="msg" id="listMsg" role="alert"></p>
+    </section>
+
+    <section class="card">
+      <h2>Durada per defecte</h2>
+      <p class="muted">Els dies que dura l'accés d'un dispositiu abans de tornar a demanar la clau. Es pot canviar per persona a la taula.</p>
+      <form class="row" id="daysForm"><input class="dies" id="defaultDays" type="number" min="1" max="365" required/> <span class="muted">dies</span> <button type="submit">Desa</button></form>
+      <p class="msg" id="daysMsg" role="alert"></p>
+    </section>
+  </div>
+</main>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var key = sessionStorage.getItem("adminKey") || "";
+  var state = {dies: 30, persones: []};
+
+  function api(method, body) {
+    return fetch("/api/admin", {method: method, headers: {"content-type": "application/json", "x-admin-key": key}, body: body ? JSON.stringify(body) : undefined})
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (data) { if (!r.ok) throw new Error(data.error || "Error " + r.status); return data; }); });
+  }
+  function fmt(iso) { return iso ? new Date(iso).toLocaleString("ca", {day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"}) : "—"; }
+  function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
+  function say(id, text, ok) { var e = $(id); e.textContent = text || ""; e.className = "msg" + (ok ? " ok" : ""); }
+
+  function load() {
+    return api("GET").then(function (data) {
+      state = data; $("login").hidden = true; $("panel").hidden = false; $("defaultDays").value = data.dies; render();
+    });
+  }
+
+  function render() {
+    var body = $("rows"); body.textContent = "";
+    $("empty").hidden = state.persones.length > 0;
+    state.persones.forEach(function (p) {
+      var tr = document.createElement("tr");
+      tr.appendChild(el("td", p.nom));
+      var st = el("td"); st.appendChild(el("span", p.actiu ? "Actiu" : "Revocat", "tag " + (p.actiu ? "on" : "off"))); tr.appendChild(st);
+      var dies = el("td"), input = el("input", undefined, "dies"); input.type = "number"; input.min = 1; input.max = 365; input.placeholder = String(state.dies); input.value = p.dies == null ? "" : p.dies; input.title = "Buit = el valor per defecte";
+      input.addEventListener("change", function () { run(function () { return api("PATCH", {id: p.id, dies: input.value === "" ? null : Number(input.value)}); }, "listMsg"); });
+      dies.appendChild(input); tr.appendChild(dies);
+      tr.appendChild(el("td", fmt(p.creat))); tr.appendChild(el("td", fmt(p.ultimAcces)));
+      var actions = el("td", undefined, "row");
+      var toggle = el("button", p.actiu ? "Revoca" : "Activa"); toggle.addEventListener("click", function () { run(function () { return api("PATCH", {id: p.id, actiu: !p.actiu}); }, "listMsg"); });
+      var regen = el("button", "Nova clau"); regen.addEventListener("click", function () {
+        if (!confirm("Es generarà una clau nova per a " + p.nom + " i l'antiga deixarà de servir (les sessions obertes continuen). Continuar?")) return;
+        api("POST", {accio: "regenera", id: p.id}).then(function (r) { showKey(p.nom, r.clau, p.dies == null ? state.dies : p.dies); }).catch(function (e) { say("listMsg", e.message); });
+      });
+      var del = el("button", "Elimina", "danger"); del.addEventListener("click", function () {
+        if (!confirm("Eliminar " + p.nom + "? Perdrà l'accés a l'instant i no es pot desfer.")) return;
+        run(function () { return api("DELETE", {id: p.id}); }, "listMsg");
+      });
+      actions.appendChild(toggle); actions.appendChild(regen); actions.appendChild(del); tr.appendChild(actions);
+      body.appendChild(tr);
+    });
+  }
+
+  function run(action, msgId) { say(msgId, ""); return action().then(load).catch(function (e) { say(msgId, e.message); }); }
+
+  function showKey(nom, clau, dies) {
+    var box = $("keyResult"); box.textContent = "";
+    var wrap = el("div", undefined, "keybox");
+    wrap.appendChild(el("strong", "Clau de " + nom + " (només es mostra ara; si la perds, en genera una de nova)"));
+    wrap.appendChild(el("div", clau, "key"));
+    var text = "Hola " + nom.split(" ")[0] + "! Aquesta és la teva clau personal per entrar a RA · Avaluació:\n\n" + clau + "\n\nEntra a " + location.origin + " i escriu-la quan te la demani. Funcionarà " + dies + " dies en cada dispositiu. És personal: no la comparteixis amb ningú.";
+    var area = el("textarea", text); area.readOnly = true; wrap.appendChild(area);
+    var row = el("div", undefined, "row"); row.style.marginTop = "8px";
+    var copy = el("button", "Copia el missatge", "primary"); copy.addEventListener("click", function () { navigator.clipboard.writeText(text).then(function () { copy.textContent = "Copiat ✓"; }); });
+    var wa = document.createElement("a"); wa.href = "https://wa.me/?text=" + encodeURIComponent(text); wa.target = "_blank"; wa.rel = "noopener"; wa.appendChild(el("button", "Obre WhatsApp"));
+    row.appendChild(copy); row.appendChild(wa); wrap.appendChild(row); box.appendChild(wrap);
+    load();
+  }
+
+  $("loginForm").addEventListener("submit", function (e) {
+    e.preventDefault(); key = $("adminKey").value; say("loginMsg", "");
+    load().then(function () { sessionStorage.setItem("adminKey", key); }).catch(function (err) { key = ""; say("loginMsg", err.message); });
+  });
+  $("addForm").addEventListener("submit", function (e) {
+    e.preventDefault(); say("addMsg", ""); $("keyResult").textContent = "";
+    var dies = $("addDies").value === "" ? null : Number($("addDies").value), nom = $("addNom").value;
+    api("POST", {nom: nom, dies: dies}).then(function (r) { $("addNom").value = ""; $("addDies").value = ""; showKey(r.nom, r.clau, r.dies == null ? state.dies : r.dies); }).catch(function (err) { say("addMsg", err.message); });
+  });
+  $("daysForm").addEventListener("submit", function (e) {
+    e.preventDefault(); say("daysMsg", "");
+    api("PUT", {dies: Number($("defaultDays").value)}).then(function () { say("daysMsg", "Desat.", true); return load(); }).catch(function (err) { say("daysMsg", err.message); });
+  });
+
+  if (key) load().catch(function () { key = ""; sessionStorage.removeItem("adminKey"); });
+})();
+</script>
+</body>
+</html>
