@@ -1,5 +1,5 @@
-import {login, type GateEnv} from "../src/gate/handlers.ts";
-import {edgeConfigStore} from "../src/gate/store.ts";
+import {edgeConfigStore, login} from "../gate-dist/gate.mjs";
+import type {GateEnv} from "../gate-dist/gate.mjs";
 
 const store = edgeConfigStore(process.env);
 

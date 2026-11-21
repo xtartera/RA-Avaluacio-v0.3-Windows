@@ -11,10 +11,10 @@
     "build": "vite build",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
-    "porter:local": "vite build && node --experimental-strip-types scripts/porter-local.ts"
+    "porter:local": "vite build && node --experimental-strip-types scripts/porter-local.ts",
+    "gate:build": "node scripts/build-gate.mjs"
   },
   "dependencies": {
-    "@vercel/functions": "^3.11.3",
     "docx": "^9.14.0",
     "jszip": "^3.10.2",
     "lucide-react": "^0.468.0",
