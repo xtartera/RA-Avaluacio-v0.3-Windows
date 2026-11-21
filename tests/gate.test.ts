@@ -204,8 +204,9 @@ test("Global Config: llegeix amb la clau a la capçalera (com el SDK de Vercel),
   const patch = calls.at(-1)!;
   assert.equal(patch.url, "https://api.vercel.com/v1/edge-config/ecfg_abc/items?teamId=team_9");
   assert.equal(header(patch, "authorization"), "Bearer api");
-  assert.deepEqual(JSON.parse(patch.init!.body as string), {items: [{operation: "upsert", key: "dies", value: 7}, {operation: "delete", key: "p_1"}]});
-  await store.readAll(); assert.equal(reads, 3, "escriure invalida la memòria");
+  assert.deepEqual(JSON.parse(patch.init!.body as string), {items: [{operation: "update", key: "dies", value: 7}, {operation: "delete", key: "p_1"}]}, "«upsert» sobre una clau que existeix s'envia com a update");
+  assert.equal(reads, 3, "abans d'escriure es llegeix què hi ha");
+  await store.readAll(); assert.equal(reads, 4, "escriure invalida la memòria");
 
   // Magatzem antic: variable EDGE_CONFIG amb el domini edge-config.vercel.com; GLOBAL_CONFIG té prioritat si hi són les dues
   const old = edgeConfigStore({EDGE_CONFIG: "https://edge-config.vercel.com/ecfg_old?token=t-old"}, fakeFetch);
@@ -276,33 +277,51 @@ test("només el servidor local es pot saltar la comprovació: a Vercel el senyal
   assert.ok(!weakAllowed({...strongEnv}), "sense el senyal, no es permet");
 });
 
-test("escriptura al Global Config: equip per nom o per identificador, prova l'altra adreça si dona 404 i mostra el missatge de Vercel", async () => {
+test("escriptura al Global Config: create/update segons existeix la clau, equip per nom o identificador, doble adreça i missatge de Vercel", async () => {
   const connection = {GLOBAL_CONFIG: "https://global-config.vercel.com/ecfg_abc?token=t", VERCEL_API_TOKEN: "api"};
-  const op = [{operation: "upsert" as const, key: "dies", value: 7}];
-  const urls: string[] = [];
-  const answer = (status: number, message?: string) => (async (url: string) => { urls.push(url); return new Response(JSON.stringify(message ? {error: {code: "x", message}} : {}), {status}); }) as unknown as typeof fetch;
+  const upsert = (key: string) => [{operation: "upsert" as const, key, value: 7}];
+  const patches: {url: string; body: {items: {operation: string; key: string}[]}}[] = [];
+  /** El magatzem simulat té la clau «dies»; les PATCH responen amb l'estat indicat (o amb una llista d'estats, una per intent). */
+  const fetcher = (status: number | number[], message?: string) => {
+    const statuses = [status].flat();
+    return (async (url: string, init?: RequestInit) => {
+      if (init?.method !== "PATCH") return new Response(JSON.stringify({dies: 30}), {status: 200});
+      patches.push({url, body: JSON.parse(init.body as string)});
+      const code = statuses[Math.min(patches.length - 1 - patchBase, statuses.length - 1)];
+      return new Response(JSON.stringify(code >= 400 && message ? {error: {code: "x", message}} : {}), {status: code});
+    }) as unknown as typeof fetch;
+  };
+  let patchBase = 0;
+  const run = async (env: Record<string, string>, fetchFn: typeof fetch, key = "dies") => { patchBase = patches.length; return edgeConfigStore({...connection, ...env}, fetchFn).apply(upsert(key)); };
 
-  // per nom de l'equip
-  await edgeConfigStore({...connection, VERCEL_TEAM_SLUG: "xtarteras-projects"}, answer(200)).apply(op);
-  assert.equal(urls.at(-1), "https://api.vercel.com/v1/edge-config/ecfg_abc/items?slug=xtarteras-projects");
-  // l'identificador té prioritat sobre el nom
-  await edgeConfigStore({...connection, VERCEL_TEAM_ID: "team_1", VERCEL_TEAM_SLUG: "x"}, answer(200)).apply(op);
-  assert.match(urls.at(-1)!, /\?teamId=team_1$/);
+  // «upsert» → create si la clau és nova i update si ja existeix
+  await run({}, fetcher(200), "p_nou");
+  assert.equal(patches.at(-1)!.body.items[0].operation, "create");
+  await run({}, fetcher(200), "dies");
+  assert.equal(patches.at(-1)!.body.items[0].operation, "update");
+
+  // equip per nom o per identificador (l'identificador té prioritat)
+  await run({VERCEL_TEAM_SLUG: "xtarteras-projects"}, fetcher(200));
+  assert.equal(patches.at(-1)!.url, "https://api.vercel.com/v1/edge-config/ecfg_abc/items?slug=xtarteras-projects");
+  await run({VERCEL_TEAM_ID: "team_1", VERCEL_TEAM_SLUG: "x"}, fetcher(200));
+  assert.match(patches.at(-1)!.url, /\?teamId=team_1$/);
 
   // 404 a l'adreça antiga: prova la nova i, si funciona, no falla
-  urls.length = 0;
-  let n = 0;
-  const second = (async (url: string) => { urls.push(url); return new Response("{}", {status: n++ === 0 ? 404 : 200}); }) as unknown as typeof fetch;
-  await edgeConfigStore(connection, second).apply(op);
-  assert.deepEqual(urls, ["https://api.vercel.com/v1/edge-config/ecfg_abc/items", "https://api.vercel.com/v1/global-config/ecfg_abc/items"]);
+  const before = patches.length;
+  await run({}, fetcher([404, 200]));
+  assert.deepEqual(patches.slice(before).map(p => p.url), ["https://api.vercel.com/v1/edge-config/ecfg_abc/items", "https://api.vercel.com/v1/global-config/ecfg_abc/items"]);
 
   // 404 a les dues: l'error porta els dos estats i el missatge de Vercel
-  urls.length = 0;
-  await assert.rejects(edgeConfigStore(connection, answer(404, "Edge Config not found")).apply(op), /\(404: Edge Config not found \/ 404: Edge Config not found\)/);
-  assert.equal(urls.length, 2);
+  const failedFrom = patches.length;
+  await assert.rejects(run({}, fetcher(404, "Edge Config Item not found")), /\(404: Edge Config Item not found \/ 404: Edge Config Item not found\)/);
+  assert.equal(patches.length - failedFrom, 2);
 
   // un error que no és 404 no es reintenta
-  urls.length = 0;
-  await assert.rejects(edgeConfigStore(connection, answer(403, "Not authorized")).apply(op), /\(403: Not authorized\)/);
-  assert.equal(urls.length, 1);
+  const forbiddenFrom = patches.length;
+  await assert.rejects(run({}, fetcher(403, "Not authorized")), /\(403: Not authorized\)/);
+  assert.equal(patches.length - forbiddenFrom, 1);
+
+  // eliminar no es toca: es deixa tal com és
+  await edgeConfigStore(connection, fetcher(200)).apply([{operation: "delete", key: "p_1"}]);
+  assert.deepEqual(patches.at(-1)!.body.items, [{operation: "delete", key: "p_1"}]);
 });

@@ -41,15 +41,19 @@ export function edgeConfigStore(env: Env, fetchFn: typeof fetch = fetch, ttlMs =
     if (!id || !token) throw new Error("La cadena de connexió del Global Config no és vàlida (falta l'identificador o la clau).");
     return {base: `${url.origin}/${id}`, token, id: env.GLOBAL_CONFIG_ID || env.EDGE_CONFIG_ID || id};
   };
+  /** Llegeix tots els elements (sense fer servir la memòria). */
+  const fetchItems = async (): Promise<Record<string, unknown>> => {
+    const {base, token} = connection();
+    const response = await fetchFn(`${base}/items?version=1`, {headers: {authorization: `Bearer ${token}`, "cache-control": "no-cache"}});
+    if (!response.ok) throw new Error(`No s'ha pogut llegir el Global Config (${response.status}).`);
+    const items = (await response.json()) as Record<string, unknown>;
+    cache = {at: clock(), items};
+    return items;
+  };
   return {
     async readAll() {
       if (cache && clock() - cache.at < ttlMs) return cache.items;
-      const {base, token} = connection();
-      const response = await fetchFn(`${base}/items?version=1`, {headers: {authorization: `Bearer ${token}`, "cache-control": "no-cache"}});
-      if (!response.ok) throw new Error(`No s'ha pogut llegir el Global Config (${response.status}).`);
-      const items = (await response.json()) as Record<string, unknown>;
-      cache = {at: clock(), items};
-      return items;
+      return fetchItems();
     },
     async apply(ops) {
       if (!ops.length) return;
@@ -60,10 +64,14 @@ export function edgeConfigStore(env: Env, fetchFn: typeof fetch = fetch, ttlMs =
       // Vercel ha canviat el nom d'Edge Config a Global Config: es prova l'adreça antiga i, si no la troba (404), la nova.
       const urls = [`https://api.vercel.com/v1/edge-config/${id}/items${scope}`, `https://api.vercel.com/v1/global-config/${id}/items${scope}`];
       const failures: string[] = [];
+      // L'API en lot rebutja «upsert» amb «Edge Config Item not found»: es tradueix a create (clau nova) o update (clau existent),
+      // segons el que hi ha ara mateix, que és l'únic que sempre accepta.
+      const existing = await fetchItems();
+      const items = ops.map(op => op.operation === "upsert" ? {operation: op.key in existing ? "update" : "create", key: op.key, value: op.value} : op);
       cache = null;
       for (const url of urls) {
         const response = await fetchFn(url, {
-          method: "PATCH", headers: {authorization: `Bearer ${env.VERCEL_API_TOKEN}`, "content-type": "application/json"}, body: JSON.stringify({items: ops})
+          method: "PATCH", headers: {authorization: `Bearer ${env.VERCEL_API_TOKEN}`, "content-type": "application/json"}, body: JSON.stringify({items})
         });
         if (response.ok) return;
         failures.push(`${response.status}${await apiMessage(response)}`);

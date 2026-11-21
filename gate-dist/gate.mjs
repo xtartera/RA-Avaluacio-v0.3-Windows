@@ -291,15 +291,18 @@ function edgeConfigStore(env, fetchFn = fetch, ttlMs = 4e3, clock = Date.now) {
     if (!id || !token) throw new Error("La cadena de connexió del Global Config no és vàlida (falta l'identificador o la clau).");
     return { base: `${url.origin}/${id}`, token, id: env.GLOBAL_CONFIG_ID || env.EDGE_CONFIG_ID || id };
   };
+  const fetchItems = async () => {
+    const { base, token } = connection();
+    const response = await fetchFn(`${base}/items?version=1`, { headers: { authorization: `Bearer ${token}`, "cache-control": "no-cache" } });
+    if (!response.ok) throw new Error(`No s'ha pogut llegir el Global Config (${response.status}).`);
+    const items = await response.json();
+    cache = { at: clock(), items };
+    return items;
+  };
   return {
     async readAll() {
       if (cache && clock() - cache.at < ttlMs) return cache.items;
-      const { base, token } = connection();
-      const response = await fetchFn(`${base}/items?version=1`, { headers: { authorization: `Bearer ${token}`, "cache-control": "no-cache" } });
-      if (!response.ok) throw new Error(`No s'ha pogut llegir el Global Config (${response.status}).`);
-      const items = await response.json();
-      cache = { at: clock(), items };
-      return items;
+      return fetchItems();
     },
     async apply(ops) {
       if (!ops.length) return;
@@ -308,12 +311,14 @@ function edgeConfigStore(env, fetchFn = fetch, ttlMs = 4e3, clock = Date.now) {
       const scope = env.VERCEL_TEAM_ID ? `?teamId=${encodeURIComponent(env.VERCEL_TEAM_ID)}` : env.VERCEL_TEAM_SLUG ? `?slug=${encodeURIComponent(env.VERCEL_TEAM_SLUG)}` : "";
       const urls = [`https://api.vercel.com/v1/edge-config/${id}/items${scope}`, `https://api.vercel.com/v1/global-config/${id}/items${scope}`];
       const failures = [];
+      const existing = await fetchItems();
+      const items = ops.map((op) => op.operation === "upsert" ? { operation: op.key in existing ? "update" : "create", key: op.key, value: op.value } : op);
       cache = null;
       for (const url of urls) {
         const response = await fetchFn(url, {
           method: "PATCH",
           headers: { authorization: `Bearer ${env.VERCEL_API_TOKEN}`, "content-type": "application/json" },
-          body: JSON.stringify({ items: ops })
+          body: JSON.stringify({ items })
         });
         if (response.ok) return;
         failures.push(`${response.status}${await apiMessage(response)}`);
