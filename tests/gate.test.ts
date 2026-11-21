@@ -275,3 +275,34 @@ test("només el servidor local es pot saltar la comprovació: a Vercel el senyal
   assert.equal((await adminWith(onVercel, "admin-local")).status, 503);
   assert.ok(!weakAllowed({...strongEnv}), "sense el senyal, no es permet");
 });
+
+test("escriptura al Global Config: equip per nom o per identificador, prova l'altra adreça si dona 404 i mostra el missatge de Vercel", async () => {
+  const connection = {GLOBAL_CONFIG: "https://global-config.vercel.com/ecfg_abc?token=t", VERCEL_API_TOKEN: "api"};
+  const op = [{operation: "upsert" as const, key: "dies", value: 7}];
+  const urls: string[] = [];
+  const answer = (status: number, message?: string) => (async (url: string) => { urls.push(url); return new Response(JSON.stringify(message ? {error: {code: "x", message}} : {}), {status}); }) as unknown as typeof fetch;
+
+  // per nom de l'equip
+  await edgeConfigStore({...connection, VERCEL_TEAM_SLUG: "xtarteras-projects"}, answer(200)).apply(op);
+  assert.equal(urls.at(-1), "https://api.vercel.com/v1/edge-config/ecfg_abc/items?slug=xtarteras-projects");
+  // l'identificador té prioritat sobre el nom
+  await edgeConfigStore({...connection, VERCEL_TEAM_ID: "team_1", VERCEL_TEAM_SLUG: "x"}, answer(200)).apply(op);
+  assert.match(urls.at(-1)!, /\?teamId=team_1$/);
+
+  // 404 a l'adreça antiga: prova la nova i, si funciona, no falla
+  urls.length = 0;
+  let n = 0;
+  const second = (async (url: string) => { urls.push(url); return new Response("{}", {status: n++ === 0 ? 404 : 200}); }) as unknown as typeof fetch;
+  await edgeConfigStore(connection, second).apply(op);
+  assert.deepEqual(urls, ["https://api.vercel.com/v1/edge-config/ecfg_abc/items", "https://api.vercel.com/v1/global-config/ecfg_abc/items"]);
+
+  // 404 a les dues: l'error porta els dos estats i el missatge de Vercel
+  urls.length = 0;
+  await assert.rejects(edgeConfigStore(connection, answer(404, "Edge Config not found")).apply(op), /\(404: Edge Config not found \/ 404: Edge Config not found\)/);
+  assert.equal(urls.length, 2);
+
+  // un error que no és 404 no es reintenta
+  urls.length = 0;
+  await assert.rejects(edgeConfigStore(connection, answer(403, "Not authorized")).apply(op), /\(403: Not authorized\)/);
+  assert.equal(urls.length, 1);
+});

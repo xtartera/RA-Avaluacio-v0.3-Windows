@@ -266,6 +266,15 @@ async function admin(request, deps) {
     return json({ error: error instanceof Error ? error.message : "Error intern." }, 500);
   }
 }
+async function apiMessage(response) {
+  try {
+    const body = await response.clone().json();
+    const text = body.error?.message ?? body.error?.code;
+    return text ? `: ${String(text).slice(0, 160)}` : "";
+  } catch {
+    return "";
+  }
+}
 function edgeConfigStore(env, fetchFn = fetch, ttlMs = 4e3, clock = Date.now) {
   let cache = null;
   const connection = () => {
@@ -296,14 +305,21 @@ function edgeConfigStore(env, fetchFn = fetch, ttlMs = 4e3, clock = Date.now) {
       if (!ops.length) return;
       if (!env.VERCEL_API_TOKEN) throw new Error("Falta la variable VERCEL_API_TOKEN (necessària per escriure al Global Config).");
       const { id } = connection();
-      const team = env.VERCEL_TEAM_ID ? `?teamId=${encodeURIComponent(env.VERCEL_TEAM_ID)}` : "";
-      const response = await fetchFn(`https://api.vercel.com/v1/edge-config/${id}/items${team}`, {
-        method: "PATCH",
-        headers: { authorization: `Bearer ${env.VERCEL_API_TOKEN}`, "content-type": "application/json" },
-        body: JSON.stringify({ items: ops })
-      });
+      const scope = env.VERCEL_TEAM_ID ? `?teamId=${encodeURIComponent(env.VERCEL_TEAM_ID)}` : env.VERCEL_TEAM_SLUG ? `?slug=${encodeURIComponent(env.VERCEL_TEAM_SLUG)}` : "";
+      const urls = [`https://api.vercel.com/v1/edge-config/${id}/items${scope}`, `https://api.vercel.com/v1/global-config/${id}/items${scope}`];
+      const failures = [];
       cache = null;
-      if (!response.ok) throw new Error(`No s'ha pogut escriure al Global Config (${response.status}).`);
+      for (const url of urls) {
+        const response = await fetchFn(url, {
+          method: "PATCH",
+          headers: { authorization: `Bearer ${env.VERCEL_API_TOKEN}`, "content-type": "application/json" },
+          body: JSON.stringify({ items: ops })
+        });
+        if (response.ok) return;
+        failures.push(`${response.status}${await apiMessage(response)}`);
+        if (response.status !== 404) break;
+      }
+      throw new Error(`No s'ha pogut escriure al Global Config (${failures.join(" / ")}).`);
     }
   };
 }

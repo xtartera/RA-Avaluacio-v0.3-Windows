@@ -10,6 +10,17 @@ export interface GateStore {
 
 type Env = Record<string, string | undefined>;
 
+/** Missatge que retorna l'API de Vercel en un error (p. ex. «: Edge Config not found»); mai no conté claus. */
+async function apiMessage(response: Response): Promise<string> {
+  try {
+    const body = (await response.clone().json()) as {error?: {message?: string; code?: string}};
+    const text = body.error?.message ?? body.error?.code;
+    return text ? `: ${String(text).slice(0, 160)}` : "";
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Vercel ha canviat el nom d'Edge Config a «Global Config». Els magatzems nous s'enllacen amb la variable `GLOBAL_CONFIG`
  * (domini global-config.vercel.com) i els antics amb `EDGE_CONFIG` (edge-config.vercel.com); s'accepten les dues.
@@ -44,12 +55,21 @@ export function edgeConfigStore(env: Env, fetchFn: typeof fetch = fetch, ttlMs =
       if (!ops.length) return;
       if (!env.VERCEL_API_TOKEN) throw new Error("Falta la variable VERCEL_API_TOKEN (necessària per escriure al Global Config).");
       const {id} = connection();
-      const team = env.VERCEL_TEAM_ID ? `?teamId=${encodeURIComponent(env.VERCEL_TEAM_ID)}` : "";
-      const response = await fetchFn(`https://api.vercel.com/v1/edge-config/${id}/items${team}`, {
-        method: "PATCH", headers: {authorization: `Bearer ${env.VERCEL_API_TOKEN}`, "content-type": "application/json"}, body: JSON.stringify({items: ops})
-      });
+      // L'equip del magatzem: per identificador (VERCEL_TEAM_ID, «team_…») o pel nom (VERCEL_TEAM_SLUG, el de l'adreça de Vercel).
+      const scope = env.VERCEL_TEAM_ID ? `?teamId=${encodeURIComponent(env.VERCEL_TEAM_ID)}` : env.VERCEL_TEAM_SLUG ? `?slug=${encodeURIComponent(env.VERCEL_TEAM_SLUG)}` : "";
+      // Vercel ha canviat el nom d'Edge Config a Global Config: es prova l'adreça antiga i, si no la troba (404), la nova.
+      const urls = [`https://api.vercel.com/v1/edge-config/${id}/items${scope}`, `https://api.vercel.com/v1/global-config/${id}/items${scope}`];
+      const failures: string[] = [];
       cache = null;
-      if (!response.ok) throw new Error(`No s'ha pogut escriure al Global Config (${response.status}).`);
+      for (const url of urls) {
+        const response = await fetchFn(url, {
+          method: "PATCH", headers: {authorization: `Bearer ${env.VERCEL_API_TOKEN}`, "content-type": "application/json"}, body: JSON.stringify({items: ops})
+        });
+        if (response.ok) return;
+        failures.push(`${response.status}${await apiMessage(response)}`);
+        if (response.status !== 404) break; // només es prova l'altra adreça si aquesta diu «no trobat»
+      }
+      throw new Error(`No s'ha pogut escriure al Global Config (${failures.join(" / ")}).`);
     }
   };
 }
